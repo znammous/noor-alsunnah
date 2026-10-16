@@ -3,39 +3,185 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script>
+    // links shared before the landing page existed (…/#/h/b1) belong to the app
+    const toApp = () => { if (location.hash.startsWith("#/")) location.replace("app.html" + location.hash); };
+    toApp();
+    addEventListener("hashchange", toApp);
+  </script>
   <title>نور السنة</title>
-  <meta name="description" content="أداة مفتوحة لدراسة أسانيد الصحيحين: شجرة الرواة، طرق الحديث، المدار، وتراجم الرواة.">
+  <meta name="description" content="نور السنة: أداة مجانية مفتوحة لدراسة أسانيد صحيح البخاري وصحيح مسلم، بشجرة الرواة لكل حديث، والمدار والمتابعات والشواهد، وتراجم الرواة وأقوال أئمة الجرح والتعديل.">
+  <meta property="og:title" content="نور السنة — دراسة أسانيد الصحيحين">
+  <meta property="og:description" content="شجرة الرواة لكل حديث، وطرقه ومداره، وتراجم رجاله. مجانًا بلا إعلانات ولا تسجيل.">
+  <meta property="og:image" content="https://znammous.github.io/noor-alsunnah/assets/og.jpg">
+  <meta property="og:type" content="website">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cg fill='%231d6b57'%3E%3Ccircle cx='16' cy='5' r='3.5'/%3E%3Ccircle cx='8' cy='16' r='3.5'/%3E%3Ccircle cx='24' cy='16' r='3.5'/%3E%3Ccircle cx='5' cy='27' r='3.5'/%3E%3Ccircle cx='16' cy='27' r='3.5'/%3E%3Ccircle cx='27' cy='27' r='3.5'/%3E%3C/g%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="landing.css">
 </head>
 <body>
-  <header class="topbar">
-    <a href="#/" class="brand">
-      <svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="5" r="3"/><circle cx="8" cy="16" r="3"/><circle cx="24" cy="16" r="3"/><circle cx="5" cy="27" r="3"/><circle cx="16" cy="27" r="3"/><circle cx="27" cy="27" r="3"/><path d="M16 8 8 13M16 8l8 5M8 19l-3 5M8 19l8 5M24 19l-8 5M24 19l3 5" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
-      <span>نور السنة</span>
-    </a>
-    <nav class="nav">
-      <a href="#/" data-nav="home">المؤشرات</a>
-      <a href="#/book/bukhari" data-nav="bukhari">صحيح البخاري</a>
-      <a href="#/book/muslim" data-nav="muslim">صحيح مسلم</a>
-      <a href="#/narrators" data-nav="narrators">الرواة</a>
-      <a href="#/about" data-nav="about">عن المشروع</a>
-    </nav>
-    <form class="search" id="searchForm" role="search">
-      <input id="q" type="search" placeholder="ابحث في متن الحديث أو اسم راوٍ…" autocomplete="off">
-    </form>
-    <button class="theme" id="themeBtn" title="الوضع الليلي" aria-label="تبديل الوضع">◐</button>
+  <header class="nav">
+    <div class="wrap nav-in">
+      <a href="./" class="brand"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 8 8 13M16 8l8 5M8 19l-3 5M8 19l8 5M24 19l-8 5M24 19l3 5"/><circle cx="16" cy="5" r="3"/><circle cx="8" cy="16" r="3"/><circle cx="24" cy="16" r="3"/><circle cx="5" cy="27" r="3"/><circle cx="16" cy="27" r="3"/><circle cx="27" cy="27" r="3"/></svg><span>نور السنة</span></a>
+      <nav class="links">
+        <a href="#features">المزايا</a>
+        <a href="#how">طريقة الاستخدام</a>
+        <a href="#method">المنهج</a>
+        <a href="#contact">تواصل</a>
+      </nav>
+      <a class="btn gold sm" href="app.html">افتح الأداة</a>
+    </div>
   </header>
-  <main id="app" class="app"><div class="loading">جارٍ التحميل…</div></main>
-  <footer class="foot">
-    مشروع وقفي مفتوح لخدمة السنة النبوية · البيانات من مصادر مفتوحة (انظر <a href="#/about">عن المشروع</a>) · الأحكام المعروضة منقولة عن أهل العلم والأداة مساعِدة للباحث لا تُغني عن النظر.<br>للاقتراحات أو الإبلاغ عن خطأ: <a href="mailto:zuhair.nammous@gmail.com">zuhair.nammous@gmail.com</a>
-  </footer>
-  <script src="vendor/cytoscape.min.js"></script>
-  <script src="vendor/dagre.min.js"></script>
-  <script src="vendor/cytoscape-dagre.js"></script>
-  <script src="app.js"></script>
+
+  <section class="hero">
+    <div class="wrap hero-in">
+      <div class="hero-text">
+        <span class="kicker">مشروع وقفي مفتوح لخدمة السنة النبوية</span>
+        <h1>نور السنة</h1>
+        <p class="tag">اعرف كيف وصلك الحديث النبوي:<br><b>رواته، وطرقه، ومداره، وأقوال الأئمة في رجاله</b></p>
+        <p class="desc">أداة مجانية لدراسة أسانيد <b>صحيح البخاري</b> و<b>صحيح مسلم</b>، تعرض لكل حديث شجرة رواته من النبي ﷺ إلى صاحب الكتاب.</p>
+        <form class="search" id="search" role="search">
+          <input id="q" type="search" placeholder="ابحث عن حديث أو راوٍ… مثل: إنما الأعمال بالنيات" autocomplete="off">
+          <button class="btn gold" type="submit">ابحث</button>
+        </form>
+        <div class="cta">
+          <a class="btn gold" href="app.html">ابدأ الاستكشاف</a>
+          <a class="btn ghost" href="app.html#/h/b1">جرّب حديث «إنما الأعمال بالنيات»</a>
+        </div>
+      </div>
+      <div class="hero-art" aria-hidden="true">
+        <svg viewBox="0 0 420 460" class="tree">
+          <g class="edges">
+            <path d="M210 44 V110"/><path d="M210 140 V200"/>
+            <path d="M210 230 C210 260 110 260 110 290"/><path d="M210 230 V290"/><path d="M210 230 C210 260 310 260 310 290"/>
+            <path d="M110 320 C110 350 50 350 50 380"/><path d="M110 320 C110 350 130 350 130 380"/>
+            <path d="M210 320 V380"/>
+            <path d="M310 320 C310 350 290 350 290 380"/><path d="M310 320 C310 350 370 350 370 380"/>
+            <path d="M50 410 C50 425 130 425 130 436"/><path d="M130 410 V436"/><path d="M210 410 C210 425 130 425 130 436"/>
+            <path d="M290 410 V436"/><path d="M370 410 C370 425 290 425 290 436"/>
+          </g>
+          <g class="nodes">
+            <rect class="n nabi" x="160" y="14" width="100" height="30" rx="10"/><text x="210" y="34">النبي ﷺ</text>
+            <rect class="n sahabi" x="165" y="110" width="90" height="30" rx="10"/><text x="210" y="130">صحابي</text>
+            <rect class="n madar" x="160" y="200" width="100" height="30" rx="10"/><text x="210" y="220">المدار</text>
+            <rect class="n" x="75" y="290" width="70" height="30" rx="10"/><rect class="n" x="175" y="290" width="70" height="30" rx="10"/><rect class="n" x="275" y="290" width="70" height="30" rx="10"/>
+            <rect class="n" x="20" y="380" width="60" height="30" rx="10"/><rect class="n" x="100" y="380" width="60" height="30" rx="10"/><rect class="n" x="180" y="380" width="60" height="30" rx="10"/>
+            <rect class="n" x="260" y="380" width="60" height="30" rx="10"/><rect class="n" x="340" y="380" width="60" height="30" rx="10"/>
+          </g>
+          <g class="imams">
+            <rect x="85" y="436" width="90" height="22" rx="8"/><text x="130" y="452">البخاري</text>
+            <rect x="245" y="436" width="90" height="22" rx="8"/><text x="290" y="452">مسلم</text>
+          </g>
+        </svg>
+      </div>
+    </div>
+    <div class="wrap stats" id="stats">
+      <div><b data-k="hadith">12,398</b><span>حديثًا في الصحيحين</span></div>
+      <div><b data-k="chains">22,163</b><span>إسنادًا مُحلَّلًا</span></div>
+      <div><b data-k="narrators">2,494</b><span>راويًا مترجَمًا</span></div>
+      <div><b data-k="companions">266</b><span>صحابيًا وصحابية</span></div>
+    </div>
+  </section>
+
+  <section class="sec" id="features">
+    <div class="wrap">
+      <h2>ماذا تقدّم لك «نور السنة»؟</h2>
+      <p class="lede">كل ما يحتاجه طالب العلم لفهم إسناد الحديث، في مكان واحد، بنقرة واحدة.</p>
+      <div class="cards">
+        <article class="card"><div class="ic">🌳</div><h3>شجرة الرواة</h3><p>لكل حديث شجرة تفاعلية من النبي ﷺ إلى البخاري ومسلم، تجمع كل طرقه في الصحيحين.</p></article>
+        <article class="card"><div class="ic">🎯</div><h3>المدار والمتابعات والشواهد</h3><p>يُظهر الراوي الذي تلتقي عنده الطرق ثم تتفرع، ويميّز المتابعات عن الشواهد.</p></article>
+        <article class="card"><div class="ic">📜</div><h3>تراجم الرواة</h3><p>رتبة كل راوٍ وطبقته ووفاته وبلده، وأقوال أئمة الجرح والتعديل فيه منسوبة إليهم.</p></article>
+        <article class="card"><div class="ic">⚖️</div><h3>أحكام الأسانيد</h3><p>حكم كل إسناد بحسب رتب رجاله، مع التنبيه على التعليق والتدليس والاختلاط.</p></article>
+        <article class="card"><div class="ic">📚</div><h3>انتشار الحديث</h3><p>كم إسنادًا للحديث في 425 كتابًا من كتب السنة، وعن كم صحابيًا رُوي.</p></article>
+        <article class="card"><div class="ic">📊</div><h3>مؤشرات وإحصاءات</h3><p>الأكثر رواية، وأشهر الأسانيد، وأكثر الرواة مدارًا، وثلاثيات البخاري، وغيرها.</p></article>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec alt">
+    <div class="wrap show">
+      <div class="show-text">
+        <span class="kicker dark">مثال حي</span>
+        <h2>حديث «إنما الأعمال بالنيات»</h2>
+        <p>رواه عمر بن الخطاب رضي الله عنه، ثم تفرّد به عنه علقمة، ثم محمد بن إبراهيم التيمي، ثم يحيى بن سعيد الأنصاري، الذي صار <b>مدار الحديث</b> فرواه عنه خلقٌ كثير.</p>
+        <p>كل هذا تراه في شجرة واحدة، وتضغط على أي راوٍ لتقرأ ترجمته.</p>
+        <a class="btn green" href="app.html#/h/b1">افتح شجرة الحديث</a>
+      </div>
+      <figure class="shot"><img src="assets/tree.png" alt="شجرة رواة حديث إنما الأعمال بالنيات"></figure>
+    </div>
+  </section>
+
+  <section class="sec">
+    <div class="wrap show rev">
+      <div class="show-text">
+        <span class="kicker dark">لوحة المؤشرات</span>
+        <h2>خريطة الرواية بالأرقام</h2>
+        <p>من أكثر الصحابة رواية في الصحيحين؟ ومن أكثر شيوخ البخاري؟ وما أشهر إسناد تكرّر فيهما؟</p>
+        <ul class="facts" id="facts">
+          <li><b>2,034</b> حديثًا لأبي هريرة رضي الله عنه في الصحيحين</li>
+          <li><b>556</b> إسنادًا بسلسلة: هشام بن عروة عن أبيه عن عائشة</li>
+          <li><b>20</b> حديثًا من ثلاثيات البخاري، أعلى أسانيده</li>
+        </ul>
+        <a class="btn green" href="app.html#/">استعرض المؤشرات</a>
+      </div>
+      <figure class="shot"><img src="assets/top-companions.png" alt="الصحابة الأكثر رواية"></figure>
+    </div>
+  </section>
+
+  <section class="sec alt" id="how">
+    <div class="wrap">
+      <h2>كيف تستخدمها؟</h2>
+      <div class="steps">
+        <div class="step"><span>1</span><h3>ابحث أو تصفّح</h3><p>ابحث بكلمة من المتن أو باسم راوٍ، أو تصفّح كتب الصحيحين وأبوابهما.</p></div>
+        <div class="step"><span>2</span><h3>افتح الحديث</h3><p>اقرأ النص بأسماء رواته الملوّنة، وأسانيده وأحكامها، ورواياته الأخرى.</p></div>
+        <div class="step"><span>3</span><h3>استكشف الشجرة</h3><p>تتبّع الطرق، واعرف المدار، واضغط على أي راوٍ لتنتقل إلى ترجمته وشبكته.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" id="method">
+    <div class="wrap narrow">
+      <h2>المنهج والمصادر</h2>
+      <ul class="method">
+        <li>أحاديث الصحيحين صحيحة بحكم الشيخين وتلقّي الأمة لهما بالقبول؛ وما يظهر من حكم على إسناد مفرد فهو حكم آلي بحسب رتب رجاله، لا حكم على الحديث.</li>
+        <li>الأقوال في الرواة منسوبة إلى قائليها من أئمة الجرح والتعديل.</li>
+        <li>المدار وتجميع الروايات محسوبان آليًا، فالأداة مساعِدة للباحث ولا تُغني عن النظر والتخريج.</li>
+        <li>البيانات من مصادر مفتوحة مذكورة في صفحة «عن المشروع»، والشيفرة مفتوحة على GitHub.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="final" id="contact">
+    <div class="wrap final-in">
+      <h2>ابدأ رحلتك مع أسانيد السنة</h2>
+      <p>مجانًا · بلا إعلانات · بلا تسجيل</p>
+      <div class="cta center">
+        <a class="btn gold" href="app.html">افتح نور السنة</a>
+        <a class="btn ghost" href="https://github.com/znammous/noor-alsunnah" target="_blank" rel="noopener">الشيفرة على GitHub</a>
+      </div>
+      <p class="mail">للاقتراحات أو الإبلاغ عن خطأ: <a href="mailto:zuhair.nammous@gmail.com">zuhair.nammous@gmail.com</a></p>
+      <p class="share">انشره، فالدال على الخير كفاعله</p>
+    </div>
+  </section>
+
+  <footer class="foot"><div class="wrap">نور السنة · مشروع وقفي مفتوح لخدمة السنة النبوية</div></footer>
+
+  <script>
+    (() => {
+      const fmt = (n) => Number(n).toLocaleString("en-US");
+      fetch("data/stats.json").then((r) => r.json()).then((S) => {
+        const T = S.totals;
+        const v = { hadith: T.hadith_bukhari + T.hadith_muslim, chains: T.chains_bukhari + T.chains_muslim, narrators: T.narrators, companions: T.companions };
+        document.querySelectorAll("#stats b[data-k]").forEach((b) => { b.textContent = fmt(v[b.dataset.k]); });
+      }).catch(() => {});
+      document.getElementById("search").addEventListener("submit", (e) => {
+        e.preventDefault();
+        const q = document.getElementById("q").value.trim();
+        location.href = q ? "app.html#/search/" + encodeURIComponent(q) : "app.html";
+      });
+    })();
+  </script>
 </body>
 </html>
