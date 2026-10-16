@@ -57,7 +57,7 @@ h1 { font-size: 1.6rem; } h2 { font-size: 1.2rem; } h3 { font-size: 1rem; }
   position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 16px;
   padding: 10px 20px; background: var(--panel); border-bottom: 1px solid var(--line);
 }
-.brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 1.1rem; color: var(--ink); }
+.brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 1.1rem; color: var(--ink); white-space: nowrap; flex: none; }
 .brand svg { width: 28px; height: 28px; fill: var(--accent); color: var(--accent); }
 .brand:hover { text-decoration: none; }
 .nav { display: flex; gap: 4px; flex-wrap: wrap; }
