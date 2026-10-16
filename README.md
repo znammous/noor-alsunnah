@@ -32,6 +32,7 @@ scripts/publish.sh      # يدفع main ثم ينشر site/ إلى فرع gh-pag
 ## مصادر البيانات
 
 - **المصدر الأساسي:** [برنامج جامع خادم الحرمين الشريفين للسنة النبوية](https://sunna.alifta.gov.sa/) (الرئاسة العامة للبحوث العلمية والإفتاء): نصوص الأحاديث وأسانيدها، وتراجم الرواة ورتبهم عند ابن حجر والذهبي، والتخريج والشواهد. عن النسخة المهيكلة التي نشرها الباحث جهاد عمر ([Ifta Sunnah Hadith & Narrators Dataset](https://github.com/JehadOumer/Ifta-Sunnah-Hadith-and-Narrators-Dataset)). الحقوق العلمية للبرنامج محفوظة للرئاسة، والمشروع مستقل ولا يمثلها.
+- **أحكام المحدثين:** روابط من صفحة كل حديث إلى [الموسوعة الحديثية في الدرر السنية](https://dorar.net/hadith). واجهتهم البرمجية لا تسمح بالعرض داخل مواقع أخرى (تُرسل بنوع text/html مع nosniff ودون CORS)، فتُفتح النتائج في موقعهم.
 - **فهرس الكتب الكبرى** (`pipeline/toc/`) جُمع مرة واحدة بمطابقة أبواب البرنامج مع فهارس [hatemben/hadithdb](https://github.com/hatemben/hadithdb) و[MIDS](https://data.mendeley.com/datasets/gzprcr93zn).
 
 ## تفعيل مؤشر «الأكثر بحثًا وزيارة»
