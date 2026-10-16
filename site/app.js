@@ -490,7 +490,7 @@
         { selector: "node", style: {
           "shape": "round-rectangle", "width": "label", "height": "label", "padding": "7px",
           "background-color": css("--panel"), "border-width": 2, "border-color": (e) => color(e.data("cls")),
-          "label": "data(label)", "color": css("--ink"), "font-family": "IBM Plex Sans Arabic, sans-serif",
+          "label": "data(label)", "color": css("--ink"), "font-family": "-apple-system, BlinkMacSystemFont, Tajawal, sans-serif",
           "font-size": 12, "text-valign": "center", "text-halign": "center", "text-wrap": "wrap", "text-max-width": 120,
         } },
         { selector: "node[cls = 'nabi']", style: { "background-color": color("nabi"), "color": "#fff", "font-size": 14, "font-weight": 700 } },
@@ -632,7 +632,7 @@
       style: [
         { selector: "node", style: { "shape": "round-rectangle", "width": "label", "height": "label", "padding": "6px", "background-color": css("--panel"),
           "border-width": 2, "border-color": (e) => color(e.data("cls")), "label": "data(label)", "color": css("--ink"),
-          "font-family": "IBM Plex Sans Arabic, sans-serif", "font-size": 11, "text-valign": "center", "text-wrap": "wrap", "text-max-width": 90 } },
+          "font-family": "-apple-system, BlinkMacSystemFont, Tajawal, sans-serif", "font-size": 11, "text-valign": "center", "text-wrap": "wrap", "text-max-width": 90 } },
         { selector: "node[me = 1]", style: { "background-color": css("--accent"), "color": css("--accent-ink"), "font-size": 13, "font-weight": 700 } },
         { selector: "edge", style: { "width": (e) => Math.min(1 + Math.log2(e.data("w")), 6), "line-color": css("--edge"), "curve-style": "bezier",
           "target-arrow-shape": "triangle", "target-arrow-color": css("--edge"), "arrow-scale": 0.7 } },
