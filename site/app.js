@@ -357,6 +357,12 @@
         ${sp && sp.shawahid.length ? `<span class="pill">له شواهد عن: <b>${fmt(sp.shawahid.length)}</b> صحابيًا</span>` : ""}
       </div>
 
+      <div class="panel dorar">
+        <div><h3>أحكام المحدثين على هذا الحديث</h3>
+          <p class="muted small">من الموسوعة الحديثية في موقع الدرر السنية: نتائج البحث عن طرف الحديث، وقد تشمل رواياتٍ أخرى مشابهة.</p></div>
+        <a class="btn on" href="${dorarURL(h)}" target="_blank" rel="noopener">اعرض الأحكام في الدرر السنية ↗</a>
+      </div>
+
       <div class="hadith-layout">
         <div class="tree-wrap">
           <div class="tree-tools">
@@ -373,12 +379,6 @@
           <div class="legend">${["nabi", "sahabi", "thiqa", "saduq", "maqbul", "weak", "imam"].map((c) => `<span class="cls-${c}"><i style="background:var(--c)"></i>${CLS_LABEL[c]}</span>`).join("")}<span><i style="background:transparent;border:2px solid var(--gold)"></i>المدار</span><span class="muted">سُمك الخط = عدد الطرق</span></div>
         </div>
         <aside class="panel side" id="side"><p class="empty">اضغط على أي راوٍ في الشجرة لعرض ترجمته المختصرة وتمييز الطرق التي تمر به.</p></aside>
-      </div>
-
-      <div class="panel dorar">
-        <div><h3>أحكام المحدثين على هذا الحديث</h3>
-          <p class="muted small">من الموسوعة الحديثية في موقع الدرر السنية: نتائج البحث عن طرف الحديث، وقد تشمل رواياتٍ أخرى مشابهة.</p></div>
-        <a class="btn on" href="${dorarURL(h)}" target="_blank" rel="noopener">اعرض الأحكام في الدرر السنية ↗</a>
       </div>
 
       <div class="section-title"><h2>أسانيده</h2><p>وصف رجال كل إسناد بحسب رتبهم عند ابن حجر، وليس حكمًا على الحديث</p></div>

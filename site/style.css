@@ -117,7 +117,7 @@ h1 { font-size: 1.6rem; } h2 { font-size: 1.2rem; } h3 { font-size: 1rem; }
 .ch-thiqat { background: var(--c-thiqa); } .ch-saduq { background: var(--c-saduq); }
 .ch-mutakallam { background: var(--c-weak); } .ch-unknown { background: var(--c-unknown); }
 .legend i[class^="ch-"] { border-radius: 2px; }
-.dorar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-top: 16px; }
+.dorar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin: 16px 0; }
 .dorar h3 { margin: 0 0 4px; }
 .dorar p { margin: 0; }
 .verdicts { display: grid; gap: 10px; margin: 6px 0 14px; }
