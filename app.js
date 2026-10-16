@@ -311,6 +311,14 @@
   const hadithTextHTML = (h, nar) => h.parts.map((p) => `<p>${partHTML(p, nar)}</p>`).join("");
   const matnOf = (h) => { const p = h.parts[0]; return p.matn ? p.text.slice(p.matn[0], p.matn[1]) : p.text; };
 
+  // The Dorar API cannot be embedded (served as text/html with nosniff and no CORS), so we link
+  // to its hadith encyclopedia search for the opening words of the matn.
+  function dorarURL(h) {
+    const words = matnOf(h).replace(/[\u064B-\u0652\u0670\u0640]/g, "").replace(/[^\u0621-\u064A\s]/g, " ")
+      .split(/\s+/).filter(Boolean).slice(0, 7).join(" ");
+    return `https://dorar.net/hadith/search?q=${encodeURIComponent(words)}&st=w`;
+  }
+
   async function viewHadith(key) {
     if (!META.index[key] && META.alias[key]) { location.replace("#/h/" + META.alias[key]); return; }
     const entry = META.index[key];
@@ -365,6 +373,12 @@
           <div class="legend">${["nabi", "sahabi", "thiqa", "saduq", "maqbul", "weak", "imam"].map((c) => `<span class="cls-${c}"><i style="background:var(--c)"></i>${CLS_LABEL[c]}</span>`).join("")}<span><i style="background:transparent;border:2px solid var(--gold)"></i>المدار</span><span class="muted">سُمك الخط = عدد الطرق</span></div>
         </div>
         <aside class="panel side" id="side"><p class="empty">اضغط على أي راوٍ في الشجرة لعرض ترجمته المختصرة وتمييز الطرق التي تمر به.</p></aside>
+      </div>
+
+      <div class="panel dorar">
+        <div><h3>أحكام المحدثين على هذا الحديث</h3>
+          <p class="muted small">من الموسوعة الحديثية في موقع الدرر السنية: نتائج البحث عن طرف الحديث، وقد تشمل رواياتٍ أخرى مشابهة.</p></div>
+        <a class="btn on" href="${dorarURL(h)}" target="_blank" rel="noopener">اعرض الأحكام في الدرر السنية ↗</a>
       </div>
 
       <div class="section-title"><h2>أسانيده</h2><p>وصف رجال كل إسناد بحسب رتبهم عند ابن حجر، وليس حكمًا على الحديث</p></div>
@@ -692,9 +706,10 @@
         <li>جمع روايات الحديث الواحد في الصحيحين قائم على تخريج برنامج جامع خادم الحرمين الشريفين.</li>
         <li>ترقيم البخاري على ترقيم «فتح الباري»، وترقيم مسلم على ترقيم محمد فؤاد عبد الباقي.</li>
       </ul>
-      <h2>مصدر البيانات</h2>
+      <h2>مصادر البيانات</h2>
       <p>نصوص الأحاديث وأسانيدها، وتراجم الرواة ورتبهم، والتخريج والشواهد: من <a href="https://sunna.alifta.gov.sa/" target="_blank" rel="noopener">برنامج جامع خادم الحرمين الشريفين للسنة النبوية</a> (الرئاسة العامة للبحوث العلمية والإفتاء)، عن النسخة المهيكلة التي نشرها الباحث جهاد عمر (<a href="https://github.com/JehadOumer/Ifta-Sunnah-Hadith-and-Narrators-Dataset" target="_blank" rel="noopener">Ifta Sunnah Hadith &amp; Narrators Dataset</a>).</p>
-      <p class="muted small">الحقوق العلمية للبرنامج محفوظة للرئاسة العامة للبحوث العلمية والإفتاء، والموقع مستقل ولا يمثلها.</p>
+      <p>أحكام المحدثين على الأحاديث: روابط إلى <a href="https://dorar.net/hadith" target="_blank" rel="noopener">الموسوعة الحديثية في موقع الدرر السنية</a>، تُفتح في موقعهم.</p>
+      <p class="muted small">الحقوق العلمية محفوظة لأصحابها: برنامج الجامع للرئاسة العامة للبحوث العلمية والإفتاء، والموسوعة الحديثية للدرر السنية. والموقع مستقل ولا يمثل أيًّا منهما.</p>
       <h2>التواصل</h2>
       <p>للاقتراحات أو الإبلاغ عن خطأ في حديث أو راوٍ أو إسناد، راسلنا على: <a href="${mailto("نور السنة: اقتراح أو ملاحظة")}">${CONTACT}</a></p>
       <p class="notice">هذه نسخة أولية للتجربة والمراجعة، ونرحب بالتنبيه على أي خطأ.</p>
