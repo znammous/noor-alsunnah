@@ -8,6 +8,8 @@
   // It receives POST {type: "view"|"search", key} and GET returns {views: [[key,n]], searches: [[q,n]]}.
   const ANALYTICS_ENDPOINT = window.ANALYTICS_ENDPOINT || null;
   const PAGE = 40;
+  const CONTACT = "zuhair.nammous@gmail.com";
+  const mailto = (subject) => `mailto:${CONTACT}?subject=${encodeURIComponent(subject)}`;
 
   const BOOK = { bukhari: "صحيح البخاري", muslim: "صحيح مسلم" };
   const BOOK_SHORT = { b: "البخاري", m: "مسلم" };
@@ -354,6 +356,7 @@
             ${G.books.length > 1 ? `<div class="seg" id="bookf"><button data-v="" class="on">الكتابان</button><button data-v="b">البخاري</button><button data-v="m">مسلم</button></div>` : ""}
             <button class="btn" id="fit">ملاءمة العرض</button>
             <button class="btn" id="png">حفظ صورة</button>
+            <a class="btn" href="${mailto(`نور السنة: ملاحظة على ${hkey(key)}`)}">أبلغ عن خطأ</a>
           </div>
           <div id="tree" role="img" aria-label="شجرة الرواة"></div>
           <div class="legend">${["nabi", "sahabi", "thiqa", "saduq", "maqbul", "weak", "imam", "taliq"].map((c) => `<span class="cls-${c}"><i style="background:var(--c)"></i>${CLS_LABEL[c]}</span>`).join("")}<span><i style="background:transparent;border:2px solid var(--gold)"></i>المدار</span><span class="muted">سُمك الخط = عدد الطرق</span></div>
@@ -534,7 +537,7 @@
     ].filter(([, v]) => v);
     const flags = [n.tadlis ? "موصوف بالتدليس" : "", n.ikhtilat ? "اختلط" : ""].filter(Boolean);
     app.innerHTML = `
-      <div class="crumbs"><a href="#/narrators">الرواة</a></div>
+      <div class="crumbs"><a href="#/narrators">الرواة</a> · <a href="${mailto(`نور السنة: ملاحظة على ترجمة ${n.name} (${n.id})`)}">أبلغ عن خطأ في هذه الترجمة</a></div>
       <h1 class="cls-${n.cls}"><span class="dot" style="width:14px;height:14px"></span>${esc(n.name)}</h1>
       <div class="summary">
         <span class="pill">${esc(CLS_LABEL[n.cls] || "")}</span>
@@ -672,6 +675,8 @@
         <li>أبواب صحيح البخاري وترقيمه: <a href="https://github.com/hatemben/hadithdb" target="_blank" rel="noopener">hatemben/hadithdb</a>.</li>
         <li>أبواب صحيح مسلم: <a href="https://data.mendeley.com/datasets/gzprcr93zn" target="_blank" rel="noopener">Multi-IsnadSet (MIDS)</a> (CC BY 4.0).</li>
       </ul>
+      <h2>التواصل</h2>
+      <p>للاقتراحات أو الإبلاغ عن خطأ في حديث أو راوٍ أو إسناد، راسلنا على: <a href="${mailto("نور السنة: اقتراح أو ملاحظة")}">${CONTACT}</a></p>
       <p class="notice">هذه نسخة أولية للتجربة والمراجعة، ونرحب بالتنبيه على أي خطأ.</p>
     </div>`;
   }
