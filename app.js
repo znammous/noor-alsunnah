@@ -17,7 +17,8 @@
     nabi: "النبي ﷺ", sahabi: "صحابي", thiqa: "ثقة", saduq: "صدوق", maqbul: "مقبول / مجهول الحال",
     weak: "تُكلِّم فيه", unknown: "لم تتوفر رتبته", imam: "صاحب الكتاب", taliq: "موضع تعليق", mubham: "مبهم",
   };
-  const CHAIN_LABEL = { sahih: ["صحيح الإسناد", "ok"], hasan: ["حسن الإسناد", "mid"], daif: ["في إسناده ضعف", "low"], muallaq: ["معلَّق", ""], other: ["", ""] };
+  // chains are described by the weakest Ibn Hajar grade among their narrators (not a verdict on the hadith)
+  const CHAIN_LABEL = { thiqat: ["رجاله ثقات", "ok"], saduq: ["فيه من قيل فيه: صدوق", "mid"], mutakallam: ["فيه من تُكلِّم فيه", "low"], unknown: ["فيه من لم تُذكر رتبته", ""] };
   const SPECIAL = new Set(["nabi", "bukhari", "muslim"]);
 
   // ---------- utils ----------
@@ -173,7 +174,6 @@
         ${kpi(T.companions, "صحابيًا وصحابية", "في أسانيد الكتابين")}
         ${kpi(T.groups_shared, "حديثًا اتفقا عليه", "بحسب تجميع المعاني")}
         ${kpi(T.thulathiyyat, "من ثلاثيات البخاري", "أعلى أسانيده")}
-        ${kpi(T.muallaqat, "تعليقًا في البخاري", "أسانيد معلَّقة")}
         ${kpi(T.mudallisun, "راويًا موصوفًا بالتدليس", `و${fmt(T.mukhtalitun)} ممن اختلط`)}
       </div>
 
@@ -196,17 +196,17 @@
         <div class="panel"><h2>الأكثر طرقًا في الصحيحين</h2>
           <ul class="list">${S.most_turuq.slice(0, 8).map((g) => `<li><div class="meta-line"><span class="tag ok">${fmt(g.n_chains)} إسنادًا</span><span>${fmt(g.n_hadiths)} رواية</span><span>${g.books.map((b) => BOOK[b]).join(" و")}</span></div>
             <a href="#/h/${g.first}" class="snip" style="color:inherit">${esc(g.snippet)}</a></li>`).join("")}</ul></div>
-        <div class="panel"><h2>الأوسع انتشارًا في كتب السنة</h2><p class="muted small">أحاديث في الصحيحين بحسب عدد أسانيدها في 425 كتابًا</p>
-          <ul class="list">${S.widest.slice(0, 8).map((g) => `<li><div class="meta-line"><span class="tag ok">${fmt(g.n_sanad)} إسنادًا</span><span>في ${fmt(g.n_books)} كتابًا</span>${g.n_companions ? `<span>عن ${fmt(g.n_companions)} صحابيًا</span>` : ""}</div>
+        <div class="panel"><h2>الأوسع انتشارًا في كتب السنة</h2><p class="muted small">أحاديث الصحيحين بحسب عدد رواياتها في تخريج برنامج الجامع</p>
+          <ul class="list">${S.widest.slice(0, 8).map((g) => `<li><div class="meta-line"><span class="tag ok">${fmt(g.n_hadith)} رواية</span><span>في ${fmt(g.n_books)} كتابًا</span>${g.n_shawahid ? `<span>وله شواهد عن ${fmt(g.n_shawahid)} صحابيًا</span>` : ""}</div>
             <a href="#/h/${g.first}" class="snip" style="color:inherit">${esc(g.snippet)}</a></li>`).join("")}</ul></div>
       </div>
 
       <div class="grid g2" style="margin-top:16px">
-        <div class="panel"><h2>أحكام الأسانيد</h2><p class="muted small">الحكم الآلي على كل إسناد بحسب رتب رجاله (من المصدر)</p>
+        <div class="panel"><h2>رجال الأسانيد</h2><p class="muted small">وصف كل إسناد بأدنى رتبة فيه عند ابن حجر</p>
           <h3 class="muted">${BOOK.bukhari}</h3>${classRows("bukhari")}
           <h3 class="muted" style="margin-top:14px">${BOOK.muslim}</h3>${classRows("muslim")}
-          <p class="muted small" style="margin-top:12px">أحاديث الصحيحين صحيحة بحكم الشيخين؛ وما نزل إسناده عن الصحة هنا هو حكم آلي على الإسناد المفرد بحسب رتب رجاله، وغالبه في المتابعات والشواهد.</p></div>
-        <div class="panel"><h2>رتب الرواة</h2><p class="muted small">تصنيف مبسّط لرتب الرواة في المصدر</p>
+          <p class="muted small" style="margin-top:12px">أحاديث الصحيحين صحيحة بحكم الشيخين؛ وهذا وصف لرجال الأسانيد المفردة، وغالب من نزلت رتبته منهم في المتابعات والشواهد.</p></div>
+        <div class="panel"><h2>رتب الرواة</h2><p class="muted small">تصنيف مبسّط لرتب الرواة عند ابن حجر في «التقريب»</p>
           <div class="stack">${S.grades.map(([c, v]) => `<span class="cls-${c}" style="width:${(100 * v) / gradeTotal}%;background:var(--c)" title="${CLS_LABEL[c]}: ${fmt(v)}"></span>`).join("")}</div>
           <div class="legend">${S.grades.filter(([, v]) => v).map(([c, v]) => `<span class="cls-${c}"><i style="background:var(--c)"></i>${CLS_LABEL[c]} ${fmt(v)}</span>`).join("")}</div>
           <h3 style="margin-top:18px">الرواة حسب الطبقة</h3>${hist(S.tabaqat.map(([label, v, t]) => [String(t), v, label]))}
@@ -283,16 +283,12 @@
   }
 
   // ---------- hadith page ----------
-  function hadithTextHTML(h, nar) {
+  function partHTML(p, nar) {
     // narrator mentions become links; the matn span is set apart from the isnad
-    const t = h.text;
-    const cuts = [];
-    for (const [s, e, id] of h.mentions) cuts.push({ s, e, id });
-    cuts.sort((a, b) => a.s - b.s);
-    const [ms, me] = h.matn || [null, null];
-    let out = "", pos = 0;
+    const t = p.text;
+    const cuts = p.mentions.map(([s, e, id]) => ({ s, e, id })).sort((a, b) => a.s - b.s);
+    const [ms, me] = p.matn || [null, null];
     const emit = (from, to) => {
-      // wrap matn boundaries inside a plain segment
       let seg = "";
       for (let i = from; i < to; i++) {
         if (i === ms) seg += '<span class="matn">';
@@ -301,21 +297,22 @@
       }
       return seg;
     };
+    let out = "", pos = 0;
     for (const c of cuts) {
       if (c.s < pos || c.e > t.length) continue;
       out += emit(pos, c.s);
       const n = nar[c.id];
       const label = esc(t.slice(c.s, c.e));
-      out += n && !["taliq", "mubham"].includes(n.cls)
-        ? `<a class="nm cls-${n.cls}" href="#/n/${encodeURIComponent(c.id)}" title="${esc(n.name + (n.rank ? " — " + n.rank : ""))}">${label}</a>`
-        : label;
+      out += n ? `<a class="nm cls-${n.cls}" href="#/n/${encodeURIComponent(c.id)}" title="${esc(n.name + (n.rank ? " — " + n.rank : ""))}">${label}</a>` : label;
       pos = c.e;
     }
-    out += emit(pos, t.length);
-    return out;
+    return out + emit(pos, t.length);
   }
+  const hadithTextHTML = (h, nar) => h.parts.map((p) => `<p>${partHTML(p, nar)}</p>`).join("");
+  const matnOf = (h) => { const p = h.parts[0]; return p.matn ? p.text.slice(p.matn[0], p.matn[1]) : p.text; };
 
   async function viewHadith(key) {
+    if (!META.index[key] && META.alias[key]) { location.replace("#/h/" + META.alias[key]); return; }
     const entry = META.index[key];
     if (!entry) { app.innerHTML = '<div class="panel">الحديث غير موجود.</div>'; return; }
     const G = await group(entry[1]);
@@ -333,17 +330,18 @@
 
     app.innerHTML = `
       <div class="crumbs"><a href="#/book/${book}">${BOOK[book]}</a> ‹ <a href="#/book/${book}/${h.kitab}">${esc(kitab?.title || "")}</a>${h.bab ? ` ‹ ${esc(h.bab)}` : ""}</div>
-      <h1>${BOOK[book]} — حديث رقم ${fmt(h.num)}</h1>
-      <div class="meta-line" style="margin-bottom:10px"><span class="tag ok">${esc(h.hukm)}</span><span class="tag">${esc(h.type)}</span>
-        ${h.std && book === "bukhari" ? `<span title="ترقيم فتح الباري؛ وفي المصدر ${h.src_no}">ترقيم فتح الباري</span>` : `<span>رقمه في المصدر</span>`}</div>
+      <h1>${BOOK[book]} — ${h.aliases.length ? "الأحاديث" : "حديث رقم"} ${esc(h.label)}</h1>
+      <div class="meta-line" style="margin-bottom:10px">${h.type ? `<span class="tag">${esc(h.type)}</span>` : ""}
+        <span>${book === "bukhari" ? "ترقيم فتح الباري" : "ترقيم محمد فؤاد عبد الباقي"}</span>${h.parts.length > 1 ? `<span>· ${fmt(h.parts.length)} روايات تحت هذا الرقم</span>` : ""}</div>
       <div class="panel hadith-text">${hadithTextHTML(h, G.nar)}</div>
 
       <div class="summary">
-        <span class="pill">أسانيد هذه الرواية: <b>${fmt(h.chains.length)}</b></span>
+        <span class="pill">أسانيده هنا: <b>${fmt(h.chains.length)}</b></span>
         <span class="pill">مجموع أسانيده في الصحيحين: <b>${fmt(G.n_chains)}</b> في <b>${fmt(G.hadiths.length)}</b> رواية</span>
         <span class="pill">الصحابة في الصحيحين: <b>${fmt(companions.length)}</b></span>
         ${madar ? `<span class="pill">المدار: <b><a href="#/n/${encodeURIComponent(G.madar)}">${esc(shortName(madar.name))}</a></b></span>` : ""}
-        ${sp ? `<span class="pill">في كتب السنة: <b>${fmt(sp.n_sanad)}</b> إسنادًا في <b>${fmt(sp.n_books)}</b> كتابًا${sp.n_companions ? ` عن <b>${fmt(sp.n_companions)}</b> صحابيًا` : ""}</span>` : ""}
+        ${sp && sp.n_hadith ? `<span class="pill">تخريجه في كتب السنة: <b>${fmt(sp.n_hadith)}</b> رواية في <b>${fmt(sp.n_books)}</b> كتابًا</span>` : ""}
+        ${sp && sp.shawahid.length ? `<span class="pill">له شواهد عن: <b>${fmt(sp.shawahid.length)}</b> صحابيًا</span>` : ""}
       </div>
 
       <div class="hadith-layout">
@@ -359,12 +357,12 @@
             <a class="btn" href="${mailto(`نور السنة: ملاحظة على ${hkey(key)}`)}">أبلغ عن خطأ</a>
           </div>
           <div id="tree" role="img" aria-label="شجرة الرواة"></div>
-          <div class="legend">${["nabi", "sahabi", "thiqa", "saduq", "maqbul", "weak", "imam", "taliq"].map((c) => `<span class="cls-${c}"><i style="background:var(--c)"></i>${CLS_LABEL[c]}</span>`).join("")}<span><i style="background:transparent;border:2px solid var(--gold)"></i>المدار</span><span class="muted">سُمك الخط = عدد الطرق</span></div>
+          <div class="legend">${["nabi", "sahabi", "thiqa", "saduq", "maqbul", "weak", "imam"].map((c) => `<span class="cls-${c}"><i style="background:var(--c)"></i>${CLS_LABEL[c]}</span>`).join("")}<span><i style="background:transparent;border:2px solid var(--gold)"></i>المدار</span><span class="muted">سُمك الخط = عدد الطرق</span></div>
         </div>
         <aside class="panel side" id="side"><p class="empty">اضغط على أي راوٍ في الشجرة لعرض ترجمته المختصرة وتمييز الطرق التي تمر به.</p></aside>
       </div>
 
-      <div class="section-title"><h2>أسانيد هذه الرواية</h2><p>الحكم المذكور حكم آلي على الإسناد المفرد من المصدر</p></div>
+      <div class="section-title"><h2>أسانيده</h2><p>وصف رجال كل إسناد بحسب رتبهم عند ابن حجر، وليس حكمًا على الحديث</p></div>
       <div class="panel"><ul class="list">${h.chains.map((c) => chainRow(c, G.nar, compilerOf(key))).join("") || '<li class="muted">لا يوجد إسناد مستخرج لهذه الرواية.</li>'}</ul></div>
 
       ${others.length ? `<div class="section-title"><h2>رواياته الأخرى في الصحيحين</h2><p>«متابعة»: عن الصحابي نفسه · «شاهد»: عن صحابي آخر</p></div>
@@ -372,12 +370,13 @@
         const o = G.items[k];
         const shahid = !o.chains.some((c) => ownCompanions.has(c.ids[0]));
         return `<li><div class="meta-line"><a href="#/h/${k}">${hkey(k)}</a><span class="tag">${shahid ? "شاهد" : "متابعة"}</span>${o.bab ? `<span>${esc(o.bab)}</span>` : ""}</div>
-          <div class="snip">${esc(clip(o.matn ? o.text.slice(o.matn[0], o.matn[1]) : o.text, 260))}</div>
+          <div class="snip">${esc(clip(matnOf(o), 260))}</div>
           ${o.chains.slice(0, 3).map((c) => chainHTML(c.ids, G.nar, compilerOf(k))).join("")}${o.chains.length > 3 ? `<p class="muted small">و${fmt(o.chains.length - 3)} أسانيد أخرى</p>` : ""}</li>`;
       }).join("")}</ul></div>` : ""}
 
-      ${sp && sp.books.length ? `<div class="section-title"><h2>انتشاره في كتب السنة</h2><p>عدد روايات هذا المعنى في كل كتاب</p></div>
-      <div class="panel"><div class="chain">${sp.books.map(([b, n]) => `<span class="chip">${esc(b)}<span class="muted small" style="margin-inline-start:6px">${fmt(n)}</span></span>`).join(" ")}${sp.n_books > sp.books.length ? `<span class="muted small">و${fmt(sp.n_books - sp.books.length)} كتابًا آخر</span>` : ""}</div></div>` : ""}`;
+      ${sp && sp.books.length ? `<div class="section-title"><h2>تخريجه في كتب السنة</h2><p>عدد رواياته في كل كتاب بحسب تخريج برنامج جامع خادم الحرمين الشريفين</p></div>
+      <div class="panel"><div class="chain">${sp.books.map(([b, n]) => `<span class="chip">${esc(b)}<span class="muted small" style="margin-inline-start:6px">${fmt(n)}</span></span>`).join(" ")}${sp.n_books > sp.books.length ? `<span class="muted small">و${fmt(sp.n_books - sp.books.length)} كتابًا آخر</span>` : ""}</div>
+        ${sp.shawahid.length ? `<h3 style="margin-top:14px">شواهده عن صحابة آخرين</h3><div class="chain">${sp.shawahid.map((n) => `<span class="chip cls-sahabi"><span class="dot"></span>${esc(n)}</span>`).join(" ")}</div>` : ""}</div>` : ""}`;
 
     let scope = others.length ? "all" : "one", bookFilter = "";
     const draw = () => drawTree(G, scope === "one" ? [key] : G.hadiths.filter((k) => !bookFilter || k[0] === bookFilter), key);
@@ -398,9 +397,9 @@
     const [label, cls] = CHAIN_LABEL[c.c] || ["", ""];
     const tags = [];
     if (label) tags.push(`<span class="tag ${cls}">${label}</span>`);
-    tags.push(`<span class="tag">${c.ids.filter((x) => nar[x]?.cls !== "taliq").length} رواة</span>`);
+    tags.push(`<span class="tag">${c.ids.length} رواة</span>`);
     if (compiler === "البخاري" && c.ids.length === 3 && nar[c.ids[0]]?.cls === "sahabi") tags.push('<span class="tag ok">ثلاثي</span>');
-    return `<li><div class="meta-line">${tags.join("")}<span>${esc(c.hukm)}</span></div>${chainHTML(c.ids, nar, compiler)}</li>`;
+    return `<li><div class="meta-line">${tags.join("")}</div>${chainHTML(c.ids, nar, compiler)}</li>`;
   }
 
   // ---------- tree ----------
@@ -529,11 +528,10 @@
       return D[x] ? `<a class="chip cls-${clsOf(x)}" href="#/n/${encodeURIComponent(x)}">${inner}</a>` : `<span class="chip cls-${clsOf(x)}">${inner}</span>`;
     }).join(" ");
     const facts = [
-      ["الاسم", n.full], ["الرتبة", n.rank], ["الطبقة", n.tabaka ? `${n.tabaka}${n.tabaka_label ? " — " + n.tabaka_label : ""}` : ""],
-      ["النسب", (n.nasab || "").replace(/،/g, "، ")], ["الإقامة", n.iqama], ["المولد", n.birth && `${n.birth} هـ`],
-      ["الوفاة", n.death && `${n.death} هـ`], ["مكان الوفاة", n.death_place], ["المهنة", n.profession],
-      ["من رجال", (n.shaykhayn || []).map((b) => BOOK[b]).join(" و")],
-      ["مروياته في كتب السنة", n.riwaya_qty && fmt(n.riwaya_qty)],
+      ["الاسم", n.full], ["الكنية", n.kunya], ["اللقب", n.laqab], ["النسب", n.nasab],
+      ["الطبقة", n.tabaka_text || (n.tabaka && `${n.tabaka} — ${n.tabaka_label}`)],
+      ["المولد", n.birth], ["الوفاة", n.death], ["مكان الوفاة", n.death_place],
+      ["الإقامة", n.iqama], ["الرحلة", n.rihla], ["المذهب", n.madhhab], ["علاقات الراوي", n.relation],
     ].filter(([, v]) => v);
     const flags = [n.tadlis ? "موصوف بالتدليس" : "", n.ikhtilat ? "اختلط" : ""].filter(Boolean);
     app.innerHTML = `
@@ -549,9 +547,10 @@
       </div>
       <div class="grid g2">
         <div class="panel"><h2>الترجمة</h2>
+          ${n.rank || n.rank_dhahabi ? `<div class="verdicts">
+            ${n.rank ? `<blockquote><cite>رتبته عند ابن حجر</cite>${esc(n.rank)}</blockquote>` : ""}
+            ${n.rank_dhahabi ? `<blockquote><cite>رتبته عند الذهبي</cite>${esc(n.rank_dhahabi)}</blockquote>` : ""}</div>` : ""}
           <dl class="facts">${facts.map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join("")}</dl>
-          ${(n.aqwal || []).length ? `<h3 style="margin-top:16px">أقوال أئمة الجرح والتعديل <span class="muted small">(${fmt(n.aqwal.length)} إمامًا)</span></h3>
-            ${n.aqwal.map(([who, says], i) => `<details class="jarh" ${i < 3 ? "open" : ""}><summary>${esc(who)}</summary><ul>${says.map((s) => `<li>${esc(s)}</li>`).join("")}</ul></details>`).join("")}` : ""}
         </div>
         <div class="panel"><h2>شبكة الراوي</h2><p class="muted small">أبرز شيوخه (يمينًا) وتلاميذه (يسارًا) في الصحيحين — اضغط للانتقال</p><div id="ego"></div></div>
       </div>
@@ -660,21 +659,18 @@
   async function viewAbout() {
     app.innerHTML = `<div class="panel" style="max-width:820px">
       <h1>عن المشروع</h1>
-      <p>«نور السنة» أداة مفتوحة لدراسة أسانيد الصحيحين: تعرض لكل حديث شجرة رواته وطرقه في الكتابين، وتُظهر مدار الحديث ومتابعاته وشواهده وانتشاره في كتب السنة، وتربط كل راوٍ بترجمته وأقوال أئمة الجرح والتعديل فيه.</p>
+      <p>«نور السنة» أداة مفتوحة لدراسة أسانيد الصحيحين: تعرض لكل حديث شجرة رواته وطرقه في الكتابين، وتُظهر مدار الحديث ومتابعاته وشواهده وتخريجه في كتب السنة، وتربط كل راوٍ بترجمته ورتبته عند ابن حجر والذهبي.</p>
       <h2>منهج العرض</h2>
       <ul>
-        <li>أحاديث الصحيحين صحيحة بحكم الشيخين وتلقي الأمة لهما بالقبول. وما يظهر من حكم على إسناد مفرد فهو حكم آلي من المصدر بحسب رتب رجاله، وليس حكمًا على الحديث.</li>
+        <li>أحاديث الصحيحين صحيحة بحكم الشيخين وتلقي الأمة لهما بالقبول. ووصف رجال كل إسناد بحسب رتبهم عند ابن حجر بيانٌ لحال الرجال، لا حكمٌ على الحديث.</li>
         <li>رواية الشيخين عمن تُكلِّم فيه تكون غالبًا في المتابعات والشواهد، أو مما انتقياه من صحيح حديثه.</li>
         <li>«المدار» يُحسب آليًا: هو الراوي الذي تتفرع عنه أكثر الطرق داخل الصحيحين.</li>
-        <li>تجميع روايات المعنى الواحد مأخوذ من المصدر، وهو مساعد للباحث لا بديل عن التخريج.</li>
-        <li>ترقيم البخاري على ترقيم «فتح الباري» حيث أمكنت المطابقة، وترقيم مسلم بحسب المصدر.</li>
+        <li>جمع روايات الحديث الواحد في الصحيحين قائم على تخريج برنامج جامع خادم الحرمين الشريفين.</li>
+        <li>ترقيم البخاري على ترقيم «فتح الباري»، وترقيم مسلم على ترقيم محمد فؤاد عبد الباقي.</li>
       </ul>
-      <h2>مصادر البيانات</h2>
-      <ul>
-        <li>الأسانيد والرواة وأقوال الجرح والتعديل وتجميع المعاني: <a href="https://huggingface.co/datasets/emadjumaah/hadith-kg" target="_blank" rel="noopener">«الجامع» — Hadith Knowledge Graph</a> (CC BY 4.0).</li>
-        <li>أبواب صحيح البخاري وترقيمه: <a href="https://github.com/hatemben/hadithdb" target="_blank" rel="noopener">hatemben/hadithdb</a>.</li>
-        <li>أبواب صحيح مسلم: <a href="https://data.mendeley.com/datasets/gzprcr93zn" target="_blank" rel="noopener">Multi-IsnadSet (MIDS)</a> (CC BY 4.0).</li>
-      </ul>
+      <h2>مصدر البيانات</h2>
+      <p>نصوص الأحاديث وأسانيدها، وتراجم الرواة ورتبهم، والتخريج والشواهد: من <a href="https://sunna.alifta.gov.sa/" target="_blank" rel="noopener">برنامج جامع خادم الحرمين الشريفين للسنة النبوية</a> (الرئاسة العامة للبحوث العلمية والإفتاء)، عن النسخة المهيكلة التي نشرها الباحث جهاد عمر (<a href="https://github.com/JehadOumer/Ifta-Sunnah-Hadith-and-Narrators-Dataset" target="_blank" rel="noopener">Ifta Sunnah Hadith &amp; Narrators Dataset</a>).</p>
+      <p class="muted small">الحقوق العلمية للبرنامج محفوظة للرئاسة العامة للبحوث العلمية والإفتاء، والموقع مستقل ولا يمثلها.</p>
       <h2>التواصل</h2>
       <p>للاقتراحات أو الإبلاغ عن خطأ في حديث أو راوٍ أو إسناد، راسلنا على: <a href="${mailto("نور السنة: اقتراح أو ملاحظة")}">${CONTACT}</a></p>
       <p class="notice">هذه نسخة أولية للتجربة والمراجعة، ونرحب بالتنبيه على أي خطأ.</p>

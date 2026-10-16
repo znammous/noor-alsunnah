@@ -112,9 +112,16 @@ h1 { font-size: 1.6rem; } h2 { font-size: 1.2rem; } h3 { font-size: 1rem; }
 .cls-saduq { --c: var(--c-saduq); } .cls-maqbul { --c: var(--c-maqbul); } .cls-weak { --c: var(--c-weak); }
 .cls-unknown { --c: var(--c-unknown); } .cls-imam { --c: var(--c-imam); }
 .cls-taliq { --c: var(--c-taliq); } .cls-mubham { --c: var(--c-mubham); }
-.ch-sahih { background: var(--c-thiqa); } .ch-hasan { background: var(--c-saduq); }
-.ch-daif { background: var(--c-weak); } .ch-muallaq { background: var(--c-unknown); } .ch-other { background: var(--line); }
-.legend i.ch-sahih, .legend i.ch-hasan, .legend i.ch-daif, .legend i.ch-muallaq, .legend i.ch-other { border-radius: 2px; }
+.ch-thiqat { background: var(--c-thiqa); } .ch-saduq { background: var(--c-saduq); }
+.ch-mutakallam { background: var(--c-weak); } .ch-unknown { background: var(--c-unknown); }
+.legend i[class^="ch-"] { border-radius: 2px; }
+.verdicts { display: grid; gap: 10px; margin: 6px 0 14px; }
+.verdicts blockquote { margin: 0; font-family: var(--font-text); font-size: 1.15rem; line-height: 1.8; background: var(--panel-2);
+  border-inline-start: 4px solid var(--gold); border-radius: 10px; padding: 8px 14px; }
+.verdicts cite { display: block; font-style: normal; font-family: var(--font-ui); font-size: .82rem; color: var(--muted); font-weight: 600; }
+.hadith-text p { margin: 0 0 .9em; }
+.hadith-text p:last-child { margin-bottom: 0; }
+.hadith-text p + p { padding-top: .9em; border-top: 1px dashed var(--line); }
 .flag { font-size: .62rem; color: var(--c-maqbul); margin-inline-start: 3px; font-weight: 700; }
 .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--c); margin-inline-end: 6px; vertical-align: middle; flex: none; }
 

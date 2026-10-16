@@ -10,7 +10,7 @@
     addEventListener("hashchange", toApp);
   </script>
   <title>نور السنة</title>
-  <meta name="description" content="نور السنة: أداة مجانية مفتوحة لدراسة أسانيد صحيح البخاري وصحيح مسلم، بشجرة الرواة لكل حديث، والمدار والمتابعات والشواهد، وتراجم الرواة وأقوال أئمة الجرح والتعديل.">
+  <meta name="description" content="نور السنة: أداة مجانية مفتوحة لدراسة أسانيد صحيح البخاري وصحيح مسلم، بشجرة الرواة لكل حديث، والمدار والمتابعات والشواهد، وتراجم الرواة ورتبهم عند ابن حجر والذهبي.">
   <meta property="og:title" content="نور السنة — دراسة أسانيد الصحيحين">
   <meta property="og:description" content="شجرة الرواة لكل حديث، وطرقه ومداره، وتراجم رجاله. مجانًا بلا إعلانات ولا تسجيل.">
   <meta property="og:image" content="https://znammous.github.io/noor-alsunnah/assets/og.jpg">
@@ -40,7 +40,7 @@
       <div class="hero-text">
         <span class="kicker">مشروع وقفي مفتوح لخدمة السنة النبوية</span>
         <h1>نور السنة</h1>
-        <p class="tag">اعرف كيف وصلك الحديث النبوي:<br><b>رواته، وطرقه، ومداره، وأقوال الأئمة في رجاله</b></p>
+        <p class="tag">اعرف كيف وصلك الحديث النبوي:<br><b>رواته، وطرقه، ومداره، ومراتب رجاله عند الأئمة</b></p>
         <p class="desc">أداة مجانية لدراسة أسانيد <b>صحيح البخاري</b> و<b>صحيح مسلم</b>، تعرض لكل حديث شجرة رواته من النبي ﷺ إلى صاحب الكتاب.</p>
         <form class="search" id="search" role="search">
           <input id="q" type="search" placeholder="ابحث عن حديث أو راوٍ… مثل: إنما الأعمال بالنيات" autocomplete="off">
@@ -92,9 +92,9 @@
       <div class="cards">
         <article class="card"><div class="ic">🌳</div><h3>شجرة الرواة</h3><p>لكل حديث شجرة تفاعلية من النبي ﷺ إلى البخاري ومسلم، تجمع كل طرقه في الصحيحين.</p></article>
         <article class="card"><div class="ic">🎯</div><h3>المدار والمتابعات والشواهد</h3><p>يُظهر الراوي الذي تلتقي عنده الطرق ثم تتفرع، ويميّز المتابعات عن الشواهد.</p></article>
-        <article class="card"><div class="ic">📜</div><h3>تراجم الرواة</h3><p>رتبة كل راوٍ وطبقته ووفاته وبلده، وأقوال أئمة الجرح والتعديل فيه منسوبة إليهم.</p></article>
-        <article class="card"><div class="ic">⚖️</div><h3>أحكام الأسانيد</h3><p>حكم كل إسناد بحسب رتب رجاله، مع التنبيه على التعليق والتدليس والاختلاط.</p></article>
-        <article class="card"><div class="ic">📚</div><h3>انتشار الحديث</h3><p>كم إسنادًا للحديث في 425 كتابًا من كتب السنة، وعن كم صحابيًا رُوي.</p></article>
+        <article class="card"><div class="ic">📜</div><h3>تراجم الرواة</h3><p>رتبة كل راوٍ عند ابن حجر والذهبي، وطبقته ونسبه ووفاته وبلده، وشيوخه وتلاميذه في الصحيحين.</p></article>
+        <article class="card"><div class="ic">⚖️</div><h3>رجال الأسانيد</h3><p>وصف كل إسناد بحسب رتب رجاله عند ابن حجر، مع التنبيه على من وُصف بالتدليس أو الاختلاط.</p></article>
+        <article class="card"><div class="ic">📚</div><h3>تخريج الحديث</h3><p>روايات الحديث في كتب السنة وشواهده عن صحابة آخرين، بحسب تخريج برنامج جامع خادم الحرمين الشريفين.</p></article>
         <article class="card"><div class="ic">📊</div><h3>مؤشرات وإحصاءات</h3><p>الأكثر رواية، وأشهر الأسانيد، وأكثر الرواة مدارًا، وثلاثيات البخاري، وغيرها.</p></article>
       </div>
     </div>
@@ -120,9 +120,9 @@
         <h2>خريطة الرواية بالأرقام</h2>
         <p>من أكثر الصحابة رواية في الصحيحين؟ ومن أكثر شيوخ البخاري؟ وما أشهر إسناد تكرّر فيهما؟</p>
         <ul class="facts" id="facts">
-          <li><b>2,034</b> حديثًا لأبي هريرة رضي الله عنه في الصحيحين</li>
-          <li><b>556</b> إسنادًا بسلسلة: هشام بن عروة عن أبيه عن عائشة</li>
-          <li><b>20</b> حديثًا من ثلاثيات البخاري، أعلى أسانيده</li>
+          <li><b data-f="abu_hurayra">1,650</b> حديثًا لأبي هريرة رضي الله عنه في الصحيحين</li>
+          <li><b data-f="top_isnad">568</b> إسنادًا بسلسلة: هشام بن عروة عن أبيه عن عائشة</li>
+          <li><b data-f="thulathiyyat">22</b> حديثًا من ثلاثيات البخاري، أعلى أسانيده</li>
         </ul>
         <a class="btn green" href="app.html#/">استعرض المؤشرات</a>
       </div>
@@ -146,9 +146,9 @@
       <h2>المنهج والمصادر</h2>
       <ul class="method">
         <li>أحاديث الصحيحين صحيحة بحكم الشيخين وتلقّي الأمة لهما بالقبول؛ وما يظهر من حكم على إسناد مفرد فهو حكم آلي بحسب رتب رجاله، لا حكم على الحديث.</li>
-        <li>الأقوال في الرواة منسوبة إلى قائليها من أئمة الجرح والتعديل.</li>
+        <li>رتب الرواة منسوبة إلى أصحابها: الحافظ ابن حجر في «تقريب التهذيب»، والحافظ الذهبي.</li>
         <li>المدار وتجميع الروايات محسوبان آليًا، فالأداة مساعِدة للباحث ولا تُغني عن النظر والتخريج.</li>
-        <li>البيانات من مصادر مفتوحة مذكورة في صفحة «عن المشروع»، والشيفرة مفتوحة على GitHub.</li>
+        <li>مصدر البيانات: <b>برنامج جامع خادم الحرمين الشريفين للسنة النبوية</b> (الرئاسة العامة للبحوث العلمية والإفتاء)، والترقيم على «فتح الباري» للبخاري وترقيم محمد فؤاد عبد الباقي لمسلم. والشيفرة مفتوحة على GitHub.</li>
       </ul>
     </div>
   </section>
@@ -175,6 +175,9 @@
         const T = S.totals;
         const v = { hadith: T.hadith_bukhari + T.hadith_muslim, chains: T.chains_bukhari + T.chains_muslim, narrators: T.narrators, companions: T.companions };
         document.querySelectorAll("#stats b[data-k]").forEach((b) => { b.textContent = fmt(v[b.dataset.k]); });
+        const top = (rows) => (rows && rows[0] ? rows[0][1] : null);
+        const f = { abu_hurayra: top(S.top_companions), top_isnad: top(S.top_isnads), thulathiyyat: T.thulathiyyat };
+        document.querySelectorAll("#facts b[data-f]").forEach((b) => { if (f[b.dataset.f] != null) b.textContent = fmt(f[b.dataset.f]); });
       }).catch(() => {});
       document.getElementById("search").addEventListener("submit", (e) => {
         e.preventDefault();
