@@ -3,7 +3,7 @@
 Layout (sharded to keep the file count low for static hosting):
   meta.json        books + kitabs, hadith index (+ number aliases), narrator directory
   stats.json       dashboard indicators
-  search.json      normalised text for in-browser search (lazy loaded)
+  search/<book>.json  normalised text for in-browser search, per book (lazy loaded)
   g/<shard>.json   hadith groups (turuq): hadiths + chains + madar + spread in other books
   n/<shard>.json   narrator details: profile, teachers, students, hadiths
 """
@@ -12,10 +12,21 @@ from collections import Counter, defaultdict
 
 from common import SITE_DATA, WORK, dump, load, norm, strip_diacritics
 
-GROUP_SHARD = 50
+SHARD_BYTES = 400_000      # target size of a hadith shard (groups are packed until this is reached)
 NARR_SHARDS = 64
-PROPHET, BUKHARI, MUSLIM = "nabi", "bukhari", "muslim"
-COMPILER = {"bukhari": BUKHARI, "muslim": MUSLIM}
+PROPHET = "nabi"
+# book key -> (URL prefix, title, compiler node label); the compiler node id is the book key
+BOOKS = {
+    "bukhari": ("b", "صحيح البخاري", "الإمام البخاري"),
+    "muslim": ("m", "صحيح مسلم", "الإمام مسلم"),
+    "abudawud": ("d", "سنن أبي داود", "الإمام أبو داود"),
+    "tirmidhi": ("t", "جامع الترمذي", "الإمام الترمذي"),
+    "nasai": ("n", "سنن النسائي", "الإمام النسائي"),
+    "ibnmajah": ("j", "سنن ابن ماجه", "الإمام ابن ماجه"),
+}
+BOOK_ORDER = {b: i for i, b in enumerate(BOOKS)}
+COMPILER = {b: b for b in BOOKS}
+FIXED_NODES = {PROPHET, *BOOKS}
 ORDINALS = [("الثانية عشرة", 12), ("الحادية عشرة", 11), ("العاشرة", 10), ("التاسعة", 9), ("الثامنة", 8),
             ("السابعة", 7), ("السادسة", 6), ("الخامسة", 5), ("الرابعة", 4), ("الثالثة", 3), ("الثانية", 2),
             ("الأولى", 1)]
@@ -128,8 +139,8 @@ def main():
             "ikhtilat": 1 if re.search(r"اختلط|تغير", rank) else 0,
         }
     narr[PROPHET] = {"id": PROPHET, "name": "النبي ﷺ", "cls": "nabi"}
-    narr[BUKHARI] = {"id": BUKHARI, "name": "الإمام البخاري", "cls": "imam"}
-    narr[MUSLIM] = {"id": MUSLIM, "name": "الإمام مسلم", "cls": "imam"}
+    for b, (_, _, label) in BOOKS.items():
+        narr[b] = {"id": b, "name": label, "cls": "imam"}
 
     def ensure(nid):
         if nid not in narr:
@@ -137,7 +148,7 @@ def main():
             narr[nid] = {"id": nid, "name": label, "cls": "unknown", "unlinked": 1}
 
     # ---------- hadiths ----------
-    hadiths, kitabs = {}, {"bukhari": {}, "muslim": {}}
+    hadiths, kitabs = {}, {b: {} for b in BOOKS}
     for h in C["hadiths"]:
         book = h["book"]
         kitabs[book].setdefault(h["kitab_no"], {"no": h["kitab_no"], "title": h["kitab"], "count": 0})["count"] += 1
@@ -153,7 +164,7 @@ def main():
             "kitab": h["kitab_no"], "bab": h["bab"], "type": h["type"],
             "parts": [{"text": p["text"], "matn": p["matn"],
                        "mentions": [[s, e, str(i)] for s, e, i in p["mentions"]]} for p in h["parts"]],
-            "chains": chains, "group_root": h["group"],
+            "chains": chains, "group_root": h["group"], "verdicts": h.get("verdicts", []),
             "rel": h["rel"], "spread": {**h["spread"], "n_books": len(h["spread"]["books"]),
                                          "books": h["spread"]["books"][:30], "shawahid": h["spread"]["shawahid"][:30]},
         }
@@ -172,12 +183,12 @@ def main():
             hadiths[k]["g"] = gindex[g]
 
     # ---------- narrator statistics ----------
-    in_book = defaultdict(lambda: {"bukhari": set(), "muslim": set()})
+    in_book = defaultdict(lambda: {b: set() for b in BOOKS})
     teachers, students = defaultdict(Counter), defaultdict(Counter)
-    shaykh_of = {"bukhari": Counter(), "muslim": Counter()}
+    shaykh_of = {b: Counter() for b in BOOKS}
     sanad_freq = Counter()
-    chain_len = {"bukhari": Counter(), "muslim": Counter()}
-    chain_cls = {"bukhari": Counter(), "muslim": Counter()}
+    chain_len = {b: Counter() for b in BOOKS}
+    chain_cls = {b: Counter() for b in BOOKS}
     thulathiyyat, shortest_muslim = [], []
     for k, h in hadiths.items():
         book = h["book"]
@@ -223,16 +234,22 @@ def main():
     for k, h in hadiths.items():
         h["set"] = summarize([k] + h["rel"])
 
-    # connected components are only a storage unit: a hadith and all it links to share a shard
-    shards = defaultdict(dict)
+    # connected components are only a storage unit: a hadith and all it links to share a shard.
+    # Groups are packed into shards by size, so no shard grows much beyond SHARD_BYTES.
+    shards, gshard, current, used_bytes = defaultdict(dict), [0] * len(group_keys), 0, 0
     for g in group_keys:
         gi = gindex[g]
-        ks = sorted(members[g], key=lambda k: (k[0], int(hadiths[k]["num"])))
+        size = sum(len(p["text"]) * 2 + 200 * len(hadiths[k]["chains"]) for k in members[g] for p in hadiths[k]["parts"])
+        if used_bytes and used_bytes + size > SHARD_BYTES:
+            current, used_bytes = current + 1, 0
+        used_bytes += size
+        gshard[gi] = current
+        ks = sorted(members[g], key=lambda k: (BOOK_ORDER[hadiths[k]["book"]], int(hadiths[k]["num"])))
         ids = {x for k in ks for c in hadiths[k]["chains"] for x in c["ids"]}
         ids |= {m[2] for k in ks for p in hadiths[k]["parts"] for m in p["mentions"]}
         items = {k: {f: v for f, v in hadiths[k].items() if f != "group_root"} for k in ks}
-        shards[gi // GROUP_SHARD][gi] = {"g": gi, "items": items,
-                                         "nar": {i: light(narr[i]) for i in ids | {PROPHET, BUKHARI, MUSLIM} if i in narr}}
+        shards[gshard[gi]][gi] = {"g": gi, "items": items,
+                                         "nar": {i: light(narr[i]) for i in ids | FIXED_NODES if i in narr}}
     for s_, content in shards.items():
         dump(content, SITE_DATA / "g" / f"{s_}.json")
 
@@ -240,31 +257,32 @@ def main():
     directory, nshards = {}, defaultdict(dict)
     key_num = lambda x: (int(hadiths[x]["num"]), x)
     for nid, n in narr.items():
-        hb, hm = in_book[nid]["bukhari"], in_book[nid]["muslim"]
-        if not (hb or hm) or n.get("unlinked"):
+        per_book = in_book[nid]
+        if not any(per_book.values()) or n.get("unlinked"):
             continue
-        directory[nid] = [n["name"], n["cls"], len(hb), len(hm)]
+        directory[nid] = [n["name"], n["cls"], [len(per_book[b]) for b in BOOKS]]
         nshards[shard_of(nid)][nid] = {
             **{k: v for k, v in n.items() if v not in (None, "", [], 0) or k == "cls"},
             "tabaka_label": TABAQA.get(n.get("tabaka")),
-            "b": sorted(hb, key=key_num), "m": sorted(hm, key=key_num),
+            "hadiths": {b: sorted(per_book[b], key=key_num) for b in BOOKS if per_book[b]},
             "teachers": teachers[nid].most_common(60), "students": students[nid].most_common(60),
             "n_teachers": len(teachers[nid]), "n_students": len(students[nid]),
         }
     for s, content in nshards.items():
         dump(content, SITE_DATA / "n" / f"{s}.json")
 
-    # ---------- search index: [key, group, normalised text, bab, number label] ----------
-    search = [[h["k"], h["g"], norm(" ".join(p["text"] for p in h["parts"])), h["bab"], h["label"]]
-              for h in hadiths.values()]
-    dump(search, SITE_DATA / "search.json")
+    # ---------- search index per book: [key, group, normalised text, bab, number label] ----------
+    for b in BOOKS:
+        search = [[h["k"], h["g"], norm(" ".join(p["text"] for p in h["parts"])), h["bab"], h["label"]]
+                  for h in hadiths.values() if h["book"] == b]
+        dump(search, SITE_DATA / "search" / f"{b}.json")
 
     # ---------- dashboard indicators ----------
     def top(counter, n=15):
         return [[k, v] for k, v in counter.most_common(n)]
 
     real = [x for x in in_book if not narr[x].get("unlinked")]
-    narr_hadiths = Counter({x: len(in_book[x]["bukhari"] | in_book[x]["muslim"]) for x in real})
+    narr_hadiths = Counter({x: len(set().union(*in_book[x].values())) for x in real})
     companions_count = Counter({x: c for x, c in narr_hadiths.items() if narr[x]["cls"] == "sahabi"})
     by_cls = Counter(narr[x]["cls"] for x in real)
     tabaka = Counter(narr[x].get("tabaka") for x in real if narr[x].get("tabaka"))
@@ -286,16 +304,20 @@ def main():
     madar_count = Counter(h["set"]["madar"] for h in reps if h["set"]["madar"] and h["rel"])
     widest = sorted(reps, key=lambda h: -h["spread"]["n_hadith"])[:15]
     most_turuq = sorted(reps, key=lambda h: -h["set"]["n_chains"])[:15]
-    muttafaq = sum(1 for h in hadiths.values() if h["book"] == "muslim" and any(r[0] == "b" for r in h["rel"]))
+    muttafaq = sum(1 for h in hadiths.values() if h["book"] == "muslim" and any(hadiths[r]["book"] == "bukhari" for r in h["rel"]))
+    # hadiths of al-Bukhari that the program also traces in all five other books
+    sitta = sum(1 for h in reps if h["book"] == "bukhari" and len(h["set"]["books"]) == len(BOOKS))
 
     stats = {
         "totals": {
-            "hadith_bukhari": sum(1 for h in hadiths.values() if h["book"] == "bukhari"),
-            "hadith_muslim": sum(1 for h in hadiths.values() if h["book"] == "muslim"),
-            "chains_bukhari": sum(chain_cls["bukhari"].values()),
-            "chains_muslim": sum(chain_cls["muslim"].values()),
+            "books": {b: {"hadith": sum(1 for h in hadiths.values() if h["book"] == b),
+                          "chains": sum(chain_cls[b].values()),
+                          "narrators": sum(1 for x in real if in_book[x][b])} for b in BOOKS},
+            "hadith": len(hadiths),
+            "chains": sum(sum(c.values()) for c in chain_cls.values()),
             "narrators": len(real),
-            "narrators_shared": sum(1 for x in real if in_book[x]["bukhari"] and in_book[x]["muslim"]),
+            "narrators_shaykhayn": sum(1 for x in real if in_book[x]["bukhari"] and in_book[x]["muslim"]),
+            "sitta": sitta,
             "companions": sum(1 for x in real if narr[x]["cls"] == "sahabi"),
             "muttafaq": muttafaq,
             "thulathiyyat": len(thulathiyyat),
@@ -304,8 +326,7 @@ def main():
         },
         "top_narrators": top(narr_hadiths, 20),
         "top_companions": top(companions_count, 15),
-        "top_shaykhs_bukhari": top(shaykh_of["bukhari"]),
-        "top_shaykhs_muslim": top(shaykh_of["muslim"]),
+        "top_shaykhs": {b: top(shaykh_of[b], 10) for b in BOOKS},
         "top_isnads": [[list(k), v] for k, v in sanad_freq.most_common(15)],
         "top_madar": top(madar_count, 15),
         "most_turuq": [{"first": h["k"], "n_chains": h["set"]["n_chains"], "n_hadiths": 1 + len(h["rel"]),
@@ -322,24 +343,25 @@ def main():
         "shortest_muslim": [{**t, "snippet": snippet(hadiths[t["k"]]), "num": hadiths[t["k"]]["label"]}
                             for t in shortest_muslim][:40],
     }
-    used = {x for key in ("top_narrators", "top_companions", "top_shaykhs_bukhari", "top_shaykhs_muslim", "top_madar")
-            for x, _ in stats[key]}
+    used = {x for key in ("top_narrators", "top_companions", "top_madar") for x, _ in stats[key]}
+    used |= {x for rows in stats["top_shaykhs"].values() for x, _ in rows}
     used |= {x for i, _ in stats["top_isnads"] for x in i}
     used |= {x for s in stats["thulathiyyat"] + stats["shortest_muslim"] for x in s["chain"]}
     stats["nar"] = {i: light(narr[i]) for i in used}
     dump(stats, SITE_DATA / "stats.json")
 
     index = {k: [h["kitab"], h["g"], h["label"]] for k, h in hadiths.items()}
-    alias = {f"{h['book'][0]}{a}": k for k, h in hadiths.items() for a in h["aliases"]
-             if f"{h['book'][0]}{a}" not in hadiths}
+    alias = {f"{BOOKS[h['book']][0]}{a}": k for k, h in hadiths.items() for a in h["aliases"]
+             if f"{BOOKS[h['book']][0]}{a}" not in hadiths}
     meta = {
-        "books": {b: {"title": t, "kitabs": sorted(kitabs[b].values(), key=lambda r: r["no"])}
-                  for b, t in (("bukhari", "صحيح البخاري"), ("muslim", "صحيح مسلم"))},
+        "books": {b: {"title": t, "prefix": pre, "compiler": c,
+                      "kitabs": sorted(kitabs[b].values(), key=lambda r: r["no"])}
+                  for b, (pre, t, c) in BOOKS.items()},
         "index": index, "alias": alias, "directory": directory,
-        "group_shard": GROUP_SHARD, "narr_shards": NARR_SHARDS,
+        "gshard": gshard, "narr_shards": NARR_SHARDS,
     }
     dump(meta, SITE_DATA / "meta.json")
-    print(f"site data: {len(hadiths)} hadiths in {len(shards)} shards, muttafaq {muttafaq}, "
+    print(f"site data: {len(hadiths)} hadiths in {len(shards)} shards, muttafaq {muttafaq}, sitta {sitta}, "
           f"{len(directory)} narrators in {len(nshards)} shards; thulathiyyat {len(thulathiyyat)}; "
           f"grades {dict(by_cls)}")
 
