@@ -134,28 +134,29 @@ def main():
             current["shawahed"] += [[s.get("rawy_name"), s.get("bookId"), s.get("mainId")] for s in rec.get("shawahed") or []]
             current["comparisons"] += [[c.get("comparison_type"), c.get("bookId"), c.get("mainId")] for c in rec.get("comparisons") or []]
 
-    # group the same hadith across the two books with the platform's own takhrij links
+    # Each hadith keeps exactly the parallels the program lists for it (no chaining: if A lists B
+    # and B lists C, A is not tied to C). Connected components are only a storage unit, so that a
+    # hadith and everything it links to land in the same site shard.
     dsu = DSU()
     for h in hadiths:
         dsu.find(h["key"])
+        rel = []
         for book_id, _, main_id in h["takhreej"]:
-            if book_id in BOOK_IDS and main_id in main_to_key:
-                dsu.union(h["key"], main_to_key[main_id])
+            other = main_to_key.get(main_id) if book_id in BOOK_IDS else None
+            if other and other != h["key"] and other not in rel:
+                rel.append(other)
+                dsu.union(h["key"], other)
+        h["rel"] = rel
+
+        # spread of this hadith across the program's books, and its shawahid companions
+        books = defaultdict(set)
+        for book_id, name, main_id in h["takhreej"]:
+            books[re.sub(r"\s+في\s+.*$", "", name or "").strip() or str(book_id)].add(main_id)
+        h["spread"] = {"books": sorted(([b, len(ids)] for b, ids in books.items()), key=lambda r: -r[1]),
+                       "n_hadith": sum(len(ids) for ids in books.values()),
+                       "shawahid": sorted({(n or "").strip() for n, _, _ in h["shawahed"]} - {""})}
     for h in hadiths:
         h["group"] = dsu.find(h["key"])
-
-    # spread of each group across all books of the program, and its companions
-    spread = defaultdict(lambda: {"books": defaultdict(set), "shawahid": set()})
-    for h in hadiths:
-        s = spread[h["group"]]
-        for book_id, name, main_id in h["takhreej"]:
-            s["books"][re.sub(r"\s+في\s+.*$", "", name or "").strip() or str(book_id)].add(main_id)
-        for name, _, _ in h["shawahed"]:
-            if name:
-                s["shawahid"].add(name.strip())
-    groups = {g: {"books": sorted(([b, len(ids)] for b, ids in s["books"].items()), key=lambda r: -r[1]),
-                  "n_hadith": sum(len(ids) for ids in s["books"].values()),
-                  "shawahid": sorted(s["shawahid"])} for g, s in spread.items()}
 
     used = {i for h in hadiths for c in h["chains"] for i in c} | {m[2] for h in hadiths for p in h["parts"] for m in p["mentions"]}
     narrators = {n["narrator_id"]: n for n in narrators_src if n["narrator_id"] in used}
@@ -163,12 +164,12 @@ def main():
         for f in ("takhreej", "shawahed", "comparisons"):
             h[f"n_{f}"] = len(h.pop(f))
 
-    dump({"hadiths": hadiths, "narrators": narrators, "groups": groups, "compilers": compilers}, WORK / "corpus.json")
+    dump({"hadiths": hadiths, "narrators": narrators, "compilers": compilers}, WORK / "corpus.json")
     unresolved = sum(1 for h in hadiths for c in h["chains"] for i in c if isinstance(i, str))
     print(f"corpus: {sum(1 for h in hadiths if h['book'] == 'bukhari')} bukhari + "
           f"{sum(1 for h in hadiths if h['book'] == 'muslim')} muslim hadiths, "
           f"{sum(len(h['chains']) for h in hadiths)} chains ({unresolved} unresolved positions), "
-          f"{len(narrators)} narrators, {len(groups)} groups; compilers {compilers}")
+          f"{len(narrators)} narrators, {sum(len(h['rel']) for h in hadiths)} direct takhrij links; compilers {compilers}")
 
 
 if __name__ == "__main__":

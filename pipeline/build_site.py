@@ -154,6 +154,8 @@ def main():
             "parts": [{"text": p["text"], "matn": p["matn"],
                        "mentions": [[s, e, str(i)] for s, e, i in p["mentions"]]} for p in h["parts"]],
             "chains": chains, "group_root": h["group"],
+            "rel": h["rel"], "spread": {**h["spread"], "n_books": len(h["spread"]["books"]),
+                                         "books": h["spread"]["books"][:30], "shawahid": h["spread"]["shawahid"][:30]},
         }
     for h in hadiths.values():
         for c in h["chains"]:
@@ -200,12 +202,9 @@ def main():
             if len(ids) >= 3:
                 sanad_freq[tuple(ids[:3])] += 1
 
-    # ---------- write group shards ----------
-    groups, shards = [], defaultdict(dict)
-    for g in group_keys:
-        gi = gindex[g]
-        ks = sorted(members[g], key=lambda k: (k[0], int(hadiths[k]["num"])))
-        chains = [(k, c["ids"]) for k in ks for c in hadiths[k]["chains"]]
+    # ---------- each hadith with exactly the parallels the program lists for it ----------
+    def summarize(keys):
+        chains = [(k, c["ids"]) for k in keys for c in hadiths[k]["chains"]]
         companions = Counter(c[0] for _, c in chains if narr[c[0]]["cls"] == "sahabi")
         branch, depth = defaultdict(set), {}
         for k, c in chains:
@@ -218,20 +217,24 @@ def main():
             cand, kids = max(branch.items(), key=lambda kv: (len(kv[1]), -depth[kv[0]]))
             if len(kids) >= 2:
                 madar = cand
-        spread = C["groups"].get(g)
-        grp = {
-            "g": gi, "hadiths": ks, "n_chains": len(chains), "books": sorted({hadiths[k]["book"] for k in ks}),
-            "companions": [[c, n] for c, n in companions.most_common()], "madar": madar,
-            "spread": spread and {"n_hadith": spread["n_hadith"], "n_books": len(spread["books"]),
-                                  "books": spread["books"][:30], "shawahid": spread["shawahid"][:30]},
-        }
-        groups.append(grp)
-        ids = {x for _, c in chains for x in c} | {m[2] for k in ks for p in hadiths[k]["parts"] for m in p["mentions"]}
+        return {"n_chains": len(chains), "madar": madar, "books": sorted({hadiths[k]["book"] for k in keys}),
+                "companions": [[c, n] for c, n in companions.most_common()]}
+
+    for k, h in hadiths.items():
+        h["set"] = summarize([k] + h["rel"])
+
+    # connected components are only a storage unit: a hadith and all it links to share a shard
+    shards = defaultdict(dict)
+    for g in group_keys:
+        gi = gindex[g]
+        ks = sorted(members[g], key=lambda k: (k[0], int(hadiths[k]["num"])))
+        ids = {x for k in ks for c in hadiths[k]["chains"] for x in c["ids"]}
+        ids |= {m[2] for k in ks for p in hadiths[k]["parts"] for m in p["mentions"]}
         items = {k: {f: v for f, v in hadiths[k].items() if f != "group_root"} for k in ks}
-        shards[gi // GROUP_SHARD][gi] = {**grp, "items": items,
+        shards[gi // GROUP_SHARD][gi] = {"g": gi, "items": items,
                                          "nar": {i: light(narr[i]) for i in ids | {PROPHET, BUKHARI, MUSLIM} if i in narr}}
-    for s, content in shards.items():
-        dump(content, SITE_DATA / "g" / f"{s}.json")
+    for s_, content in shards.items():
+        dump(content, SITE_DATA / "g" / f"{s_}.json")
 
     # ---------- narrator directory & detail shards ----------
     directory, nshards = {}, defaultdict(dict)
@@ -275,10 +278,15 @@ def main():
         y = narr[x].get("death_year")
         if y and 0 < y < 400:
             death_bins[(y // 25) * 25] += 1
-    madar_count = Counter(g["madar"] for g in groups if g["madar"] and len(g["hadiths"]) > 1)
-    widest = sorted((g for g in groups if g["spread"]), key=lambda g: -g["spread"]["n_hadith"])[:15]
-    most_turuq = sorted(groups, key=lambda g: -g["n_chains"])[:15]
-    first = lambda g: hadiths[g["hadiths"][0]]
+    # one entry per distinct set of parallels (a hadith and its listed parallels often list each other)
+    sets = {}
+    for k, h in hadiths.items():
+        sets.setdefault(frozenset([k] + h["rel"]), k)
+    reps = [hadiths[k] for k in sets.values()]
+    madar_count = Counter(h["set"]["madar"] for h in reps if h["set"]["madar"] and h["rel"])
+    widest = sorted(reps, key=lambda h: -h["spread"]["n_hadith"])[:15]
+    most_turuq = sorted(reps, key=lambda h: -h["set"]["n_chains"])[:15]
+    muttafaq = sum(1 for h in hadiths.values() if h["book"] == "muslim" and any(r[0] == "b" for r in h["rel"]))
 
     stats = {
         "totals": {
@@ -289,7 +297,7 @@ def main():
             "narrators": len(real),
             "narrators_shared": sum(1 for x in real if in_book[x]["bukhari"] and in_book[x]["muslim"]),
             "companions": sum(1 for x in real if narr[x]["cls"] == "sahabi"),
-            "groups_shared": sum(1 for g in groups if len(g["books"]) == 2),
+            "muttafaq": muttafaq,
             "thulathiyyat": len(thulathiyyat),
             "mudallisun": sum(1 for x in real if narr[x].get("tadlis")),
             "mukhtalitun": sum(1 for x in real if narr[x].get("ikhtilat")),
@@ -300,10 +308,10 @@ def main():
         "top_shaykhs_muslim": top(shaykh_of["muslim"]),
         "top_isnads": [[list(k), v] for k, v in sanad_freq.most_common(15)],
         "top_madar": top(madar_count, 15),
-        "most_turuq": [{"first": g["hadiths"][0], "n_chains": g["n_chains"], "n_hadiths": len(g["hadiths"]),
-                        "books": g["books"], "snippet": snippet(first(g))} for g in most_turuq],
-        "widest": [{"first": g["hadiths"][0], "n_hadith": g["spread"]["n_hadith"], "n_books": g["spread"]["n_books"],
-                    "n_shawahid": len(g["spread"]["shawahid"]), "snippet": snippet(first(g))} for g in widest],
+        "most_turuq": [{"first": h["k"], "n_chains": h["set"]["n_chains"], "n_hadiths": 1 + len(h["rel"]),
+                        "books": h["set"]["books"], "snippet": snippet(h)} for h in most_turuq],
+        "widest": [{"first": h["k"], "n_hadith": h["spread"]["n_hadith"], "n_books": h["spread"]["n_books"],
+                    "n_shawahid": len(h["spread"]["shawahid"]), "snippet": snippet(h)} for h in widest],
         "chain_classes": {b: [[c, v] for c, v in cnt.most_common()] for b, cnt in chain_cls.items()},
         "grades": [[c, by_cls.get(c, 0)] for c in ("sahabi", "thiqa", "saduq", "maqbul", "weak", "unknown")],
         "tabaqat": [[TABAQA[t], tabaka.get(t, 0), t] for t in range(1, 13)],
@@ -331,7 +339,7 @@ def main():
         "group_shard": GROUP_SHARD, "narr_shards": NARR_SHARDS,
     }
     dump(meta, SITE_DATA / "meta.json")
-    print(f"site data: {len(hadiths)} hadiths, {len(groups)} groups in {len(shards)} shards, "
+    print(f"site data: {len(hadiths)} hadiths in {len(shards)} shards, muttafaq {muttafaq}, "
           f"{len(directory)} narrators in {len(nshards)} shards; thulathiyyat {len(thulathiyyat)}; "
           f"grades {dict(by_cls)}")
 

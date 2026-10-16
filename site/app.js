@@ -172,7 +172,7 @@
         ${kpi(T.hadith_muslim, "حديثًا في صحيح مسلم", `${fmt(T.chains_muslim)} إسنادًا`)}
         ${kpi(T.narrators, "راويًا", `${fmt(T.narrators_shared)} من رجال الشيخين معًا`)}
         ${kpi(T.companions, "صحابيًا وصحابية", "في أسانيد الكتابين")}
-        ${kpi(T.groups_shared, "حديثًا اتفقا عليه", "بحسب تجميع المعاني")}
+        ${kpi(T.muttafaq, "حديثًا متفقًا عليه", "من أحاديث مسلم، بحسب تخريج البرنامج")}
         ${kpi(T.thulathiyyat, "من ثلاثيات البخاري", "أعلى أسانيده")}
         ${kpi(T.mudallisun, "راويًا موصوفًا بالتدليس", `و${fmt(T.mukhtalitun)} ممن اختلط`)}
       </div>
@@ -314,9 +314,14 @@
   async function viewHadith(key) {
     if (!META.index[key] && META.alias[key]) { location.replace("#/h/" + META.alias[key]); return; }
     const entry = META.index[key];
-    if (!entry) { app.innerHTML = '<div class="panel">الحديث غير موجود.</div>'; return; }
-    const G = await group(entry[1]);
-    const h = G.items[key];
+    if (!entry) { app.innerHTML = missingHadithHTML(key); return; }
+    const shard = await group(entry[1]);
+    const h = shard.items[key];
+    // the hadith with exactly the parallels the program's takhrij lists for it
+    const G = {
+      ...shard, hadiths: [key, ...h.rel.filter((k) => shard.items[k])],
+      n_chains: h.set.n_chains, madar: h.set.madar, companions: h.set.companions, books: h.set.books, spread: h.spread,
+    };
     const book = h.book;
     const kitab = META.books[book].kitabs.find((k) => k.no === h.kitab);
     track("view", key);
@@ -337,7 +342,7 @@
 
       <div class="summary">
         <span class="pill">أسانيده هنا: <b>${fmt(h.chains.length)}</b></span>
-        <span class="pill">مجموع أسانيده في الصحيحين: <b>${fmt(G.n_chains)}</b> في <b>${fmt(G.hadiths.length)}</b> رواية</span>
+        <span class="pill">مع رواياته في الصحيحين: <b>${fmt(G.n_chains)}</b> إسنادًا في <b>${fmt(G.hadiths.length)}</b> رواية</span>
         <span class="pill">الصحابة في الصحيحين: <b>${fmt(companions.length)}</b></span>
         ${madar ? `<span class="pill">المدار: <b><a href="#/n/${encodeURIComponent(G.madar)}">${esc(shortName(madar.name))}</a></b></span>` : ""}
         ${sp && sp.n_hadith ? `<span class="pill">تخريجه في كتب السنة: <b>${fmt(sp.n_hadith)}</b> رواية في <b>${fmt(sp.n_books)}</b> كتابًا</span>` : ""}
@@ -365,7 +370,7 @@
       <div class="section-title"><h2>أسانيده</h2><p>وصف رجال كل إسناد بحسب رتبهم عند ابن حجر، وليس حكمًا على الحديث</p></div>
       <div class="panel"><ul class="list">${h.chains.map((c) => chainRow(c, G.nar, compilerOf(key))).join("") || '<li class="muted">لا يوجد إسناد مستخرج لهذه الرواية.</li>'}</ul></div>
 
-      ${others.length ? `<div class="section-title"><h2>رواياته الأخرى في الصحيحين</h2><p>«متابعة»: عن الصحابي نفسه · «شاهد»: عن صحابي آخر</p></div>
+      ${others.length ? `<div class="section-title"><h2>رواياته الأخرى في الصحيحين</h2><p>كما في تخريج البرنامج · «متابعة»: عن الصحابي نفسه · «شاهد»: عن صحابي آخر</p></div>
       <div class="panel"><ul class="list">${others.map((k) => {
         const o = G.items[k];
         const shahid = !o.chains.some((c) => ownCompanions.has(c.ids[0]));
@@ -391,6 +396,25 @@
       a.download = `isnad-${key}.png`;
       a.click();
     });
+  }
+
+  // A valid number the current data export lacks: send the reader to the official program.
+  const LAST_NUMBER = { b: 7563, m: 3033 };
+  function missingHadithHTML(key) {
+    const prefix = key[0], num = +key.slice(1);
+    if (!LAST_NUMBER[prefix] || !(num >= 1 && num <= LAST_NUMBER[prefix])) {
+      return '<div class="panel">الحديث غير موجود. تأكد من الرقم: صحيح البخاري من 1 إلى 7563، وصحيح مسلم من 1 إلى 3033.</div>';
+    }
+    const book = prefix === "b" ? "صحيح البخاري" : "صحيح مسلم";
+    const numbering = prefix === "b" ? "ترقيم فتح الباري" : "ترقيم محمد فؤاد عبد الباقي";
+    const nearby = [num - 1, num + 1].map((n) => `${prefix}${n}`).filter((k) => META.index[k] || META.alias[k]);
+    return `<div class="panel missing">
+      <h1>${book} — حديث رقم ${fmt(num)}</h1>
+      <p class="notice">هذا الحديث غير متوفر في النسخة الحالية من البيانات، ونعمل على استكماله.</p>
+      <p>يمكنك قراءته في الموقع الرسمي لبرنامج جامع خادم الحرمين الشريفين للسنة النبوية، بالبحث عن: <b>${book}، حديث رقم ${fmt(num)}</b> (${numbering}).</p>
+      <p><a class="btn on" href="https://sunna.alifta.gov.sa/" target="_blank" rel="noopener">افتح الموقع الرسمي للبرنامج</a></p>
+      ${nearby.length ? `<p class="muted small">الأحاديث المجاورة: ${nearby.map((k) => `<a href="#/h/${k}">${hkey(k)}</a>`).join(" · ")}</p>` : ""}
+    </div>`;
   }
 
   function chainRow(c, nar, compiler) {
