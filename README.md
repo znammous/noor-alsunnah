@@ -26,7 +26,8 @@ scripts/publish.sh      # يدفع main ثم ينشر site/ إلى فرع gh-pag
 | `pipeline/load_muslim.py` | مسلم من MIDS: الكتب والأبواب |
 | `pipeline/kg_load.py` | الأسانيد والرواة والأحكام وتجميع المعاني من «الجامع»، ومطابقتها بالمصدرين السابقين بترتيب الكتاب |
 | `pipeline/build_site.py` | إنتاج ملفات الموقع والمؤشرات (مجزأة لتقليل عدد الملفات) |
-| `site/` | واجهة الموقع: `index.html` و`app.js` و`style.css`، ومكتبتا الرسم في `vendor/` |
+| `site/index.html` + `landing.css` | الصفحة التعريفية |
+| `site/app.html` + `app.js` + `style.css` | الأداة نفسها، ومكتبتا الرسم في `vendor/` |
 
 ## مصادر البيانات
 
