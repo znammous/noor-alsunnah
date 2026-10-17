@@ -87,8 +87,8 @@ h3 { font-family: var(--font-title); font-size: 1.15rem; }
 .tree .madar { stroke: var(--gold); stroke-width: 4; filter: drop-shadow(0 0 10px rgba(242,193,78,.9)); }
 .tree text { font: 700 14px var(--font-ui); text-anchor: middle; fill: var(--green); opacity: 0; animation: pop .5s ease forwards .4s; }
 .tree .nodes text:first-of-type { fill: #fff; }
-.tree .imams rect { fill: var(--imam); opacity: 0; animation: pop .5s ease forwards 1.8s; }
-.tree .imams text { fill: #fff; font-size: 12px; animation-delay: 1.9s; }
+.tree .imams rect { fill: var(--accent); stroke: var(--gold); stroke-width: 1.8; filter: drop-shadow(0 0 6px rgba(242,193,78,.45)); opacity: 0; animation: pop .5s ease forwards 1.8s; }
+.tree .imams text { fill: var(--gold); font-size: 12px; animation-delay: 1.9s; }
 @keyframes draw { to { stroke-dashoffset: 0; } }
 @keyframes pop { to { opacity: 1; } }
 
