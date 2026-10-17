@@ -589,7 +589,7 @@
   // zoom buttons + a hint over a graph; the mouse wheel scrolls the page unless Ctrl/⌘ is held (pinch sends ctrlKey)
   const graphBox = (inner) => `<div class="graph-box">${inner}
     <div class="graph-ctl"><button data-z="in" title="تكبير" aria-label="تكبير">+</button><button data-z="out" title="تصغير" aria-label="تصغير">−</button><button data-z="reset" title="العودة إلى الشكل الأصلي" aria-label="العودة إلى الشكل الأصلي">⟲</button></div>
-    <p class="graph-hint">تفاعلي: اسحب للتحريك · Ctrl مع العجلة أو + − للتكبير · ⟲ للعودة</p></div>`;
+    <p class="graph-hint">تفاعلي: اسحب للتحريك، وكبّر بالأزرار أو بالعجلة مع <bdi>Ctrl</bdi>، و⟲ يعيد الشكل الأصلي</p></div>`;
   function graphTools(el, get, reset) {
     const box = el.parentElement, hint = $(".graph-hint", box);
     let t = null;

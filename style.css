@@ -208,7 +208,7 @@ details.jarh li { font-family: var(--font-text); font-size: 1.05rem; margin: 4px
 mark { background: color-mix(in srgb, var(--gold) 30%, transparent); color: inherit; border-radius: 3px; }
 #ego { width: 100%; height: 420px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
 .graph-box { position: relative; }
-.graph-ctl { position: absolute; top: 10px; inset-inline-end: 10px; display: flex; flex-direction: column; gap: 4px; z-index: 2; }
+.graph-ctl { position: absolute; top: 10px; inset-inline-start: 10px; display: flex; flex-direction: column; gap: 4px; z-index: 2; }
 .graph-ctl button { width: 32px; height: 32px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel-2); color: var(--ink); font: inherit; font-size: 1.05rem; line-height: 1; cursor: pointer; }
 .graph-ctl button:hover { border-color: var(--accent); color: var(--accent); }
 .graph-hint { position: absolute; bottom: 8px; inset-inline-start: 10px; margin: 0; padding: 3px 9px; border-radius: 7px; font-size: .75rem; color: var(--muted); background: color-mix(in srgb, var(--panel) 88%, transparent); pointer-events: none; transition: background .2s, color .2s; }
