@@ -544,6 +544,23 @@
   let cy = null;
   const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 
+  // soft S-shaped edges like the home page tree: each edge leaves and enters its nodes horizontally.
+  // Two control points (mid-x, source-y) and (mid-x, target-y), expressed relative to the source→target line.
+  const CURVE = { "curve-style": "unbundled-bezier", "edge-distances": "node-position", "control-point-distances": "0 0", "control-point-weights": "0.25 0.75" };
+  function curve(e) {
+    const s = e.source().position(), t = e.target().position();
+    const dx = t.x - s.x, dy = t.y - s.y, L2 = dx * dx + dy * dy;
+    if (L2 < 1 || Math.abs(dy) < 1) return e.style("curve-style", "straight");
+    const w = Math.min(Math.max((dx * dx) / (2 * L2), 0.02), 0.48), d = -(dx * dy) / (2 * Math.sqrt(L2));
+    e.style({ "curve-style": "unbundled-bezier", "control-point-distances": `${d} ${-d}`, "control-point-weights": `${w} ${1 - w}` });
+  }
+  function curves(c) {
+    const all = () => c.edges().forEach(curve);
+    c.on("layoutstop", all);
+    c.on("position", "node", (ev) => ev.target.connectedEdges().forEach(curve));
+    all();
+  }
+
   function drawTree(G, keys, focusKey) {
     const nar = G.nar;
     const nodes = new Map(), edges = new Map(), focusEdges = new Set();
@@ -598,15 +615,16 @@
         { selector: "node[cls = 'taliq'], node[cls = 'mubham']", style: { "border-style": "dashed", "color": css("--muted") } },
         { selector: "node[madar = 1]", style: { "border-width": 5, "border-color": css("--gold"), "border-style": "double" } },
         { selector: "edge", style: {
-          "width": (e) => Math.min(1.2 + Math.log2(e.data("w")) * 1.4, 7), "line-color": css("--edge"),
-          "target-arrow-shape": "triangle", "target-arrow-color": css("--edge"), "arrow-scale": 0.8, "curve-style": "bezier",
+          "width": (e) => Math.min(1.4 + Math.log2(e.data("w")) * 1.4, 7), "line-color": css("--gold"), "line-opacity": 0.55,
+          "target-arrow-shape": "triangle", "target-arrow-color": css("--gold"), "arrow-scale": 0.7, ...CURVE,
         } },
-        { selector: "edge[focus = 1]", style: { "line-color": css("--accent"), "target-arrow-color": css("--accent") } },
+        { selector: "edge[focus = 1]", style: { "line-color": css("--accent"), "target-arrow-color": css("--accent"), "line-opacity": 1, "z-index": 5 } },
         { selector: ".dim", style: { "opacity": 0.15 } },
-        { selector: ".hl", style: { "line-color": css("--gold"), "target-arrow-color": css("--gold") } },
+        { selector: "edge.hl", style: { "line-color": css("--gold"), "target-arrow-color": css("--gold"), "line-opacity": 1, "z-index": 9 } },
         { selector: "node.pick", style: { "border-width": 4, "font-weight": 700 } },
       ],
     });
+    curves(cy);
     readable(cy, "nabi");
     cy.on("tap", "node", (e) => selectNode(e.target, G));
     cy.on("tap", (e) => { if (e.target === cy) cy.elements().removeClass("dim hl"); });
@@ -795,12 +813,13 @@
           "border-width": 2, "border-color": (e) => color(e.data("cls")), "label": "data(label)", "color": css("--ink"),
           "font-family": "-apple-system, BlinkMacSystemFont, Tajawal, sans-serif", "font-size": 11, "text-valign": "center", "text-wrap": "wrap", "text-max-width": 90 } },
         { selector: "node[me = 1]", style: { "background-color": css("--accent"), "color": css("--accent-ink"), "font-size": 13, "font-weight": 700 } },
-        { selector: "edge", style: { "width": (e) => Math.min(1 + Math.log2(e.data("w")), 6), "line-color": css("--edge"), "curve-style": "bezier",
-          "target-arrow-shape": "triangle", "target-arrow-color": css("--edge"), "arrow-scale": 0.7,
+        { selector: "edge", style: { "width": (e) => Math.min(1 + Math.log2(e.data("w")), 6), "line-color": css("--gold"), "line-opacity": 0.55, ...CURVE,
+          "target-arrow-shape": "triangle", "target-arrow-color": css("--gold"), "arrow-scale": 0.7,
           "overlay-padding": 8, "overlay-opacity": 0 } },
-        { selector: "edge.hover, edge.on", style: { "line-color": css("--accent"), "target-arrow-color": css("--accent"), "z-index": 9 } },
+        { selector: "edge.hover, edge.on", style: { "line-color": css("--accent"), "target-arrow-color": css("--accent"), "line-opacity": 1, "z-index": 9 } },
       ],
     });
+    curves(ego);
     readable(ego, n.id, true);
     graphTools($("#ego"), () => ego, () => readable(ego, n.id, true));
     ego.on("tap", "node", (e) => {
@@ -894,10 +913,11 @@
       if ((scope !== "bab" && keep(spansOf(re, rec.f)).length) || ((scope === "bab" || scope === "all") && spansOf(re, rec.bf).length)) return null;
     }
     // relevance: the exact phrase, matches in the matn, words close together, a matching bab, shorter texts
-    let score = 0;
+    let score = 0, marks = spans;
     if (Q.whole) {
       const w = keep(spansOf(Q.whole, rec.f));
-      if (w.length) score += w.some(([a]) => isMatn(a)) ? 100 : 60;
+      // when the phrase is there, mark only it rather than every «عن» and «في» in the text
+      if (w.length) { score += w.some(([a]) => isMatn(a)) ? 100 : 60; marks = w; }
     }
     if (spans.length) {
       if (spans.every(([a]) => isMatn(a))) score += 20;
@@ -905,8 +925,8 @@
       score += 30 * Math.max(0, 1 - (Math.max(...starts) - Math.min(...starts)) / 400);
     }
     if (babSpans.length) score += 10;
-    score += 5 * Math.max(0, 1 - rec.r[2].length / 3000);
-    return { rec, score, spans, babSpans };
+    score += 5 * Math.max(0, 1 - rec.r[2].length / 3000) + (SAHIHAYN.has(bookOf(rec.r[0])) ? 4 : 0);
+    return { rec, score, spans: marks, babSpans };
   }
   function merge(sp) {
     const out = [];
@@ -954,14 +974,15 @@
   }
 
   async function viewSearch(path) {
-    const pm = path.match(/^(.*?)\?((?:[a-z]=[a-z]*&?)+)$/);
+    const pm = path.match(/^(.*?)\?((?:[a-z]=\w*&?)+)$/);
     const q = (pm ? pm[1] : path).trim();
-    const opt = { b: "", s: "all", o: "rel", g: "" , ...Object.fromEntries(new URLSearchParams(pm ? pm[2] : ""))};
+    const opt = { b: "", s: "all", o: "rel", g: "", ...Object.fromEntries(new URLSearchParams(pm ? pm[2] : "")) };
     $("#q").value = q;
     if (!q) { location.hash = "#/"; return; }
     track("search", q);
-    const Q = parseQuery(q);
     const lookup = numberLookup(q);
+    // «البخاري 1524» is a lookup, not a text search
+    const Q = lookup.length ? { req: [] } : parseQuery(q);
     const words = norm(q.replace(/(^|\s)-\S+/g, " ")).split(" ").filter((w) => w.length > 1);
     const narrators = words.length && !/^\d+$/.test(words.join("")) ? Object.entries(META.directory).filter(([, v]) => words.every((w) => norm(v[0]).includes(w)))
       .sort((a, b) => totalOf(b[1]) - totalOf(a[1])).slice(0, 12) : [];
