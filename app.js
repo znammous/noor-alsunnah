@@ -220,7 +220,7 @@
         ${kpi(T.companions, "صحابيًا وصحابية", "في أسانيد الكتب التسعة")}
         ${kpi(T.muttafaq, "حديثًا متفقًا عليه", "من أحاديث مسلم، بحسب تخريج البرنامج")}
         ${kpi(T.tisa, "حديثًا رواه التسعة", `و${fmt(T.sitta)} رواه الستة، من أحاديث البخاري بحسب تخريج البرنامج`)}
-        ${kpi(T.thulathiyyat, "من ثلاثيات البخاري", "أعلى أسانيده")}
+        ${kpi(T.thulathiyyat, "من ثلاثيات البخاري", `و${fmt(T.thulathiyyat_ahmad)} حديثًا من ثلاثيات أحمد`)}
         ${kpi(T.mudallisun, "راويًا موصوفًا بالتدليس", `و${fmt(T.mukhtalitun)} ممن اختلط`)}
       </div>
 
@@ -271,8 +271,9 @@
 
       <div class="grid g2" style="margin-top:16px">
         <div class="panel"><h2>الأكثر بحثًا وزيارة</h2><div id="popular"></div></div>
-        <div class="panel"><h2>ثلاثيات البخاري</h2><p class="muted small">ما بين البخاري والنبي ﷺ فيها ثلاثة رواة</p>
-          <ul class="list">${S.thulathiyyat.map((t, i) => `${i === 6 ? `</ul><details><summary class="small">عرض الكل (${fmt(S.thulathiyyat.length)})</summary><ul class="list">` : ""}<li><div class="meta-line"><a href="#/h/${t.k}">البخاري ${t.num}</a><span>${esc(clip(t.snippet, 70))}</span></div>${chainHTML(t.chain, N, "البخاري")}</li>`).join("")}</ul>${S.thulathiyyat.length > 6 ? "</details>" : ""}</div>
+        <div class="panel"><h2>الثلاثيات</h2>
+          <div class="seg" id="thf"><button data-v="bukhari" class="on">البخاري</button><button data-v="ahmad">أحمد</button></div>
+          <p class="muted small" id="thf-note"></p><div id="thf-list"></div></div>
       </div>`;
     renderPopular();
     const showShaykhs = (b) => {
@@ -280,6 +281,17 @@
       $("#shf-bars").innerHTML = bars(S.top_shaykhs[b].slice(0, 10));
     };
     showShaykhs("bukhari");
+    // the highest chains: three narrators between the compiler and the Prophet ﷺ
+    const showThulathiyyat = (b) => {
+      const rows = b === "ahmad" ? S.thulathiyyat_ahmad : S.thulathiyyat;
+      const hadiths = new Set(rows.map((t) => t.k)).size;
+      $("#thf-note").textContent = `ما بين ${AUTHOR[b]} والنبي ﷺ فيها ثلاثة رواة: ${fmt(hadiths)} حديثًا` +
+        (rows.length > hadiths ? ` بـ${fmt(rows.length)} إسنادًا` : "") +
+        (b === "ahmad" ? ". محسوبة آليًا مع المكرر، ولا تدخل فيها زوائد ابنه عبد الله، ولا أسانيد سقط منها راوٍ في المصدر" : "");
+      $("#thf-list").innerHTML = `<ul class="list">${rows.map((t, i) => `${i === 6 ? `</ul><details><summary class="small">عرض الكل (${fmt(rows.length)})</summary><ul class="list">` : ""}<li><div class="meta-line"><a href="#/h/${t.k}">${AUTHOR[b]} ${t.num}</a><span>${esc(clip(t.snippet, 70))}</span></div>${chainHTML(t.chain, N, AUTHOR[b])}</li>`).join("")}</ul>${rows.length > 6 ? "</details>" : ""}`;
+    };
+    showThulathiyyat("bukhari");
+    $("#thf").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; setSeg("#thf", b); showThulathiyyat(b.dataset.v); });
     $("#shf").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; setSeg("#shf", b); showShaykhs(b.dataset.v); });
   }
 
@@ -548,7 +560,7 @@
     if (label) tags.push(`<span class="tag ${cls}">${label}</span>`);
     tags.push(`<span class="tag">${c.ids.length} رواة</span>`);
     if (c.z) { tags.push(`<span class="tag">${ZAWAID}</span>`); compiler = null; }
-    if (compiler === "البخاري" && c.ids.length === 3 && nar[c.ids[0]]?.cls === "sahabi") tags.push('<span class="tag ok">ثلاثي</span>');
+    if (c.t) tags.push('<span class="tag ok">ثلاثي</span>');
     return `<li data-ids="${esc(c.ids.join(" "))}"><div class="meta-line">${tags.join("")}</div>${chainHTML(c.ids, nar, compiler)}</li>`;
   }
 
