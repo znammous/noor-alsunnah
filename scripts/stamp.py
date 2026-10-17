@@ -22,5 +22,7 @@ for name in ("app.html", "index.html"):
     page = SITE / name
     text = ASSET.sub(lambda m: f"{m[1]}{m[2]}?v={v}", page.read_text(encoding="utf-8"))
     text = re.sub(r'window\.V = "\w*"', f'window.V = "{v}"', text)
+    # link previews (WhatsApp etc.) cache the image by URL, so a new og.jpg needs a new one
+    text = re.sub(r'(assets/og\.jpg)(\?v=\w+)?"', rf'\1?v={v}"', text)
     page.write_text(text, encoding="utf-8")
 print(v)
