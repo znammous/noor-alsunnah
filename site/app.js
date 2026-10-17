@@ -442,7 +442,8 @@
       const shown = rows.filter((li) => !li.hidden).length;
       const note = $("#chainf");
       note.hidden = !c;
-      if (c) note.textContent = `${fmt(shown)} من ${fmt(rows.length)} أسانيد هذه الرواية فيها: ${c === "madar" ? "المدار" : CLS_LABEL[c]}`;
+      const what = c === "madar" ? "المدار" : CLS_LABEL[c];
+      if (c) note.textContent = shown ? `${fmt(shown)} من ${fmt(rows.length)} أسانيد هذه الرواية فيها: ${what}` : `ليس في أسانيد هذه الرواية: ${what}، وإنما في طرقها الأخرى المبيّنة في الشجرة.`;
       if (!cy) return;
       cy.elements().removeClass("dim hl pick");
       if (!c) { $("#side").innerHTML = sideEmpty; return; }
@@ -451,8 +452,7 @@
       cy.elements().not(path).addClass("dim");
       path.edges().addClass("hl");
       hit.addClass("pick");
-      const label = c === "madar" ? "المدار" : CLS_LABEL[c];
-      $("#side").innerHTML = `<h3 class="cls-${c}"><span class="dot"${c === "madar" ? ' style="background:var(--gold)"' : ""}></span>${label} في هذه الشجرة: ${fmt(hit.length)}</h3>
+      $("#side").innerHTML = `<h3 class="cls-${c}"><span class="dot"${c === "madar" ? ' style="background:var(--gold)"' : ""}></span>${what} في هذه الشجرة: ${fmt(hit.length)}</h3>
         <div class="chain">${hit.sort((a, b) => b.data("n") - a.data("n")).map((n) => `<a class="chip cls-${n.data("cls")}" href="#/n/${encodeURIComponent(n.id())}"><span class="dot"></span>${esc(n.data("label"))}<span class="muted small" style="margin-inline-start:6px">${fmt(n.data("n"))}</span></a>`).join(" ")}</div>
         <p class="muted small">العدد بجانب الاسم = عدد الطرق التي تمر به في الشجرة.</p>`;
     };
