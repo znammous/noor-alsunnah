@@ -88,6 +88,16 @@ def grade_of(rank, tabaka, name=""):
     return "unknown"
 
 
+# Ahmad began hearing hadith around 179 AH: a shaykh who died before that (Ibn Jurayj, al-Thawri ...)
+# means the source dropped a narrator, so the chain is not really a thulathi
+AHMAD_FIRST_HEARING = 179
+
+
+def last_year(date):
+    years = [int(y) for y in re.findall(r"\d{2,3}", strip_diacritics(date or ""))]
+    return max(years) if years else None
+
+
 def first_year(date):
     m = re.search(r"\d{1,3}", strip_diacritics(date or ""))
     return int(m.group()) if m else None
@@ -202,7 +212,12 @@ def main():
     sanad_freq = Counter()
     chain_len = {b: Counter() for b in BOOKS}
     chain_cls = {b: Counter() for b in BOOKS}
-    thulathiyyat, shortest_muslim = [], []
+    # chains with only three narrators between the compiler and the Prophet ﷺ (not Abdullah's zawa'id)
+    thulathiyyat, thulathiyyat_ahmad, shortest_muslim = [], [], []
+
+    def heard_by_ahmad(shaykh):
+        y = last_year(narr[shaykh].get("death"))
+        return y >= AHMAD_FIRST_HEARING if y else (narr[shaykh].get("tabaka") or 0) >= 7
     for k, h in hadiths.items():
         book = h["book"]
         for c in h["chains"]:
@@ -222,8 +237,16 @@ def main():
             top_companion = narr[ids[0]]["cls"] == "sahabi"
             # a tabi'i must follow the companion, otherwise the chain is truncated in the source
             linked = 2 <= (narr[ids[1]].get("tabaka") or 0) <= 6 if len(ids) > 1 else False
+            # Ibn Hajar's sixth tabaqa met no companion; and a thulathi is a hadith of the Prophet ﷺ
+            tabii = 2 <= (narr[ids[1]].get("tabaka") or 0) <= 5 if len(ids) > 1 else False
+            marfu = h["type"] in ("مرفوع", "قدسي")
             if book == "bukhari" and len(ids) == 3 and top_companion and linked:
                 thulathiyyat.append({"k": k, "chain": ids})
+                c["t"] = 1
+            if (book == "ahmad" and not c.get("z") and len(ids) == 3 and top_companion and tabii and marfu
+                    and heard_by_ahmad(ids[2])):
+                thulathiyyat_ahmad.append({"k": k, "chain": ids})
+                c["t"] = 1
             if book == "muslim" and len(ids) == 4 and top_companion and linked:
                 shortest_muslim.append({"k": k, "chain": ids})
             if len(ids) >= 3:
@@ -363,6 +386,7 @@ def main():
             "companions": sum(1 for x in real if narr[x]["cls"] == "sahabi"),
             "muttafaq": muttafaq,
             "thulathiyyat": len(thulathiyyat),
+            "thulathiyyat_ahmad": len({t["k"] for t in thulathiyyat_ahmad}),
             "mudallisun": sum(1 for x in real if narr[x].get("tadlis")),
             "mukhtalitun": sum(1 for x in real if narr[x].get("ikhtilat")),
         },
@@ -382,13 +406,16 @@ def main():
         "deaths": sorted(death_bins.items()),
         "chain_length": {b: sorted(v.items()) for b, v in chain_len.items()},
         "thulathiyyat": [{**t, "snippet": snippet(hadiths[t["k"]]), "num": hadiths[t["k"]]["label"]} for t in thulathiyyat],
+        "thulathiyyat_ahmad": [{**t, "snippet": snippet(hadiths[t["k"]]), "num": hadiths[t["k"]]["label"]}
+                               for t in thulathiyyat_ahmad],
         "shortest_muslim": [{**t, "snippet": snippet(hadiths[t["k"]]), "num": hadiths[t["k"]]["label"]}
                             for t in shortest_muslim][:40],
     }
     used = {x for key in ("top_narrators", "top_companions", "top_madar") for x, _ in stats[key]}
     used |= {x for rows in stats["top_shaykhs"].values() for x, _ in rows}
     used |= {x for i, _ in stats["top_isnads"] for x in i}
-    used |= {x for s in stats["thulathiyyat"] + stats["shortest_muslim"] for x in s["chain"]}
+    used |= {x for s in stats["thulathiyyat"] + stats["thulathiyyat_ahmad"] + stats["shortest_muslim"]
+             for x in s["chain"]}
     stats["nar"] = {i: light(narr[i]) for i in used}
     dump(stats, SITE_DATA / "stats.json")
 
@@ -404,7 +431,7 @@ def main():
     }
     dump(meta, SITE_DATA / "meta.json")
     print(f"site data: {len(hadiths)} hadiths in {len(shards)} shards, muttafaq {muttafaq}, sitta {sitta}, "
-          f"{len(directory)} narrators in {len(nshards)} shards; thulathiyyat {len(thulathiyyat)}; "
+          f"{len(directory)} narrators in {len(nshards)} shards; thulathiyyat {len(thulathiyyat)}, of Ahmad {len(thulathiyyat_ahmad)}; "
           f"grades {dict(by_cls)}")
 
 
