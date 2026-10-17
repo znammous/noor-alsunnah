@@ -408,7 +408,7 @@
             <button class="btn" id="png">حفظ صورة</button>
             <a class="btn" href="${mailto(`نور السنة: ملاحظة على ${hkey(key)}`)}">أبلغ عن خطأ</a>
           </div>
-          <div id="tree" role="img" aria-label="شجرة الرواة"></div>
+          ${graphBox('<div id="tree" role="img" aria-label="شجرة الرواة"></div>')}
           <div class="legend" id="rankf"><span class="cls-nabi"><i style="background:var(--c)"></i>${CLS_LABEL.nabi}</span>${["sahabi", "thiqa", "saduq", "maqbul", "weak"].map((c) => `<button class="cls-${c}" data-c="${c}" title="تمييز رواة هذه الرتبة والطرق التي تمر بهم"><i style="background:var(--c)"></i>${CLS_LABEL[c]}</button>`).join("")}<span class="cls-imam"><i style="background:var(--c)"></i>${CLS_LABEL.imam}</span>${madar ? `<button data-c="madar" style="--c:var(--gold)" title="تمييز المدار والطرق التي تمر به"><i style="background:transparent;border:2px solid var(--gold)"></i>المدار</button>` : ""}<span class="muted">سُمك الخط = عدد الطرق · اضغط على رتبة لتمييزها</span></div>
         </div>
         <aside class="panel side" id="side"><p class="empty">اضغط على أي راوٍ في الشجرة لعرض ترجمته المختصرة وتمييز الطرق التي تمر به.</p></aside>
@@ -477,6 +477,7 @@
     $("#scope")?.addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; scope = b.dataset.v; setSeg("#scope", b); draw(); });
     $("#bookf")?.addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; bookFilter = b.dataset.v; setSeg("#bookf", b); draw(); });
     $("#fit").addEventListener("click", () => cy && cy.fit(undefined, 16));
+    graphTools($("#tree"), () => cy, () => readable(cy, "nabi"));
     $("#png").addEventListener("click", () => {
       if (!cy) return;
       const a = document.createElement("a");
@@ -585,6 +586,29 @@
     cy.on("tap", (e) => { if (e.target === cy) cy.elements().removeClass("dim hl"); });
   }
 
+  // zoom buttons + a hint over a graph; the mouse wheel scrolls the page unless Ctrl/⌘ is held (pinch sends ctrlKey)
+  const graphBox = (inner) => `<div class="graph-box">${inner}
+    <div class="graph-ctl"><button data-z="in" title="تكبير" aria-label="تكبير">+</button><button data-z="out" title="تصغير" aria-label="تصغير">−</button><button data-z="reset" title="العودة إلى الشكل الأصلي" aria-label="العودة إلى الشكل الأصلي">⟲</button></div>
+    <p class="graph-hint">تفاعلي: اسحب للتحريك · Ctrl مع العجلة أو + − للتكبير · ⟲ للعودة</p></div>`;
+  function graphTools(el, get, reset) {
+    const box = el.parentElement, hint = $(".graph-hint", box);
+    let t = null;
+    box.addEventListener("click", (e) => {
+      const b = e.target.closest("[data-z]"), c = get();
+      if (!b || !c) return;
+      if (b.dataset.z === "reset") return reset();
+      const center = { x: c.width() / 2, y: c.height() / 2 };
+      c.animate({ zoom: { level: c.zoom() * (b.dataset.z === "in" ? 1.3 : 1 / 1.3), renderedPosition: center } }, { duration: 150 });
+    });
+    box.addEventListener("wheel", (e) => {
+      if (e.ctrlKey || e.metaKey) return;
+      e.stopPropagation();
+      hint.classList.add("flash");
+      clearTimeout(t);
+      t = setTimeout(() => hint.classList.remove("flash"), 1400);
+    }, { capture: true });
+  }
+
   // fit, but never shrink below a legible zoom: keep the anchor (root) in view instead
   function readable(c, anchorId, center = false) {
     c.fit(undefined, 16);
@@ -664,7 +688,7 @@
             ${n.rank_dhahabi ? `<blockquote><cite>رتبته عند الذهبي</cite>${esc(n.rank_dhahabi)}</blockquote>` : ""}</div>` : ""}
           <dl class="facts">${facts.map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join("")}</dl>
         </div>
-        <div class="panel"><h2>شبكة الراوي</h2><p class="muted small">أبرز شيوخه (يمينًا) وتلاميذه (يسارًا) في الكتب الستة — اضغط الاسم للانتقال، والسهم لعرض أحاديث الطريق</p><div id="ego"></div>
+        <div class="panel"><h2>شبكة الراوي</h2><p class="muted small">أبرز شيوخه (يمينًا) وتلاميذه (يسارًا) في الكتب الستة — اضغط الاسم للانتقال، والسهم لعرض أحاديث الطريق</p>${graphBox('<div id="ego"></div>')}
           <div class="legend">${["nabi", "sahabi", "thiqa", "saduq", "maqbul", "weak", "unknown"].map((c) => `<span class="cls-${c}"><i style="background:var(--c)"></i>${CLS_LABEL[c]}</span>`).join("")}<span class="muted">سُمك الخط = عدد الأسانيد</span></div></div>
       </div>
       <div class="grid g2" style="margin-top:16px">
@@ -750,6 +774,7 @@
       ],
     });
     readable(ego, n.id, true);
+    graphTools($("#ego"), () => ego, () => readable(ego, n.id, true));
     ego.on("tap", "node", (e) => {
       const ref = e.target.data("ref");
       if (ref && META.directory[ref]) location.hash = "#/n/" + encodeURIComponent(ref);
