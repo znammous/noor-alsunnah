@@ -134,6 +134,10 @@ h1 { font-size: 1.6rem; } h2 { font-size: 1.2rem; } h3 { font-size: 1rem; }
 .chain { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; font-size: .9rem; }
 .chip { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; background: var(--panel-2); border: 1px solid var(--line); color: var(--ink); white-space: nowrap; }
 .chip:hover { text-decoration: none; border-color: var(--c, var(--accent)); }
+.chip > a { color: inherit; }
+.link-n { margin-inline-start: 6px; padding: 0 6px; border: 1px solid transparent; border-radius: 999px; background: none; color: var(--muted); font: inherit; font-size: .8rem; cursor: pointer; }
+.link-n:hover, .link-n.on { border-color: var(--accent); color: var(--ink); }
+.link-n.on { background: var(--accent); color: var(--accent-ink); }
 .chain .sep { color: var(--muted); font-size: .8rem; }
 .tag { display: inline-block; padding: 1px 8px; border-radius: 6px; font-size: .78rem; background: var(--panel-2); color: var(--muted); border: 1px solid var(--line); }
 .tag.ok { color: var(--c-thiqa); border-color: currentColor; background: transparent; }

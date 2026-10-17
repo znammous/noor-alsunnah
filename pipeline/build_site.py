@@ -185,6 +185,7 @@ def main():
     # ---------- narrator statistics ----------
     in_book = defaultdict(lambda: {b: set() for b in BOOKS})
     teachers, students = defaultdict(Counter), defaultdict(Counter)
+    link_keys = defaultdict(set)  # (teacher, student) -> hadiths whose chains carry that link
     shaykh_of = {b: Counter() for b in BOOKS}
     sanad_freq = Counter()
     chain_len = {b: Counter() for b in BOOKS}
@@ -202,6 +203,7 @@ def main():
             for a, b in zip(full, full[1:]):
                 teachers[b][a] += 1
                 students[a][b] += 1
+                link_keys[a, b].add(k)
             shaykh_of[book][ids[-1]] += 1
             top_companion = narr[ids[0]]["cls"] == "sahabi"
             # a tabi'i must follow the companion, otherwise the chain is truncated in the source
@@ -265,7 +267,8 @@ def main():
             **{k: v for k, v in n.items() if v not in (None, "", [], 0) or k == "cls"},
             "tabaka_label": TABAQA.get(n.get("tabaka")),
             "hadiths": {b: sorted(per_book[b], key=key_num) for b in BOOKS if per_book[b]},
-            "teachers": teachers[nid].most_common(60), "students": students[nid].most_common(60),
+            "teachers": [[x, c, sorted(link_keys[x, nid], key=key_num)] for x, c in teachers[nid].most_common(60)],
+            "students": [[x, c, sorted(link_keys[nid, x], key=key_num)] for x, c in students[nid].most_common(60)],
             "n_teachers": len(teachers[nid]), "n_students": len(students[nid]),
         }
     for s, content in nshards.items():
