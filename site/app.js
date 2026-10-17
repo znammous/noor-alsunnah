@@ -136,8 +136,33 @@
     [/^\/search\/(.*)$/, viewSearch],
     [/^\/about$/, viewAbout],
   ];
+  // each history entry remembers its own scroll, so «back» returns to where the reader left off
+  if ("scrollRestoration" in history) history.scrollRestoration = "manual";
+  let restoring = false, saveTimer = 0;
+  function saveScroll() {
+    clearTimeout(saveTimer);
+    if (restoring) return;
+    try { history.replaceState({ ...(history.state || {}), y: Math.round(scrollY) }, ""); } catch (_) {}
+  }
+  addEventListener("scroll", () => { clearTimeout(saveTimer); saveTimer = setTimeout(saveScroll, 250); }, { passive: true });
+  addEventListener("pagehide", saveScroll);
+  document.addEventListener("click", (e) => { if (e.target.closest && e.target.closest('a[href^="#"]')) saveScroll(); }, true);
+  function go(hash) { saveScroll(); location.hash = hash; }
+  function restoreScroll(y) {
+    // trees and lists may still be growing; retry briefly until the page is tall enough
+    const t0 = Date.now();
+    const step = () => {
+      scrollTo(0, y);
+      if (Math.abs(scrollY - y) > 2 && Date.now() - t0 < 1500) requestAnimationFrame(step);
+      else restoring = false;
+    };
+    step();
+  }
   async function route() {
     const path = decodeURIComponent(location.hash.replace(/^#/, "")) || "/";
+    clearTimeout(saveTimer);
+    restoring = true;
+    const savedY = (history.state && history.state.y) || 0;
     for (const a of document.querySelectorAll(".nav a")) {
       const nav = a.dataset.nav;
       a.classList.toggle("active", (nav === "home" && path === "/") || (nav === "books" && path.startsWith("/book")) || (nav !== "home" && nav !== "books" && path.includes(nav)));
@@ -147,10 +172,11 @@
       if (m) {
         app.innerHTML = LOADING;
         try { await meta(); await fn(...m.slice(1)); } catch (e) { console.error(e); app.innerHTML = `<div class="panel">تعذّر التحميل: ${esc(e.message)}</div>`; }
-        window.scrollTo(0, 0);
+        restoreScroll(savedY);
         return;
       }
     }
+    restoring = false;
     app.innerHTML = '<div class="panel">الصفحة غير موجودة.</div>';
   }
   window.addEventListener("hashchange", route);
@@ -721,7 +747,7 @@
       edge = row ? { dir, x, keys: new Set(row[2] || []) } : null;
       book = "";
       // the address follows the chosen link so it can be shared; replaceState does not re-route
-      history.replaceState(null, "", `#/n/${encodeURIComponent(n.id)}${edge ? `/${dir}/${encodeURIComponent(x)}` : ""}`);
+      history.replaceState(history.state, "", `#/n/${encodeURIComponent(n.id)}${edge ? `/${dir}/${encodeURIComponent(x)}` : ""}`);
       show();
       if (edge) $("#htitle").scrollIntoView({ behavior: "smooth" });
     };
@@ -779,7 +805,7 @@
     graphTools($("#ego"), () => ego, () => readable(ego, n.id, true));
     ego.on("tap", "node", (e) => {
       const ref = e.target.data("ref");
-      if (ref && META.directory[ref]) location.hash = "#/n/" + encodeURIComponent(ref);
+      if (ref && META.directory[ref]) go("#/n/" + encodeURIComponent(ref));
     });
     ego.on("tap", "edge", (e) => onEdge(e.target.data("dir"), e.target.data("x")));
     ego.on("mouseover", "edge", (e) => { e.target.addClass("hover"); ego.container().style.cursor = "pointer"; });
@@ -806,33 +832,223 @@
   }
 
   // ---------- search ----------
-  async function viewSearch(q) {
-    q = q.trim();
+  // Matching runs on a folded copy of each text that keeps one char per char, so match offsets
+  // point straight back into the displayed (original) spelling.
+  const L = "ء-ي";
+  const FOLD = { "آ": "ا", "أ": "ا", "إ": "ا", "ٱ": "ا", "ؤ": "و", "ئ": "ي", "ى": "ي", "ة": "ه", "ک": "ك", "ی": "ي" };
+  const fold = (s) => s.replace(/[آأإؤئةى]|[^ء-ي]/g, (c) => FOLD[c] || " ");
+  const plain = (s) => String(s || "").replace(/[ؐ-ًؚ-ٰٟۖ-ۭـ‌-‏]/g, "");
+  let CORPUS = null;
+  const corpus = () => (CORPUS ||= searchIndex().then((idx) => idx.map((r, i) => {
+    const bab = plain(r[3]);
+    return { r, i, f: fold(r[2]), bab, bf: fold(bab) };
+  })));
+
+  // one query word -> regex source: whole word, tolerant of the clitics و ف ب ك ل and the article;
+  // short words must match exactly (so «الى» does not hit «اليمن»), longer ones or «word*» may continue.
+  function termSource(w) {
+    const star = /\*$/.test(w);
+    w = fold(norm(w)).replace(/ /g, "");
+    if (!w) return null;
+    let core;
+    if (w === "ابن") core = "ا?بن";
+    else if (w.startsWith("ال") && w.length > 3) core = `(?:[بك]?ال|لل)${w.slice(2)}`;
+    else core = `[بكل]?(?:ال)?${w}`;
+    return `(?<![${L}])[وف]?${core}${star || w.length >= 4 ? `[${L}]*` : `(?![${L}])`}`;
+  }
+  function parseQuery(q) {
+    const req = [], neg = [], words = [];
+    let phrased = false;
+    for (const m of q.replace(/[«»“”]/g, '"').matchAll(/(-?)"([^"]*)"?|(-?)(\S+)/g)) {
+      const isPhrase = m[2] != null, minus = isPhrase ? m[1] : m[3];
+      const parts = (isPhrase ? m[2] : m[4]).split(/\s+/).map(termSource).filter(Boolean);
+      if (!parts.length) continue;
+      const re = new RegExp(parts.join(`[^${L}]+`), "g");
+      if (minus) { neg.push(re); continue; }
+      req.push(re);
+      if (isPhrase) phrased = true; else words.push(parts[0]);
+    }
+    // several loose words: the same words side by side rank first
+    const whole = !phrased && words.length > 1 ? new RegExp(words.join(`[^${L}]+`), "g") : null;
+    return { req, neg, whole };
+  }
+  function spansOf(re, s) {
+    const out = [];
+    re.lastIndex = 0;
+    for (let m; (m = re.exec(s));) { out.push([m.index, m.index + m[0].length]); if (!m[0]) re.lastIndex++; }
+    return out;
+  }
+  const inRanges = (R, i) => { for (let j = 0; j < R.length; j += 2) if (i >= R[j] && i < R[j + 1]) return true; return false; };
+  // scope: all (text or bab) | matn | isnad (text outside the matn) | bab
+  function matchRecord(rec, Q, scope) {
+    const R = rec.r[5], isMatn = (i) => !R.length || inRanges(R, i);
+    const keep = (sp) => (scope === "matn" ? sp.filter(([a]) => isMatn(a)) : scope === "isnad" ? sp.filter(([a]) => !isMatn(a)) : sp);
+    const spans = [], babSpans = [];
+    for (const re of Q.req) {
+      const t = scope === "bab" ? [] : keep(spansOf(re, rec.f));
+      const b = scope === "bab" || scope === "all" ? spansOf(re, rec.bf) : [];
+      if (!t.length && !b.length) return null;
+      spans.push(...t); babSpans.push(...b);
+    }
+    for (const re of Q.neg) {
+      if ((scope !== "bab" && keep(spansOf(re, rec.f)).length) || ((scope === "bab" || scope === "all") && spansOf(re, rec.bf).length)) return null;
+    }
+    // relevance: the exact phrase, matches in the matn, words close together, a matching bab, shorter texts
+    let score = 0;
+    if (Q.whole) {
+      const w = keep(spansOf(Q.whole, rec.f));
+      if (w.length) score += w.some(([a]) => isMatn(a)) ? 100 : 60;
+    }
+    if (spans.length) {
+      if (spans.every(([a]) => isMatn(a))) score += 20;
+      const starts = spans.map(([a]) => a);
+      score += 30 * Math.max(0, 1 - (Math.max(...starts) - Math.min(...starts)) / 400);
+    }
+    if (babSpans.length) score += 10;
+    score += 5 * Math.max(0, 1 - rec.r[2].length / 3000);
+    return { rec, score, spans, babSpans };
+  }
+  function merge(sp) {
+    const out = [];
+    for (const [a, b] of [...sp].sort((x, y) => x[0] - y[0])) {
+      if (out.length && a <= out[out.length - 1][1]) out[out.length - 1][1] = Math.max(out[out.length - 1][1], b);
+      else out.push([a, b]);
+    }
+    return out;
+  }
+  function markText(t, spans, a = 0, b = t.length, R = null) {
+    const cuts = new Set([a, b]);
+    const sp = merge(spans).filter(([x, y]) => y > a && x < b);
+    for (const [x, y] of sp) { cuts.add(Math.max(a, x)); cuts.add(Math.min(b, y)); }
+    if (R && R.length) for (const x of R) if (x > a && x < b) cuts.add(x);
+    const pts = [...cuts].sort((x, y) => x - y);
+    let html = "";
+    for (let i = 0; i < pts.length - 1; i++) {
+      const s = pts[i], e = pts[i + 1];
+      let h = esc(t.slice(s, e));
+      if (sp.some(([x, y]) => s >= x && s < y)) h = `<mark>${h}</mark>`;
+      if (R && R.length && !inRanges(R, s)) h = `<span class="isn">${h}</span>`;
+      html += h;
+    }
+    return html;
+  }
+  // a window of the text around the best match (preferring the matn), isnad shown muted
+  function snippet(hit, width = 320) {
+    const t = hit.rec.r[2], R = hit.rec.r[5];
+    const sp = [...hit.spans].sort((x, y) => x[0] - y[0]);
+    const first = sp.find(([x]) => !R.length || inRanges(R, x)) || sp[0];
+    const focus = first ? first[0] : R[0] || 0;
+    let a = Math.max(0, focus - 90), b = Math.min(t.length, a + width);
+    a = Math.max(0, Math.min(a, b - width));
+    if (a > 0) { const s = t.indexOf(" ", a); if (s > -1 && s < focus) a = s + 1; }
+    if (b < t.length) { const s = t.lastIndexOf(" ", b); if (s > focus) b = s; }
+    return (a > 0 ? "… " : "") + markText(t, sp, a, b, R) + (b < t.length ? " …" : "");
+  }
+  // «البخاري 1524», «مسلم ١٥», or a bare number
+  function numberLookup(q) {
+    const m = q.replace(/[٠-٩]/g, (d) => d.charCodeAt(0) - 1632).trim().match(/^(.*?)\s*(\d+)$/);
+    if (!m) return [];
+    const name = norm(m[1]);
+    const books = BOOKS.filter((b) => !name || [AUTHOR[b], BOOK[b]].some((x) => { const n = norm(x); return n === name || n.replace(/^ال/, "") === name || n.endsWith(" " + name); }));
+    return name && books.length === 0 ? [] : books.map((b) => PREFIX[b] + m[2]).filter((k) => META.index[k]);
+  }
+
+  async function viewSearch(path) {
+    const pm = path.match(/^(.*?)\?((?:[a-z]=[a-z]*&?)+)$/);
+    const q = (pm ? pm[1] : path).trim();
+    const opt = { b: "", s: "all", o: "rel", g: "" , ...Object.fromEntries(new URLSearchParams(pm ? pm[2] : ""))};
     $("#q").value = q;
     if (!q) { location.hash = "#/"; return; }
     track("search", q);
-    const idx = await searchIndex();
-    const words = norm(q).split(" ").filter(Boolean);
-    const narrators = Object.entries(META.directory).filter(([, v]) => words.every((w) => norm(v[0]).includes(w)))
-      .sort((a, b) => totalOf(b[1]) - totalOf(a[1])).slice(0, 12);
-    const hits = idx.filter((r) => words.every((w) => r[2].includes(w)));
-    const shown = hits.slice(0, 100);
-    const around = (t, w) => { const i = t.indexOf(w); return i > 80 ? "…" + t.slice(i - 80) : t; };
-    const mark = (t) => {
-      let s = esc(clip(around(t, words[0]), 260));
-      for (const w of words) s = s.split(w).join(`<mark>${w}</mark>`);
-      return s;
-    };
+    const Q = parseQuery(q);
+    const lookup = numberLookup(q);
+    const words = norm(q.replace(/(^|\s)-\S+/g, " ")).split(" ").filter((w) => w.length > 1);
+    const narrators = words.length && !/^\d+$/.test(words.join("")) ? Object.entries(META.directory).filter(([, v]) => words.every((w) => norm(v[0]).includes(w)))
+      .sort((a, b) => totalOf(b[1]) - totalOf(a[1])).slice(0, 12) : [];
+    const recs = Q.req.length ? await corpus() : [];
+    const byScope = {};
+    const hitsFor = (s) => (byScope[s] ||= recs.map((r) => matchRecord(r, Q, s)).filter(Boolean));
+
+    const SCOPES = [["all", "الكل"], ["matn", "المتن"], ["isnad", "الإسناد"], ["bab", "التبويب"]];
+    const SORTS = [["rel", "الأكثر صلة"], ["book", "ترتيب الكتب"]];
     app.innerHTML = `<h1>نتائج البحث: «${esc(q)}»</h1>
+      ${lookup.length ? `<div class="panel lookup"><span class="muted">انتقل إلى الحديث برقمه:</span> ${lookup.map((k) => `<a class="btn" href="#/h/${k}">${BOOK[bookOf(k)]} ${hnum(k)}</a>`).join(" ")}</div>` : ""}
       ${narrators.length ? `<div class="panel" style="margin-bottom:16px"><h2>رواة</h2><div class="chain">${narrators.map(([id, v]) => `<a class="chip cls-${v[1]}" href="#/n/${encodeURIComponent(id)}"><span class="dot"></span>${esc(v[0])}</a>`).join(" ")}</div></div>` : ""}
-      <div class="panel"><h2>أحاديث <span class="muted small">(${fmt(hits.length)}${hits.length > shown.length ? `، يُعرض أول ${shown.length}` : ""})</span></h2>
-        <ul class="list">${shown.map((r) => `<li><div class="meta-line"><a href="#/h/${r[0]}">${hkey(r[0])}</a>${r[3] ? `<span>${esc(r[3])}</span>` : ""}</div><div class="snip">${mark(r[2])}</div></li>`).join("") || '<li class="muted">لا نتائج. جرّب كلمات أقل أو صيغة أخرى.</li>'}</ul></div>`;
+      ${Q.req.length ? `<div class="panel">
+        <div class="s-tools">
+          <div class="s-row"><span class="s-lbl">البحث في</span><div class="seg" id="sScope">${SCOPES.map(([v, l]) => `<button data-v="${v}" class="${opt.s === v ? "on" : ""}">${l}</button>`).join("")}</div></div>
+          <div class="s-row"><span class="s-lbl">الترتيب</span><div class="seg" id="sSort">${SORTS.map(([v, l]) => `<button data-v="${v}" class="${opt.o === v ? "on" : ""}">${l}</button>`).join("")}</div>
+            <label class="s-check"><input type="checkbox" id="sGroup" ${opt.g ? "checked" : ""}> ضمّ روايات الحديث الواحد</label></div>
+          <div class="s-books" id="sBooks"></div>
+        </div>
+        <details class="s-help"><summary>طريقة البحث</summary>
+          <ul>
+            <li>تُطابَق الكلمة كاملة مع ما يتصل بها من الواو والفاء والباء واللام وأداة التعريف، ولا يُلتفت إلى التشكيل ولا إلى الهمزات والتاء المربوطة والألف المقصورة.</li>
+            <li>عبارة متصلة: ضعها بين علامتي تنصيص <code>"العمرة إلى العمرة"</code> أو <code>«العمرة إلى العمرة»</code>.</li>
+            <li>استبعاد كلمة: ضع قبلها علامة الطرح <code>الصلاة -الجمعة</code>.</li>
+            <li>بداية كلمة: أضف نجمة <code>صلا*</code> لتشمل صلاة وصلاته وصلاتكم.</li>
+            <li>رقم الحديث: <code>البخاري 1524</code> أو <code>مسلم 15</code>.</li>
+          </ul>
+        </details>
+        <div id="sOut"></div>
+      </div>` : lookup.length ? "" : '<div class="panel muted">اكتب كلمة من متن الحديث أو اسم راوٍ.</div>'}`;
+    if (!Q.req.length) return;
+
+    let shown = 30;
+    const render = () => {
+      history.replaceState(null, "", "#/search/" + encodeURIComponent(q) + (() => {
+        const p = new URLSearchParams(Object.entries(opt).filter(([k, v]) => v && !(k === "s" && v === "all") && !(k === "o" && v === "rel")));
+        return p.toString() ? "?" + p : "";
+      })());
+      const all = hitsFor(opt.s);
+      const per = Object.fromEntries(BOOKS.map((b) => [b, 0]));
+      for (const h of all) per[bookOf(h.rec.r[0])]++;
+      $("#sBooks").innerHTML = `<button data-v="" class="fchip ${opt.b ? "" : "on"}">الكتب الستة <b>${fmt(all.length)}</b></button>` +
+        BOOKS.map((b) => `<button data-v="${b}" class="fchip ${opt.b === b ? "on" : ""}" ${per[b] ? "" : "disabled"}>${AUTHOR[b]} <b>${fmt(per[b])}</b></button>`).join("");
+      let list = opt.b ? all.filter((h) => bookOf(h.rec.r[0]) === opt.b) : all.slice();
+      list.sort(opt.o === "book" ? (x, y) => x.rec.i - y.rec.i : (x, y) => y.score - x.score || x.rec.i - y.rec.i);
+      const groups = new Set(list.map((h) => h.rec.r[1])).size;
+      const others = new Map();
+      if (opt.g) {
+        const seen = new Map();
+        list = list.filter((h) => {
+          const g = h.rec.r[1];
+          if (!seen.has(g)) { seen.set(g, h); others.set(h, []); return true; }
+          others.get(seen.get(g)).push(h.rec.r[0]);
+          return false;
+        });
+      }
+      const page = list.slice(0, shown);
+      const scopeTip = opt.s !== "all" ? ` <button class="linkish" data-scope="all">ابحث في الكل</button>` : "";
+      $("#sOut").innerHTML = `<p class="s-count">${list.length || !all.length ? "" : ""}${fmt(opt.g ? groups : list.length)} ${opt.g ? "حديثًا" : "نتيجة"}${!opt.g && groups !== list.length ? ` <span class="muted">ترجع إلى ${fmt(groups)} حديثًا</span>` : ""}</p>
+        <ul class="list s-list">${page.map((h) => {
+          const k = h.rec.r[0], more = others.get(h) || [];
+          const bab = h.rec.bab ? `<span class="s-bab">${markText(h.rec.bab, h.babSpans)}</span>` : "";
+          return `<li><div class="meta-line"><a class="s-ref" href="#/h/${k}">${hkey(k)}</a>${bab}</div>
+            <a class="snip s-snip" href="#/h/${k}">${h.spans.length ? snippet(h) : markText(clip(h.rec.r[2], 260), [])}</a>
+            ${more.length ? `<div class="s-more">وفي النتائج أيضًا: ${more.slice(0, 8).map((x) => `<a href="#/h/${x}">${hkey(x)}</a>`).join(" · ")}${more.length > 8 ? ` <span class="muted">و${fmt(more.length - 8)} غيرها</span>` : ""}</div>` : ""}</li>`;
+        }).join("") || `<li class="muted">لا نتائج.${scopeTip} جرّب كلمات أقل أو صيغة أخرى، أو <a href="https://dorar.net/hadith/search?q=${encodeURIComponent(q)}&st=w" target="_blank" rel="noopener">ابحث في الموسوعة الحديثية</a>.</li>`}</ul>
+        ${list.length > shown ? `<div class="pager"><button class="btn" id="sMore">عرض المزيد (${fmt(list.length - shown)} باقية)</button></div>` : ""}`;
+      $("#sMore")?.addEventListener("click", () => { const y = scrollY; shown += 30; render(); scrollTo(0, y); });
+      $("#sOut [data-scope]")?.addEventListener("click", () => { opt.s = "all"; setSeg("#sScope", $('#sScope [data-v="all"]')); shown = 30; render(); });
+    };
+    const bind = (sel, key) => $(sel).addEventListener("click", (e) => {
+      const b = e.target.closest("button");
+      if (!b || b.disabled) return;
+      opt[key] = b.dataset.v;
+      if (sel !== "#sBooks") setSeg(sel, b);
+      shown = 30;
+      render();
+    });
+    bind("#sScope", "s"); bind("#sSort", "o"); bind("#sBooks", "b");
+    $("#sGroup").addEventListener("change", (e) => { opt.g = e.target.checked ? "1" : ""; shown = 30; render(); });
+    render();
   }
 
   $("#searchForm").addEventListener("submit", (e) => {
     e.preventDefault();
     const q = $("#q").value.trim();
-    if (q) location.hash = "#/search/" + encodeURIComponent(q);
+    if (q) go("#/search/" + encodeURIComponent(q));
   });
 
   // ---------- about ----------
