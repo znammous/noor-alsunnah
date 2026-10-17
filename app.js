@@ -592,9 +592,10 @@
     const fixed = { nabi: ["النبي ﷺ", "nabi"], ...Object.fromEntries(BOOKS.map((b) => [b, [`الإمام ${AUTHOR[b]}`, "imam"]])) };
     const name = (x) => (D[x] ? D[x][0] : fixed[x] ? fixed[x][0] : x);
     const clsOf = (x) => (D[x] ? D[x][1] : fixed[x] ? fixed[x][1] : "unknown");
-    const rel = (rows) => rows.map(([x, c]) => {
-      const inner = `<span class="dot"></span>${esc(shortName(name(x)))}<span class="muted small" style="margin-inline-start:6px">${fmt(c)}</span>`;
-      return D[x] ? `<a class="chip cls-${clsOf(x)}" href="#/n/${encodeURIComponent(x)}">${inner}</a>` : `<span class="chip cls-${clsOf(x)}">${inner}</span>`;
+    const rel = (rows, dir) => rows.map(([x, c]) => {
+      const inner = `<span class="dot"></span>${esc(shortName(name(x)))}`;
+      const link = D[x] ? `<a href="#/n/${encodeURIComponent(x)}">${inner}</a>` : `<span>${inner}</span>`;
+      return `<span class="chip cls-${clsOf(x)}">${link}<button class="link-n" data-dir="${dir}" data-x="${esc(x)}" title="عرض أحاديث هذا الطريق">${fmt(c)}</button></span>`;
     }).join(" ");
     const facts = [
       ["الاسم", n.full], ["الكنية", n.kunya], ["اللقب", n.laqab], ["النسب", n.nasab],
@@ -620,33 +621,57 @@
             ${n.rank_dhahabi ? `<blockquote><cite>رتبته عند الذهبي</cite>${esc(n.rank_dhahabi)}</blockquote>` : ""}</div>` : ""}
           <dl class="facts">${facts.map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join("")}</dl>
         </div>
-        <div class="panel"><h2>شبكة الراوي</h2><p class="muted small">أبرز شيوخه (يمينًا) وتلاميذه (يسارًا) في الكتب الستة — اضغط للانتقال</p><div id="ego"></div></div>
+        <div class="panel"><h2>شبكة الراوي</h2><p class="muted small">أبرز شيوخه (يمينًا) وتلاميذه (يسارًا) في الكتب الستة — اضغط الاسم للانتقال، والسهم لعرض أحاديث الطريق</p><div id="ego"></div>
+          <div class="legend">${["nabi", "sahabi", "thiqa", "saduq", "maqbul", "weak", "unknown"].map((c) => `<span class="cls-${c}"><i style="background:var(--c)"></i>${CLS_LABEL[c]}</span>`).join("")}<span class="muted">سُمك الخط = عدد الأسانيد</span></div></div>
       </div>
       <div class="grid g2" style="margin-top:16px">
-        <div class="panel"><h2>روى عن</h2><p class="muted small">مع عدد الأسانيد في الكتب الستة</p><div class="chain">${rel(n.teachers || []) || '<span class="muted">—</span>'}</div></div>
-        <div class="panel"><h2>روى عنه</h2><p class="muted small">مع عدد الأسانيد في الكتب الستة</p><div class="chain">${rel(n.students || []) || '<span class="muted">—</span>'}</div></div>
+        <div class="panel"><h2>روى عن</h2><p class="muted small">مع عدد الأسانيد في الكتب الستة — اضغط العدد لعرض الأحاديث</p><div class="chain" id="rel-t">${rel(n.teachers || [], "t") || '<span class="muted">—</span>'}</div></div>
+        <div class="panel"><h2>روى عنه</h2><p class="muted small">مع عدد الأسانيد في الكتب الستة — اضغط العدد لعرض الأحاديث</p><div class="chain" id="rel-s">${rel(n.students || [], "s") || '<span class="muted">—</span>'}</div></div>
       </div>
-      <div class="section-title"><h2>أحاديثه في الكتب الستة</h2>
-        <div class="seg" id="hbook"><button data-v="" class="on">الكل</button>${BOOKS.filter((b) => (n.hadiths || {})[b]).map((b) => `<button data-v="${b}">${AUTHOR[b]} <span class="small">${fmt(n.hadiths[b].length)}</span></button>`).join("")}</div></div>
+      <div class="section-title"><h2 id="htitle">أحاديثه في الكتب الستة</h2><div class="seg" id="hbook"></div></div>
       <div class="panel" id="hlist"></div>`;
-    drawEgo(n, name, clsOf);
-    renderNarratorHadiths(n, 1);
-    const pickBook = (v) => {
-      setSeg("#hbook", $(`#hbook [data-v="${v}"]`));
-      renderNarratorHadiths(n, 1, v);
+    // the list shows either all his hadiths or one link (teacher → him, or him → student), optionally per book
+    let book = "", edge = null;
+    const ego = drawEgo(n, name, clsOf, (dir, x) => pickEdge(dir, x));
+    const show = () => {
+      const inEdge = (k) => !edge || edge.keys.has(k);
+      const counts = Object.fromEntries(BOOKS.filter((b) => (n.hadiths || {})[b]).map((b) => [b, n.hadiths[b].filter(inEdge).length]));
+      if (book && !counts[book]) book = "";
+      const total = Object.values(counts).reduce((a, c) => a + c, 0);
+      $("#hbook").innerHTML = `<button data-v="" class="${book ? "" : "on"}">الكل${edge ? ` <span class="small">${fmt(total)}</span>` : ""}</button>` + Object.entries(counts).filter(([, c]) => c)
+        .map(([b, c]) => `<button data-v="${b}" class="${b === book ? "on" : ""}">${AUTHOR[b]} <span class="small">${fmt(c)}</span></button>`).join("");
+      const me = esc(shortName(n.name)), other = edge && esc(shortName(name(edge.x)));
+      $("#htitle").innerHTML = !edge ? "أحاديثه في الكتب الستة"
+        : `${edge.dir === "t" ? `ما رواه ${me} عن ${other}` : `ما رواه ${other} عن ${me}`} <button class="btn" id="hclear" style="margin-inline-start:8px">عرض كل أحاديثه</button>`;
+      if (edge) $("#hclear").addEventListener("click", () => pickEdge(null));
+      app.querySelectorAll(".link-n").forEach((b) => b.classList.toggle("on", !!edge && b.dataset.dir === edge.dir && b.dataset.x === edge.x));
+      ego.edges().removeClass("on");
+      if (edge) ego.edges(`[dir = "${edge.dir}"]`).filter((e) => e.data("x") === edge.x).addClass("on");
+      renderNarratorHadiths(n, 1, book, edge && edge.keys);
     };
+    const pickEdge = (dir, x) => {
+      const row = dir && (dir === "t" ? n.teachers : n.students).find((r) => r[0] === x);
+      edge = row ? { dir, x, keys: new Set(row[2] || []) } : null;
+      book = "";
+      show();
+      if (edge) $("#htitle").scrollIntoView({ behavior: "smooth" });
+    };
+    show();
+    const pickBook = (v) => { book = v; show(); };
     $("#hbook").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) pickBook(b.dataset.v); });
     app.querySelectorAll(".summary [data-book]").forEach((b) => b.addEventListener("click", () => {
+      edge = null;
       pickBook(b.dataset.book);
       $("#hlist").scrollIntoView({ behavior: "smooth" });
     }));
+    app.querySelectorAll(".link-n").forEach((b) => b.addEventListener("click", () => pickEdge(b.dataset.dir, b.dataset.x)));
   }
 
-  async function renderNarratorHadiths(n, page, book = "") {
+  async function renderNarratorHadiths(n, page, book = "", only = null) {
     const box = $("#hlist");
     box.innerHTML = '<div class="loading">جارٍ التحميل…</div>';
     const books = BOOKS.filter((b) => (n.hadiths || {})[b] && (!book || b === book));
-    const keys = books.flatMap((b) => n.hadiths[b]);
+    const keys = books.flatMap((b) => n.hadiths[b]).filter((k) => !only || only.has(k));
     const idx = await searchIndex(books);
     const textOf = new Map(idx.map((r) => [r[0], r]));
     const pages = Math.ceil(keys.length / PAGE);
@@ -656,16 +681,16 @@
       return `<li><div class="meta-line"><a href="#/h/${k}">${hkey(k)}</a>${r && r[3] ? `<span>${esc(r[3])}</span>` : ""}</div><div class="snip">${esc(clip(r ? r[2] : "", 200))}</div></li>`;
     }).join("")}</ul>${pages > 1 ? `<div class="pager">${page > 1 ? '<button class="btn" data-p="-1">السابق</button>' : ""}<span class="muted">${page} / ${pages}</span>${page < pages ? '<button class="btn" data-p="1">التالي</button>' : ""}</div>` : ""}`;
     box.querySelectorAll("[data-p]").forEach((b) => b.addEventListener("click", () => {
-      renderNarratorHadiths(n, page + +b.dataset.p, book);
+      renderNarratorHadiths(n, page + +b.dataset.p, book, only);
       box.scrollIntoView({ behavior: "smooth" });
     }));
   }
 
-  function drawEgo(n, name, clsOf) {
+  function drawEgo(n, name, clsOf, onEdge) {
     const T = (n.teachers || []).slice(0, 12), S = (n.students || []).slice(0, 12);
     const els = [{ data: { id: n.id, label: shortName(n.name), cls: n.cls, me: 1 } }];
-    for (const [x, c] of T) { els.push({ data: { id: "t" + x, ref: x, label: shortName(name(x)), cls: clsOf(x) } }); els.push({ data: { source: "t" + x, target: n.id, w: c } }); }
-    for (const [x, c] of S) { els.push({ data: { id: "s" + x, ref: x, label: shortName(name(x)), cls: clsOf(x) } }); els.push({ data: { source: n.id, target: "s" + x, w: c } }); }
+    for (const [x, c] of T) { els.push({ data: { id: "t" + x, ref: x, label: shortName(name(x)), cls: clsOf(x) } }); els.push({ data: { source: "t" + x, target: n.id, w: c, dir: "t", x } }); }
+    for (const [x, c] of S) { els.push({ data: { id: "s" + x, ref: x, label: shortName(name(x)), cls: clsOf(x) } }); els.push({ data: { source: n.id, target: "s" + x, w: c, dir: "s", x } }); }
     const color = (c) => css(`--c-${c}`) || css("--c-unknown");
     const ego = cytoscape({
       container: $("#ego"), elements: els, minZoom: 0.2, maxZoom: 2, wheelSensitivity: 0.25,
@@ -676,7 +701,9 @@
           "font-family": "-apple-system, BlinkMacSystemFont, Tajawal, sans-serif", "font-size": 11, "text-valign": "center", "text-wrap": "wrap", "text-max-width": 90 } },
         { selector: "node[me = 1]", style: { "background-color": css("--accent"), "color": css("--accent-ink"), "font-size": 13, "font-weight": 700 } },
         { selector: "edge", style: { "width": (e) => Math.min(1 + Math.log2(e.data("w")), 6), "line-color": css("--edge"), "curve-style": "bezier",
-          "target-arrow-shape": "triangle", "target-arrow-color": css("--edge"), "arrow-scale": 0.7 } },
+          "target-arrow-shape": "triangle", "target-arrow-color": css("--edge"), "arrow-scale": 0.7,
+          "overlay-padding": 8, "overlay-opacity": 0 } },
+        { selector: "edge.hover, edge.on", style: { "line-color": css("--accent"), "target-arrow-color": css("--accent"), "z-index": 9 } },
       ],
     });
     readable(ego, n.id, true);
@@ -684,6 +711,10 @@
       const ref = e.target.data("ref");
       if (ref && META.directory[ref]) location.hash = "#/n/" + encodeURIComponent(ref);
     });
+    ego.on("tap", "edge", (e) => onEdge(e.target.data("dir"), e.target.data("x")));
+    ego.on("mouseover", "edge", (e) => { e.target.addClass("hover"); ego.container().style.cursor = "pointer"; });
+    ego.on("mouseout", "edge", (e) => { e.target.removeClass("hover"); ego.container().style.cursor = ""; });
+    return ego;
   }
 
   // ---------- narrators directory ----------
