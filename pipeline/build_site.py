@@ -296,16 +296,46 @@ def main():
     directory, nshards = {}, defaultdict(dict)
     own_book = {COMPILER[b]: b for b in NARRATOR_COMPILERS}
     key_num = lambda x: (int(hadiths[x]["num"]), x)
+
+    # repeats (المكرر): a narrator's hadiths joined by the source's rel links, counted once. Only links
+    # inside his own set are followed, so the transitive over-merging of the global groups stays out.
+    def repeat_sets(keys):
+        keys = set(keys)
+        parent = {k: k for k in keys}
+
+        def find(x):
+            while parent[x] != x:
+                parent[x] = parent[parent[x]]
+                x = parent[x]
+            return x
+        for k in keys:
+            for r in hadiths[k]["rel"]:
+                if r in keys:
+                    parent[find(k)] = find(r)
+        return {k: find(k) for k in keys}
+
     for nid, n in narr.items():
         per_book = in_book[nid]
         if not any(per_book.values()) or n.get("unlinked"):
             continue
         # a compiler's own book is his page's business, not a measure of how much he narrates
-        directory[nid] = [n["name"], n["cls"], [0 if own_book.get(nid) == b else len(per_book[b]) for b in BOOKS]]
+        counted = [b for b in BOOKS if own_book.get(nid) != b]
+        uniq, dup = [], []
+        for b in BOOKS:
+            root = repeat_sets(per_book[b])
+            seen = set()
+            for k in sorted(per_book[b], key=key_num):  # the first place stays, later ones are repeats
+                if root[k] in seen:
+                    dup.append(k)
+                seen.add(root[k])
+            uniq.append(len(seen) if b in counted else 0)
+        across = len(set(repeat_sets(set().union(*(per_book[b] for b in counted))).values()))
+        directory[nid] = [n["name"], n["cls"], [len(per_book[b]) if b in counted else 0 for b in BOOKS], uniq, across]
         nshards[shard_of(nid)][nid] = {
             **{k: v for k, v in n.items() if v not in (None, "", [], 0) or k == "cls"},
             "tabaka_label": TABAQA.get(n.get("tabaka")),
             "hadiths": {b: sorted(per_book[b], key=key_num) for b in BOOKS if per_book[b]},
+            "dup": sorted(dup), "uniq": across,
             "teachers": [[x, c, sorted(link_keys[x, nid], key=key_num)] for x, c in teachers[nid].most_common(60)],
             "students": [[x, c, sorted(link_keys[nid, x], key=key_num)] for x, c in students[nid].most_common(60)],
             "n_teachers": len(teachers[nid]), "n_students": len(students[nid]),

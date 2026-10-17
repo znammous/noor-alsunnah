@@ -256,3 +256,5 @@ mark { background: color-mix(in srgb, var(--gold) 30%, transparent); color: inhe
   .hadith-text { font-size: 1.15rem; }
   .nav a { padding: 4px 8px; font-size: .9rem; }
 }
+.bars .ntotal { color: var(--ink); font-size: 1rem; font-weight: 700; margin-inline-end: 8px; }
+@media (max-width: 700px) { #nl .num { grid-column: 1 / -1; } }
