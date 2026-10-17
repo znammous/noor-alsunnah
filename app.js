@@ -981,10 +981,12 @@
     if (!q) { location.hash = "#/"; return; }
     track("search", q);
     const lookup = numberLookup(q);
+    // a named book with a number goes straight to that hadith (replacing this page in history)
+    if (lookup.length === 1 && !/^\s*[\d٠-٩]+\s*$/.test(q)) { location.replace("#/h/" + lookup[0]); return; }
     // «البخاري 1524» is a lookup, not a text search
     const Q = lookup.length ? { req: [] } : parseQuery(q);
     const words = norm(q.replace(/(^|\s)-\S+/g, " ")).split(" ").filter((w) => w.length > 1);
-    const narrators = words.length && !/^\d+$/.test(words.join("")) ? Object.entries(META.directory).filter(([, v]) => words.every((w) => norm(v[0]).includes(w)))
+    const narrators = words.length && !lookup.length ? Object.entries(META.directory).filter(([, v]) => words.every((w) => norm(v[0]).includes(w)))
       .sort((a, b) => totalOf(b[1]) - totalOf(a[1])).slice(0, 12) : [];
     const recs = Q.req.length ? await corpus() : [];
     const byScope = {};
@@ -1041,7 +1043,7 @@
       }
       const page = list.slice(0, shown);
       const scopeTip = opt.s !== "all" ? ` <button class="linkish" data-scope="all">ابحث في الكل</button>` : "";
-      $("#sOut").innerHTML = `<p class="s-count">${list.length || !all.length ? "" : ""}${fmt(opt.g ? groups : list.length)} ${opt.g ? "حديثًا" : "نتيجة"}${!opt.g && groups !== list.length ? ` <span class="muted">ترجع إلى ${fmt(groups)} حديثًا</span>` : ""}</p>
+      $("#sOut").innerHTML = `<p class="s-count">${opt.g ? `الأحاديث: ${fmt(groups)}` : `النتائج: ${fmt(list.length)}${groups !== list.length ? ` <span class="muted">· ترجع إلى ${fmt(groups)} حديثًا</span>` : ""}`}</p>
         <ul class="list s-list">${page.map((h) => {
           const k = h.rec.r[0], more = others.get(h) || [];
           const bab = h.rec.bab ? `<span class="s-bab">${markText(h.rec.bab, h.babSpans)}</span>` : "";

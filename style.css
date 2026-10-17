@@ -205,6 +205,31 @@ details.jarh li { font-family: var(--font-text); font-size: 1.05rem; margin: 4px
 .verdicts.tirmidhi { margin: 12px 0 0; }
 .pager { display: flex; gap: 8px; justify-content: center; margin-top: 16px; }
 .notice { padding: 10px 14px; border-radius: 10px; background: var(--panel-2); color: var(--muted); font-size: .88rem; }
+.s-tools { display: flex; flex-wrap: wrap; gap: 10px 22px; align-items: center; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.s-row { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
+.s-lbl { color: var(--muted); font-size: .85rem; }
+.s-check { display: inline-flex; gap: 6px; align-items: center; font-size: .88rem; cursor: pointer; }
+.s-check input { accent-color: var(--accent); }
+.s-books { display: flex; flex-wrap: wrap; gap: 6px; width: 100%; }
+.fchip { border: 1px solid var(--line); background: var(--panel); color: var(--ink); padding: 5px 12px; border-radius: 999px; font: inherit; font-size: .86rem; cursor: pointer; }
+.fchip b { font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; margin-inline-start: 4px; }
+.fchip:hover:not(:disabled) { border-color: var(--accent); }
+.fchip.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.fchip.on b { color: inherit; }
+.fchip:disabled { opacity: .45; cursor: default; }
+.s-help { margin: 10px 0 0; font-size: .88rem; color: var(--muted); }
+.s-help summary { cursor: pointer; width: fit-content; }
+.s-help ul { margin: 6px 0 0; padding-inline-start: 20px; }
+.s-help code { font-family: var(--font-text); font-size: 1rem; background: var(--panel-2); color: var(--ink); padding: 0 6px; border-radius: 5px; }
+.s-count { margin: 14px 0 0; font-weight: 600; }
+.s-ref { font-weight: 700; }
+.s-bab { color: var(--muted); }
+.s-snip { display: block; color: var(--ink); }
+.s-snip:hover { text-decoration: none; }
+.s-snip .isn { color: var(--muted); }
+.s-more { font-size: .85rem; color: var(--muted); margin-top: 4px; }
+.lookup { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 16px; }
+.linkish { border: 0; background: none; padding: 0; color: var(--accent); font: inherit; cursor: pointer; }
 mark { background: color-mix(in srgb, var(--gold) 30%, transparent); color: inherit; border-radius: 3px; }
 #ego { width: 100%; height: 420px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
 .graph-box { position: relative; }
