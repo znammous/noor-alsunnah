@@ -51,6 +51,20 @@ COMPANION = re.compile(r"(?<!أ)صحابي|(?<!أ)صحابية|الصحابة|ص
                        r"لها? رؤية|رأى النبي|خليفة رسول الله|زوج (?:النبي|رسول الله)|ربيبة النبي|أم المؤمنين")
 
 
+FEMALE_FIRST = {"أم", "ابنة", "امرأة", "بنت", "جدة", "عمة", "خالة", "أخت", "مولاة", "زوجة"}
+
+
+def is_female(n):
+    """Women narrators, guessed from the name (أم فلان، فلانة بنت فلان، الفلانية) and the biography."""
+    w = strip_diacritics(n.get("name") or "").split()
+    if not w or w[0] in ("ابن", "أبو", "أبي"):
+        return False
+    bio = f"{n.get('rank') or ''} {n.get('tabaka_text') or ''}"
+    return (w[0] in FEMALE_FIRST or (len(w) > 1 and w[1] in ("بنت", "مولاة"))
+            or (len(w) == 2 and w[0].endswith(("ة", "ى", "اء")) and w[1].startswith("ال") and w[1].endswith("ية"))
+            or bool(re.search(r"صحابية|زوج النبي|أم المؤمنين", bio)))
+
+
 def tabaqa_of(cls_text):
     t = strip_diacritics(cls_text or "")
     if not t:
@@ -459,10 +473,10 @@ def main():
         "books": {b: {"hadith": stats["totals"]["books"][b]["hadith"], "uniq": book_uniq(b),
                       "marfu": sum(1 for h in hadiths.values() if h["book"] == b and marfu(h)),
                       "marfu_uniq": book_uniq(b, marfu)} for b in BOOKS},
-        # id -> [tabaqa, death year, cities, tadlis | ikhtilat << 1, chains heard by each compiler from him, madar]
+        # id -> [tabaqa, death year, cities, tadlis | ikhtilat << 1 | woman << 2, chains each compiler heard from him, madar]
         "nar": {nid: [narr[nid].get("tabaka") or 0, narr[nid].get("death_year") or 0,
                       [c.strip() for c in re.split(r"\s*[،,]\s*", narr[nid].get("iqama") or "") if c.strip()],
-                      (narr[nid].get("tadlis") or 0) | (narr[nid].get("ikhtilat") or 0) << 1,
+                      (narr[nid].get("tadlis") or 0) | (narr[nid].get("ikhtilat") or 0) << 1 | is_female(narr[nid]) << 2,
                       [shaykh_of[b][nid] for b in BOOKS], madar_count.get(nid, 0)] for nid in directory},
     }
     dump(explore, SITE_DATA / "explore.json")
