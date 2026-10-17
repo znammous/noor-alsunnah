@@ -15,7 +15,8 @@ from common import _DIACRITICS as DIACRITIC, SITE_DATA, WORK, dump, load, norm, 
 SHARD_BYTES = 400_000      # target size of a hadith shard (groups are packed until this is reached)
 NARR_SHARDS = 64
 PROPHET = "nabi"
-# book key -> (URL prefix, title, compiler node label); the compiler node id is the book key
+# book key -> (URL prefix, title, compiler node label); the compiler node id is the book key,
+# except for the compilers who are also narrators in the other books (see NARRATOR_COMPILERS)
 BOOKS = {
     "bukhari": ("b", "صحيح البخاري", "الإمام البخاري"),
     "muslim": ("m", "صحيح مسلم", "الإمام مسلم"),
@@ -23,10 +24,18 @@ BOOKS = {
     "tirmidhi": ("t", "جامع الترمذي", "الإمام الترمذي"),
     "nasai": ("n", "سنن النسائي", "الإمام النسائي"),
     "ibnmajah": ("j", "سنن ابن ماجه", "الإمام ابن ماجه"),
+    "ahmad": ("a", "مسند أحمد", "الإمام أحمد"),
+    "muwatta": ("w", "موطأ مالك", "الإمام مالك"),
+    "darimi": ("r", "مسند الدارمي", "الإمام الدارمي"),
 }
+SITTA = ["bukhari", "muslim", "abudawud", "tirmidhi", "nasai", "ibnmajah"]
+# Malik, Ahmad and al-Darimi also narrate in the chains of the other books (Ahmad is a shaykh of
+# Abu Dawud, al-Darimi of Muslim): their own node is their narrator entry, so the Muwatta's chains
+# meet al-Bukhari's at Malik, and his teachers include those he narrates from in the Muwatta.
+NARRATOR_COMPILERS = {"ahmad", "muwatta", "darimi"}
+# Abdullah son of Ahmad transmits the Musnad; his own additions (zawa'id) end with him, not his father
+ZAWAID_NARRATOR = "3562"
 BOOK_ORDER = {b: i for i, b in enumerate(BOOKS)}
-COMPILER = {b: b for b in BOOKS}
-FIXED_NODES = {PROPHET, *BOOKS}
 ORDINALS = [("الثانية عشرة", 12), ("الحادية عشرة", 11), ("العاشرة", 10), ("التاسعة", 9), ("الثامنة", 8),
             ("السابعة", 7), ("السادسة", 6), ("الخامسة", 5), ("الرابعة", 4), ("الثالثة", 3), ("الثانية", 2),
             ("الأولى", 1)]
@@ -116,7 +125,9 @@ def num_label(h):
 
 def main():
     C = load(WORK / "corpus.json")
-    compiler_ids = {str(v) for v in C["compilers"].values()}
+    compiler_ids = {str(v) for b, v in C["compilers"].items() if b not in NARRATOR_COMPILERS}
+    COMPILER = {b: str(C["compilers"][b]) if b in NARRATOR_COMPILERS else b for b in BOOKS}
+    FIXED_NODES = {PROPHET, *COMPILER.values()}
 
     # ---------- narrators ----------
     narr = {}
@@ -140,7 +151,8 @@ def main():
         }
     narr[PROPHET] = {"id": PROPHET, "name": "النبي ﷺ", "cls": "nabi"}
     for b, (_, _, label) in BOOKS.items():
-        narr[b] = {"id": b, "name": label, "cls": "imam"}
+        if b not in NARRATOR_COMPILERS:
+            narr[b] = {"id": b, "name": label, "cls": "imam"}
 
     def ensure(nid):
         if nid not in narr:
@@ -158,11 +170,11 @@ def main():
             for x in ids:
                 ensure(x)
             if ids:
-                chains.append({"ids": ids})
+                chains.append({"ids": ids, **({"z": 1} if book == "ahmad" and ids[-1] == ZAWAID_NARRATOR else {})})
         hadiths[h["key"]] = {
             "k": h["key"], "book": book, "num": h["num"], "label": num_label(h), "aliases": h.get("aliases", []),
             "kitab": h["kitab_no"], "bab": h["bab"], "type": h["type"],
-            "parts": [{"text": p["text"], "matn": p["matn"],
+            "parts": [{"text": p["text"], "matn": p["matn"], **({"notes": p["notes"]} if p.get("notes") else {}),
                        "mentions": [[s, e, str(i)] for s, e, i in p["mentions"]]} for p in h["parts"]],
             "chains": chains, "group_root": h["group"], "verdicts": h.get("verdicts", []),
             "rel": h["rel"], "spread": {**h["spread"], "n_books": len(h["spread"]["books"]),
@@ -197,14 +209,16 @@ def main():
             ids = c["ids"]
             chain_cls[book][c["c"]] += 1
             chain_len[book][len(ids)] += 1
-            for x in ids:
-                in_book[x][book].add(k)
-            full = [PROPHET] + ids + [COMPILER[book]]
+            full = [PROPHET] + ids + ([] if c.get("z") else [COMPILER[book]])
+            for x in full[1:]:
+                if x in narr and x not in BOOKS:
+                    in_book[x][book].add(k)
             for a, b in zip(full, full[1:]):
                 teachers[b][a] += 1
                 students[a][b] += 1
                 link_keys[a, b].add(k)
-            shaykh_of[book][ids[-1]] += 1
+            if not c.get("z"):
+                shaykh_of[book][ids[-1]] += 1
             top_companion = narr[ids[0]]["cls"] == "sahabi"
             # a tabi'i must follow the companion, otherwise the chain is truncated in the source
             linked = 2 <= (narr[ids[1]].get("tabaka") or 0) <= 6 if len(ids) > 1 else False
@@ -217,11 +231,11 @@ def main():
 
     # ---------- each hadith with exactly the parallels the program lists for it ----------
     def summarize(keys):
-        chains = [(k, c["ids"]) for k in keys for c in hadiths[k]["chains"]]
-        companions = Counter(c[0] for _, c in chains if narr[c[0]]["cls"] == "sahabi")
+        chains = [(k, c) for k in keys for c in hadiths[k]["chains"]]
+        companions = Counter(c["ids"][0] for _, c in chains if narr[c["ids"][0]]["cls"] == "sahabi")
         branch, depth = defaultdict(set), {}
         for k, c in chains:
-            full = c + [COMPILER[hadiths[k]["book"]]]
+            full = c["ids"] + ([] if c.get("z") else [COMPILER[hadiths[k]["book"]]])
             for i, (a, b) in enumerate(zip(full, full[1:])):
                 branch[a].add(b)
                 depth[a] = min(depth.get(a, 99), i)
@@ -257,12 +271,14 @@ def main():
 
     # ---------- narrator directory & detail shards ----------
     directory, nshards = {}, defaultdict(dict)
+    own_book = {COMPILER[b]: b for b in NARRATOR_COMPILERS}
     key_num = lambda x: (int(hadiths[x]["num"]), x)
     for nid, n in narr.items():
         per_book = in_book[nid]
         if not any(per_book.values()) or n.get("unlinked"):
             continue
-        directory[nid] = [n["name"], n["cls"], [len(per_book[b]) for b in BOOKS]]
+        # a compiler's own book is his page's business, not a measure of how much he narrates
+        directory[nid] = [n["name"], n["cls"], [0 if own_book.get(nid) == b else len(per_book[b]) for b in BOOKS]]
         nshards[shard_of(nid)][nid] = {
             **{k: v for k, v in n.items() if v not in (None, "", [], 0) or k == "cls"},
             "tabaka_label": TABAQA.get(n.get("tabaka")),
@@ -307,7 +323,7 @@ def main():
         return [[k, v] for k, v in counter.most_common(n)]
 
     real = [x for x in in_book if not narr[x].get("unlinked")]
-    narr_hadiths = Counter({x: len(set().union(*in_book[x].values())) for x in real})
+    narr_hadiths = Counter({x: len(set().union(*(v for b, v in in_book[x].items() if own_book.get(x) != b))) for x in real})
     companions_count = Counter({x: c for x, c in narr_hadiths.items() if narr[x]["cls"] == "sahabi"})
     by_cls = Counter(narr[x]["cls"] for x in real)
     tabaka = Counter(narr[x].get("tabaka") for x in real if narr[x].get("tabaka"))
@@ -330,8 +346,9 @@ def main():
     widest = sorted(reps, key=lambda h: -h["spread"]["n_hadith"])[:15]
     most_turuq = sorted(reps, key=lambda h: -h["set"]["n_chains"])[:15]
     muttafaq = sum(1 for h in hadiths.values() if h["book"] == "muslim" and any(hadiths[r]["book"] == "bukhari" for r in h["rel"]))
-    # hadiths of al-Bukhari that the program also traces in all five other books
-    sitta = sum(1 for h in reps if h["book"] == "bukhari" and len(h["set"]["books"]) == len(BOOKS))
+    # hadiths of al-Bukhari that the program also traces in all five other books (and in all eight)
+    sitta = sum(1 for h in reps if h["book"] == "bukhari" and set(SITTA) <= set(h["set"]["books"]))
+    tisa = sum(1 for h in reps if h["book"] == "bukhari" and len(h["set"]["books"]) == len(BOOKS))
 
     stats = {
         "totals": {
@@ -342,7 +359,7 @@ def main():
             "chains": sum(sum(c.values()) for c in chain_cls.values()),
             "narrators": len(real),
             "narrators_shaykhayn": sum(1 for x in real if in_book[x]["bukhari"] and in_book[x]["muslim"]),
-            "sitta": sitta,
+            "sitta": sitta, "tisa": tisa,
             "companions": sum(1 for x in real if narr[x]["cls"] == "sahabi"),
             "muttafaq": muttafaq,
             "thulathiyyat": len(thulathiyyat),
@@ -379,7 +396,7 @@ def main():
     alias = {f"{BOOKS[h['book']][0]}{a}": k for k, h in hadiths.items() for a in h["aliases"]
              if f"{BOOKS[h['book']][0]}{a}" not in hadiths}
     meta = {
-        "books": {b: {"title": t, "prefix": pre, "compiler": c,
+        "books": {b: {"title": t, "prefix": pre, "compiler": c, "node": COMPILER[b],
                       "kitabs": sorted(kitabs[b].values(), key=lambda r: r["no"])}
                   for b, (pre, t, c) in BOOKS.items()},
         "index": index, "alias": alias, "directory": directory,

@@ -12,16 +12,23 @@
   const CONTACT = "zuhair.nammous@gmail.com";
   const mailto = (subject) => `mailto:${CONTACT}?subject=${encodeURIComponent(subject)}`;
 
-  const BOOKS = ["bukhari", "muslim", "abudawud", "tirmidhi", "nasai", "ibnmajah"];
-  const BOOK = { bukhari: "صحيح البخاري", muslim: "صحيح مسلم", abudawud: "سنن أبي داود", tirmidhi: "جامع الترمذي", nasai: "سنن النسائي", ibnmajah: "سنن ابن ماجه" };
-  const AUTHOR = { bukhari: "البخاري", muslim: "مسلم", abudawud: "أبو داود", tirmidhi: "الترمذي", nasai: "النسائي", ibnmajah: "ابن ماجه" };
-  const PREFIX = { bukhari: "b", muslim: "m", abudawud: "d", tirmidhi: "t", nasai: "n", ibnmajah: "j" };
+  const BOOKS = ["bukhari", "muslim", "abudawud", "tirmidhi", "nasai", "ibnmajah", "ahmad", "muwatta", "darimi"];
+  const BOOK = { bukhari: "صحيح البخاري", muslim: "صحيح مسلم", abudawud: "سنن أبي داود", tirmidhi: "جامع الترمذي", nasai: "سنن النسائي", ibnmajah: "سنن ابن ماجه",
+    ahmad: "مسند أحمد", muwatta: "موطأ مالك", darimi: "مسند الدارمي" };
+  const AUTHOR = { bukhari: "البخاري", muslim: "مسلم", abudawud: "أبو داود", tirmidhi: "الترمذي", nasai: "النسائي", ibnmajah: "ابن ماجه",
+    ahmad: "أحمد", muwatta: "مالك", darimi: "الدارمي" };
+  const PREFIX = { bukhari: "b", muslim: "m", abudawud: "d", tirmidhi: "t", nasai: "n", ibnmajah: "j", ahmad: "a", muwatta: "w", darimi: "r" };
   const BOOK_OF = Object.fromEntries(Object.entries(PREFIX).map(([b, p]) => [p, b]));
   const BOOK_SHORT = Object.fromEntries(Object.entries(PREFIX).map(([b, p]) => [p, AUTHOR[b]]));
-  const LAST_NUMBER = { b: 7563, m: 3033, d: 5274, t: 3956, n: 5774, j: 4341 };
+  const LAST_NUMBER = { b: 7563, m: 3033, d: 5274, t: 3956, n: 5774, j: 4341, a: 28295, w: 3676, r: 3546 };
   const NUMBERING = { bukhari: "ترقيم فتح الباري", muslim: "ترقيم محمد فؤاد عبد الباقي", abudawud: "ترقيم محمد محيي الدين عبد الحميد",
-    tirmidhi: "ترقيم أحمد شاكر", nasai: "ترقيم برنامج الجامع", ibnmajah: "ترقيم محمد فؤاد عبد الباقي" };
+    tirmidhi: "ترقيم أحمد شاكر", nasai: "ترقيم برنامج الجامع", ibnmajah: "ترقيم محمد فؤاد عبد الباقي",
+    ahmad: "ترقيم برنامج الجامع", muwatta: "رواية يحيى الليثي، ترقيم محمد مصطفى الأعظمي", darimi: "ترقيم حسين سليم أسد" };
   const SAHIHAYN = new Set(["bukhari", "muslim"]);
+  // Abdullah son of Ahmad transmits the Musnad; his own additions (zawa'id) end with him
+  const ZAWAID = "من زوائد عبد الله بن أحمد";
+  // where a book's chains end: the compiler's node (Malik, Ahmad and al-Darimi are narrators too)
+  const endOf = (k, c) => (c.z ? [] : [META.books[bookOf(k)].node]);
   const bookOf = (k) => BOOK_OF[k[0]];
   const CLS_LABEL = {
     nabi: "النبي ﷺ", sahabi: "صحابي", thiqa: "ثقة", saduq: "صدوق", maqbul: "مقبول / مجهول الحال",
@@ -128,9 +135,9 @@
   const routes = [
     [/^\/?$/, viewHome],
     [/^\/books$/, viewBooks],
-    [/^\/book\/(bukhari|muslim|abudawud|tirmidhi|nasai|ibnmajah)$/, viewBook],
-    [/^\/book\/(bukhari|muslim|abudawud|tirmidhi|nasai|ibnmajah)\/(\d+)(?:\/(\d+))?$/, viewKitab],
-    [/^\/h\/([bmdtnj]\d+)$/, viewHadith],
+    [new RegExp(`^/book/(${BOOKS.join("|")})$`), viewBook],
+    [new RegExp(`^/book/(${BOOKS.join("|")})/(\\d+)(?:/(\\d+))?$`), viewKitab],
+    [new RegExp(`^/h/([${Object.values(PREFIX).join("")}]\\d+)$`), viewHadith],
     [/^\/n\/([^/]+)(?:\/([ts])\/([^/]+))?$/, viewNarrator],
     [/^\/narrators$/, viewNarrators],
     [/^\/search\/(.*)$/, viewSearch],
@@ -206,24 +213,24 @@
     };
 
     app.innerHTML = `
-      <div class="section-title" style="margin-top:0"><h1>مؤشرات أسانيد الكتب الستة</h1><p>محسوبة من سلاسل الرواة نفسها</p></div>
+      <div class="section-title" style="margin-top:0"><h1>مؤشرات أسانيد الكتب التسعة</h1><p>محسوبة من سلاسل الرواة نفسها</p></div>
       <div class="grid kpis">
-        ${kpi(T.hadith, "حديثًا في الكتب الستة", `${fmt(T.chains)} إسنادًا`)}
+        ${kpi(T.hadith, "حديثًا في الكتب التسعة", `${fmt(T.chains)} إسنادًا`)}
         ${kpi(T.narrators, "راويًا", `${fmt(T.narrators_shaykhayn)} من رجال الشيخين معًا`)}
-        ${kpi(T.companions, "صحابيًا وصحابية", "في أسانيد الكتب الستة")}
+        ${kpi(T.companions, "صحابيًا وصحابية", "في أسانيد الكتب التسعة")}
         ${kpi(T.muttafaq, "حديثًا متفقًا عليه", "من أحاديث مسلم، بحسب تخريج البرنامج")}
-        ${kpi(T.sitta, "حديثًا رواه الستة", "من أحاديث البخاري، بحسب تخريج البرنامج")}
+        ${kpi(T.tisa, "حديثًا رواه التسعة", `و${fmt(T.sitta)} رواه الستة، من أحاديث البخاري بحسب تخريج البرنامج`)}
         ${kpi(T.thulathiyyat, "من ثلاثيات البخاري", "أعلى أسانيده")}
         ${kpi(T.mudallisun, "راويًا موصوفًا بالتدليس", `و${fmt(T.mukhtalitun)} ممن اختلط`)}
       </div>
 
-      <div class="panel" style="margin-top:16px"><h2>الكتب الستة</h2>
+      <div class="panel" style="margin-top:16px"><h2>الكتب التسعة</h2>
         <div class="table-wrap"><table class="books-table"><thead><tr><th>الكتاب</th><th>الأحاديث</th><th>الأسانيد</th><th>الرواة</th></tr></thead>
         <tbody>${BOOKS.map((b) => `<tr><td><a href="#/book/${b}">${BOOK[b]}</a></td><td>${fmt(T.books[b].hadith)}</td><td>${fmt(T.books[b].chains)}</td><td>${fmt(T.books[b].narrators)}</td></tr>`).join("")}</tbody></table></div></div>
 
       <div class="grid g2" style="margin-top:16px">
-        <div class="panel"><h2>الأكثر رواية</h2><p class="muted small">عدد الأحاديث التي ورد الراوي في أسانيدها في الكتب الستة</p>${bars(S.top_narrators.slice(0, 12))}</div>
-        <div class="panel"><h2>الصحابة الأكثر رواية</h2><p class="muted small">في الكتب الستة، مع المكرر</p>${bars(S.top_companions.slice(0, 12))}</div>
+        <div class="panel"><h2>الأكثر رواية</h2><p class="muted small">عدد الأحاديث التي ورد الراوي في أسانيدها في الكتب التسعة</p>${bars(S.top_narrators.slice(0, 12))}</div>
+        <div class="panel"><h2>الصحابة الأكثر رواية</h2><p class="muted small">في الكتب التسعة، مع المكرر</p>${bars(S.top_companions.slice(0, 12))}</div>
       </div>
       <div class="panel" style="margin-top:16px"><h2>أكثر الشيوخ الذين حدّث عنهم أصحاب الكتب</h2>
         <div class="seg" id="shf">${BOOKS.map((b, i) => `<button data-v="${b}" class="${i ? "" : "on"}">${AUTHOR[b]}</button>`).join("")}</div>
@@ -232,14 +239,14 @@
       <div class="grid g2" style="margin-top:16px">
         <div class="panel"><h2>أشهر الأسانيد</h2><p class="muted small">أكثر السلاسل تكرارًا (الصحابي واثنان دونه)</p>
           <ul class="list">${S.top_isnads.slice(0, 10).map(([c, v]) => `<li><div class="meta-line"><span class="tag">${fmt(v)} إسنادًا</span></div>${chainHTML(c, N)}</li>`).join("")}</ul></div>
-        <div class="panel"><h2>أكثر الرواة مدارًا</h2><p class="muted small">الراوي الذي تلتقي عنده طرق الحديث الواحد في الكتب الستة ثم تتفرع عنه</p>${bars(S.top_madar.slice(0, 12))}</div>
+        <div class="panel"><h2>أكثر الرواة مدارًا</h2><p class="muted small">الراوي الذي تلتقي عنده طرق الحديث الواحد في الكتب التسعة ثم تتفرع عنه</p>${bars(S.top_madar.slice(0, 12))}</div>
       </div>
 
       <div class="grid g2" style="margin-top:16px">
-        <div class="panel"><h2>الأكثر طرقًا في الكتب الستة</h2>
+        <div class="panel"><h2>الأكثر طرقًا في الكتب التسعة</h2>
           <ul class="list">${S.most_turuq.slice(0, 8).map((g) => `<li><div class="meta-line"><span class="tag ok">${fmt(g.n_chains)} إسنادًا</span><span>${fmt(g.n_hadiths)} رواية</span><span>${g.books.map((b) => BOOK[b]).join(" و")}</span></div>
             <a href="#/h/${g.first}" class="snip" style="color:inherit">${esc(g.snippet)}</a></li>`).join("")}</ul></div>
-        <div class="panel"><h2>الأوسع انتشارًا في كتب السنة</h2><p class="muted small">أحاديث الكتب الستة بحسب عدد رواياتها في تخريج برنامج الجامع</p>
+        <div class="panel"><h2>الأوسع انتشارًا في كتب السنة</h2><p class="muted small">أحاديث الكتب التسعة بحسب عدد رواياتها في تخريج برنامج الجامع</p>
           <ul class="list">${S.widest.slice(0, 8).map((g) => `<li><div class="meta-line"><span class="tag ok">${fmt(g.n_hadith)} رواية</span><span>في ${fmt(g.n_books)} كتابًا</span>${g.n_shawahid ? `<span>وله شواهد عن ${fmt(g.n_shawahid)} صحابيًا</span>` : ""}</div>
             <a href="#/h/${g.first}" class="snip" style="color:inherit">${esc(g.snippet)}</a></li>`).join("")}</ul></div>
       </div>
@@ -247,7 +254,7 @@
       <div class="grid g2" style="margin-top:16px">
         <div class="panel"><h2>رجال الأسانيد</h2><p class="muted small">وصف كل إسناد بأدنى رتبة فيه عند ابن حجر</p>
           ${BOOKS.map((b, i) => `<h3 class="muted"${i ? ' style="margin-top:12px"' : ""}>${BOOK[b]}</h3>${classRows(b)}`).join("")}
-          <p class="muted small" style="margin-top:12px">وصفٌ لرجال الأسانيد المفردة لا حكمٌ على الأحاديث: فأحاديث الصحيحين صحيحة بحكم الشيخين، وأحاديث السنن يُرجع في الحكم عليها إلى أحكام المحدثين.</p></div>
+          <p class="muted small" style="margin-top:12px">وصفٌ لرجال الأسانيد المفردة لا حكمٌ على الأحاديث: فأحاديث الصحيحين صحيحة بحكم الشيخين، وأحاديث بقية الكتب يُرجع في الحكم عليها إلى أحكام المحدثين.</p></div>
         <div class="panel"><h2>رتب الرواة</h2><p class="muted small">تصنيف مبسّط لرتب الرواة عند ابن حجر في «التقريب»</p>
           <div class="stack">${S.grades.map(([c, v]) => `<span class="cls-${c}" style="width:${(100 * v) / gradeTotal}%;background:var(--c)" title="${CLS_LABEL[c]}: ${fmt(v)}"></span>`).join("")}</div>
           <div class="legend">${S.grades.filter(([, v]) => v).map(([c, v]) => `<span class="cls-${c}"><i style="background:var(--c)"></i>${CLS_LABEL[c]} ${fmt(v)}</span>`).join("")}</div>
@@ -295,10 +302,10 @@
   // ---------- books ----------
   async function viewBooks() {
     const S = await stats();
-    app.innerHTML = `<h1>الكتب الستة</h1><p class="muted">أصول دواوين السنة، بأسانيدها ورواتها، من برنامج جامع خادم الحرمين الشريفين</p>
+    app.innerHTML = `<h1>الكتب التسعة</h1><p class="muted">أصول دواوين السنة، بأسانيدها ورواتها، من برنامج جامع خادم الحرمين الشريفين</p>
       <div class="kitabs books">${BOOKS.map((b) => `<a href="#/book/${b}"><span><b>${BOOK[b]}</b><br><span class="muted small">${NUMBERING[b]}</span></span>
         <span class="muted small">${fmt(S.totals.books[b].hadith)} حديثًا</span></a>`).join("")}</div>
-      <p class="notice" style="margin-top:16px">أحاديث الصحيحين صحيحة بحكم الشيخين. وأحاديث السنن فيها الصحيح والحسن والضعيف، فراجع أحكام المحدثين في صفحة كل حديث.</p>`;
+      <p class="notice" style="margin-top:16px">أحاديث الصحيحين صحيحة بحكم الشيخين. وأحاديث السنن والمسانيد والموطأ فيها الصحيح والحسن والضعيف، فراجع أحكام المحدثين في صفحة كل حديث.</p>`;
   }
 
   async function viewBook(book) {
@@ -364,7 +371,9 @@
     }
     return out + emit(pos, t.length);
   }
-  const hadithTextHTML = (h, nar) => h.parts.map((p) => `<p>${partHTML(p, nar)}</p>`).join("");
+  // the program's notes on the printed editions (in Musnad Ahmad: how the Risala edition differs)
+  const notesHTML = (p) => (p.notes ? `<ul class="edition-notes" title="من تعليقات البرنامج على الطبعات">${p.notes.map((n) => `<li>${esc(n)}</li>`).join("")}</ul>` : "");
+  const hadithTextHTML = (h, nar) => h.parts.map((p) => `<p>${partHTML(p, nar)}</p>${notesHTML(p)}`).join("");
   const matnOf = (h) => { const p = h.parts[0]; return p.matn ? p.text.slice(p.matn[0], p.matn[1]) : p.text; };
 
   // The Dorar API cannot be embedded (served as text/html with nosniff and no CORS), so we link
@@ -403,14 +412,16 @@
       <div class="meta-line" style="margin-bottom:10px">${h.type ? `<span class="tag">${esc(h.type)}</span>` : ""}
         <span>${NUMBERING[book]}</span>${h.parts.length > 1 ? `<span>· ${fmt(h.parts.length)} روايات تحت هذا الرقم</span>` : ""}</div>
       <div class="panel hadith-text">${hadithTextHTML(h, G.nar)}</div>
-      ${SAHIHAYN.has(book) ? "" : `<p class="notice sunan-note">أحاديث ${BOOK[book]} فيها الصحيح والحسن والضعيف، فراجع أحكام المحدثين قبل الاستدلال بهذا الحديث.</p>`}
+      ${SAHIHAYN.has(book) ? "" : `<p class="notice sunan-note">${book === "muwatta"
+        ? "في موطأ مالك المسند والمرسل والبلاغ، ومعها آثار الصحابة والتابعين وأقوال مالك"
+        : `أحاديث ${BOOK[book]} فيها الصحيح والحسن والضعيف`}، فراجع أحكام المحدثين قبل الاستدلال بهذا الحديث.</p>`}
       ${h.verdicts && h.verdicts.length ? `<div class="verdicts tirmidhi">${h.verdicts.map((v) => `<blockquote><cite>قال الترمذي</cite>${esc(v)}</blockquote>`).join("")}
         <p class="muted small">للترمذي اصطلاح خاص في التحسين يختلف عن اصطلاح المتأخرين، فيُنظر معه في أحكام المحدثين الآخرين.</p></div>` : ""}
 
       <div class="summary">
         <span class="pill">أسانيده هنا: <b>${fmt(h.chains.length)}</b></span>
-        <span class="pill">مع رواياته في الكتب الستة: <b>${fmt(G.n_chains)}</b> إسنادًا في <b>${fmt(G.hadiths.length)}</b> رواية</span>
-        <span class="pill">الصحابة في الكتب الستة: <b>${fmt(companions.length)}</b></span>
+        <span class="pill">مع رواياته في الكتب التسعة: <b>${fmt(G.n_chains)}</b> إسنادًا في <b>${fmt(G.hadiths.length)}</b> رواية</span>
+        <span class="pill">الصحابة في الكتب التسعة: <b>${fmt(companions.length)}</b></span>
         ${madar ? `<span class="pill">المدار: <b><a href="#/n/${encodeURIComponent(G.madar)}">${esc(shortName(madar.name))}</a></b></span>` : ""}
         ${sp && sp.n_hadith ? `<span class="pill">تخريجه في كتب السنة: <b>${fmt(sp.n_hadith)}</b> رواية في <b>${fmt(sp.n_books)}</b> كتابًا</span>` : ""}
         ${sp && sp.shawahid.length ? `<span class="pill">له شواهد عن: <b>${fmt(sp.shawahid.length)}</b> صحابيًا</span>` : ""}
@@ -427,7 +438,7 @@
           <div class="tree-tools">
             <div class="seg" id="scope">
               <button data-v="one" class="${others.length ? "" : "on"}">هذه الرواية</button>
-              ${others.length ? `<button data-v="all" class="on">كل طرقه في الكتب الستة (${fmt(G.n_chains)})</button>` : ""}
+              ${others.length ? `<button data-v="all" class="on">كل طرقه في الكتب التسعة (${fmt(G.n_chains)})</button>` : ""}
             </div>
             ${G.books.length > 1 ? `<div class="seg" id="bookf"><button data-v="" class="on">الكل</button>${BOOKS.filter((b) => G.books.includes(b)).map((b) => `<button data-v="${PREFIX[b]}">${AUTHOR[b]}</button>`).join("")}</div>` : ""}
             <button class="btn" id="fit">ملاءمة العرض</button>
@@ -443,13 +454,13 @@
       <div class="section-title"><h2>أسانيده</h2><p>وصف رجال كل إسناد بحسب رتبهم عند ابن حجر، وليس حكمًا على الحديث</p></div>
       <div class="panel"><p class="notice" id="chainf" hidden></p><ul class="list" id="chains">${h.chains.map((c) => chainRow(c, G.nar, compilerOf(key))).join("") || '<li class="muted">لا يوجد إسناد مستخرج لهذه الرواية.</li>'}</ul></div>
 
-      ${others.length ? `<div class="section-title"><h2>رواياته الأخرى في الكتب الستة</h2><p>كما في تخريج البرنامج · «متابعة»: عن الصحابي نفسه · «شاهد»: عن صحابي آخر</p></div>
+      ${others.length ? `<div class="section-title"><h2>رواياته الأخرى في الكتب التسعة</h2><p>كما في تخريج البرنامج · «متابعة»: عن الصحابي نفسه · «شاهد»: عن صحابي آخر</p></div>
       <div class="panel"><ul class="list">${others.map((k) => {
         const o = G.items[k];
         const shahid = !o.chains.some((c) => ownCompanions.has(c.ids[0]));
         return `<li><div class="meta-line"><a href="#/h/${k}">${hkey(k)}</a><span class="tag">${shahid ? "شاهد" : "متابعة"}</span>${o.bab ? `<span>${esc(o.bab)}</span>` : ""}</div>
           <div class="snip">${esc(clip(matnOf(o), 260))}</div>
-          ${o.chains.slice(0, 3).map((c) => chainHTML(c.ids, G.nar, compilerOf(k))).join("")}${o.chains.length > 3 ? `<p class="muted small">و${fmt(o.chains.length - 3)} أسانيد أخرى</p>` : ""}</li>`;
+          ${o.chains.slice(0, 3).map((c) => chainHTML(c.ids, G.nar, c.z ? null : compilerOf(k))).join("")}${o.chains.length > 3 ? `<p class="muted small">و${fmt(o.chains.length - 3)} أسانيد أخرى</p>` : ""}</li>`;
       }).join("")}</ul></div>` : ""}
 
       ${sp && sp.books.length ? `<div class="section-title"><h2>تخريجه في كتب السنة</h2><p>عدد رواياته في كل كتاب بحسب تخريج برنامج جامع خادم الحرمين الشريفين</p></div>
@@ -536,6 +547,7 @@
     const tags = [];
     if (label) tags.push(`<span class="tag ${cls}">${label}</span>`);
     tags.push(`<span class="tag">${c.ids.length} رواة</span>`);
+    if (c.z) { tags.push(`<span class="tag">${ZAWAID}</span>`); compiler = null; }
     if (compiler === "البخاري" && c.ids.length === 3 && nar[c.ids[0]]?.cls === "sahabi") tags.push('<span class="tag ok">ثلاثي</span>');
     return `<li data-ids="${esc(c.ids.join(" "))}"><div class="meta-line">${tags.join("")}</div>${chainHTML(c.ids, nar, compiler)}</li>`;
   }
@@ -566,9 +578,8 @@
     const nodes = new Map(), edges = new Map(), focusEdges = new Set();
     const addNode = (id) => nodes.set(id, (nodes.get(id) || 0) + 1);
     for (const k of keys) {
-      const comp = bookOf(k);
       for (const c of G.items[k].chains) {
-        const full = ["nabi", ...c.ids, comp];
+        const full = ["nabi", ...c.ids, ...endOf(k, c)];
         full.forEach(addNode);
         for (let i = 0; i < full.length - 1; i++) {
           const id = full[i] + ">" + full[i + 1];
@@ -732,14 +743,14 @@
             ${n.rank_dhahabi ? `<blockquote><cite>رتبته عند الذهبي</cite>${esc(n.rank_dhahabi)}</blockquote>` : ""}</div>` : ""}
           <dl class="facts">${facts.map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join("")}</dl>
         </div>
-        <div class="panel"><h2>شبكة الراوي</h2><p class="muted small">أبرز شيوخه (يمينًا) وتلاميذه (يسارًا) في الكتب الستة — اضغط الاسم للانتقال، والسهم لعرض أحاديث الطريق</p>${graphBox('<div id="ego"></div>')}
+        <div class="panel"><h2>شبكة الراوي</h2><p class="muted small">أبرز شيوخه (يمينًا) وتلاميذه (يسارًا) في الكتب التسعة — اضغط الاسم للانتقال، والسهم لعرض أحاديث الطريق</p>${graphBox('<div id="ego"></div>')}
           <div class="legend">${["nabi", "sahabi", "thiqa", "saduq", "maqbul", "weak", "unknown"].map((c) => `<span class="cls-${c}"><i style="background:var(--c)"></i>${CLS_LABEL[c]}</span>`).join("")}<span class="muted">سُمك الخط = عدد الأسانيد</span></div></div>
       </div>
       <div class="grid g2" style="margin-top:16px">
-        <div class="panel"><h2>روى عن</h2><p class="muted small">مع عدد الأسانيد في الكتب الستة — اضغط العدد لعرض الأحاديث</p><div class="chain" id="rel-t">${rel(n.teachers || [], "t") || '<span class="muted">—</span>'}</div></div>
-        <div class="panel"><h2>روى عنه</h2><p class="muted small">مع عدد الأسانيد في الكتب الستة — اضغط العدد لعرض الأحاديث</p><div class="chain" id="rel-s">${rel(n.students || [], "s") || '<span class="muted">—</span>'}</div></div>
+        <div class="panel"><h2>روى عن</h2><p class="muted small">مع عدد الأسانيد في الكتب التسعة — اضغط العدد لعرض الأحاديث</p><div class="chain" id="rel-t">${rel(n.teachers || [], "t") || '<span class="muted">—</span>'}</div></div>
+        <div class="panel"><h2>روى عنه</h2><p class="muted small">مع عدد الأسانيد في الكتب التسعة — اضغط العدد لعرض الأحاديث</p><div class="chain" id="rel-s">${rel(n.students || [], "s") || '<span class="muted">—</span>'}</div></div>
       </div>
-      <div class="section-title"><h2 id="htitle">أحاديثه في الكتب الستة</h2><div class="seg" id="hbook"></div></div>
+      <div class="section-title"><h2 id="htitle">أحاديثه في الكتب التسعة</h2><div class="seg" id="hbook"></div></div>
       <div class="panel" id="hlist"></div>`;
     // the list shows either all his hadiths or one link (teacher → him, or him → student), optionally per book
     let book = "", edge = null;
@@ -752,7 +763,7 @@
       $("#hbook").innerHTML = `<button data-v="" class="${book ? "" : "on"}">الكل${edge ? ` <span class="small">${fmt(total)}</span>` : ""}</button>` + Object.entries(counts).filter(([, c]) => c)
         .map(([b, c]) => `<button data-v="${b}" class="${b === book ? "on" : ""}">${AUTHOR[b]} <span class="small">${fmt(c)}</span></button>`).join("");
       const me = esc(shortName(n.name)), other = edge && esc(shortName(name(edge.x)));
-      $("#htitle").innerHTML = !edge ? "أحاديثه في الكتب الستة"
+      $("#htitle").innerHTML = !edge ? "أحاديثه في الكتب التسعة"
         : `${edge.dir === "t" ? `ما رواه ${me} عن ${other}` : `ما رواه ${other} عن ${me}`} <button class="btn" id="hclear" style="margin-inline-start:8px">عرض كل أحاديثه</button>`;
       if (edge) $("#hclear").addEventListener("click", () => pickEdge(null));
       app.querySelectorAll(".link-n").forEach((b) => b.classList.toggle("on", !!edge && b.dataset.dir === edge.dir && b.dataset.x === edge.x));
@@ -835,7 +846,7 @@
   // ---------- narrators directory ----------
   async function viewNarrators() {
     const all = Object.entries(META.directory).sort((a, b) => totalOf(b[1]) - totalOf(a[1]));
-    app.innerHTML = `<h1>الرواة</h1><p class="muted">${fmt(all.length)} راويًا في أسانيد الكتب الستة، مرتبين حسب عدد الأحاديث</p>
+    app.innerHTML = `<h1>الرواة</h1><p class="muted">${fmt(all.length)} راويًا في أسانيد الكتب التسعة، مرتبين حسب عدد الأحاديث</p>
       <div class="tree-tools"><input id="nf" class="btn" style="flex:1;min-width:200px" placeholder="تصفية بالاسم…">
         <div class="seg" id="cf"><button data-v="" class="on">الكل</button>${["sahabi", "thiqa", "saduq", "maqbul", "weak"].map((c) => `<button data-v="${c}">${CLS_LABEL[c]}</button>`).join("")}</div></div>
       <div class="panel"><ul class="bars" id="nl"></ul></div>`;
@@ -1026,7 +1037,7 @@
       const all = hitsFor(opt.s);
       const per = Object.fromEntries(BOOKS.map((b) => [b, 0]));
       for (const h of all) per[bookOf(h.rec.r[0])]++;
-      $("#sBooks").innerHTML = `<button data-v="" class="fchip ${opt.b ? "" : "on"}">الكتب الستة <b>${fmt(all.length)}</b></button>` +
+      $("#sBooks").innerHTML = `<button data-v="" class="fchip ${opt.b ? "" : "on"}">الكتب التسعة <b>${fmt(all.length)}</b></button>` +
         BOOKS.map((b) => `<button data-v="${b}" class="fchip ${opt.b === b ? "on" : ""}" ${per[b] ? "" : "disabled"}>${AUTHOR[b]} <b>${fmt(per[b])}</b></button>`).join("");
       let list = opt.b ? all.filter((h) => bookOf(h.rec.r[0]) === opt.b) : all.slice();
       list.sort(opt.o === "book" ? (x, y) => x.rec.i - y.rec.i : (x, y) => y.score - x.score || x.rec.i - y.rec.i);
@@ -1078,13 +1089,13 @@
   async function viewAbout() {
     app.innerHTML = `<div class="panel" style="max-width:820px">
       <h1>عن المشروع</h1>
-      <p>«نور السنة» أداة مفتوحة لدراسة أسانيد الكتب الستة: تعرض لكل حديث شجرة رواته وطرقه فيها، وتُظهر مدار الحديث ومتابعاته وشواهده وتخريجه في كتب السنة، وتربط كل راوٍ بترجمته ورتبته عند ابن حجر والذهبي.</p>
+      <p>«نور السنة» أداة مفتوحة لدراسة أسانيد الكتب التسعة: تعرض لكل حديث شجرة رواته وطرقه فيها، وتُظهر مدار الحديث ومتابعاته وشواهده وتخريجه في كتب السنة، وتربط كل راوٍ بترجمته ورتبته عند ابن حجر والذهبي.</p>
       <h2>منهج العرض</h2>
       <ul>
         <li>أحاديث الصحيحين صحيحة بحكم الشيخين وتلقي الأمة لهما بالقبول. ووصف رجال كل إسناد بحسب رتبهم عند ابن حجر بيانٌ لحال الرجال، لا حكمٌ على الحديث.</li>
         <li>رواية الشيخين عمن تُكلِّم فيه تكون غالبًا في المتابعات والشواهد، أو مما انتقياه من صحيح حديثه.</li>
-        <li>«المدار» يُحسب آليًا: هو الراوي الذي تتفرع عنه أكثر الطرق داخل الكتب الستة.</li>
-        <li>جمع روايات الحديث الواحد في الكتب الستة قائم على تخريج برنامج جامع خادم الحرمين الشريفين.</li>
+        <li>«المدار» يُحسب آليًا: هو الراوي الذي تتفرع عنه أكثر الطرق داخل الكتب التسعة.</li>
+        <li>جمع روايات الحديث الواحد في الكتب التسعة قائم على تخريج برنامج جامع خادم الحرمين الشريفين.</li>
         <li>أحاديث السنن فيها الصحيح والحسن والضعيف، ويُعرض حكم الترمذي بلفظه حيث ورد، وتُربط كل الأحاديث بأحكام المحدثين في الدرر السنية.</li>
         <li>الترقيم: البخاري على «فتح الباري»، ومسلم وابن ماجه على ترقيم محمد فؤاد عبد الباقي، وأبو داود على ترقيم محمد محيي الدين عبد الحميد، والترمذي على ترقيم أحمد شاكر، والنسائي على ترقيم برنامج الجامع.</li>
         <li>فهرس الكتب الكبرى للسنن الأربع من <a href="https://shamela.ws/" target="_blank" rel="noopener">المكتبة الشاملة</a>.</li>

@@ -1,15 +1,18 @@
-"""The six books from the Jami' Khadim al-Haramayn program -> data/work/corpus.json
+"""The nine books from the Jami' Khadim al-Haramayn program -> data/work/corpus.json
 
 Source: برنامج جامع خادم الحرمين الشريفين للسنة النبوية (sunna.alifta.gov.sa), General
 Presidency of Scholarly Research and Ifta, via the structured export by Jehad Oumer
 (Kaggle: jehadoumer/ifta-hadith-corpus-original + ifta-hadith-isnad-linked-graph-data).
 
 * One hadith = one customary number (Fath al-Bari for Bukhari, Abd al-Baqi for Muslim, and
-  the numbering of the program for the Sunan); records sharing a number are merged.
+  the numbering of the program for the other books); records sharing a number are merged.
   Unnumbered records carrying an isnad (e.g. قال الفربري ...) join the preceding hadith.
 * Chains come ID-linked from the graph export; records missing there fall back to the
   name chains of the original export, resolved by unique display name.
-* Kitabs come from pipeline/toc (make_toc.py for the Sahihayn, make_toc_shamela.py for the Sunan).
+* Kitabs come from pipeline/toc (make_toc.py for the Sahihayn, make_toc_shamela.py for the others).
+* The program's notes on the printed edition after the text ("كذا في طبعة دار طوق النجاة ، والصواب
+  : ...", and in Musnad Ahmad, which follows the Maknaz edition, how the Risala edition differs)
+  are split off the text into the part's "notes".
 * Al-Tirmidhi's own verdicts ("هذا حديث حسن صحيح") are kept verbatim from his text.
 """
 import json
@@ -30,6 +33,9 @@ BOOKS = {
     "tirmidhi": ("jami-al-tirmidhi", 4, "t", {"الترمذي"}),
     "nasai": ("sunan-al-nasai", 5, "n", {"النسائي"}),
     "ibnmajah": ("sunan-ibn-majah", 6, "j", {"ابن ماجه"}),
+    "ahmad": ("musnad-ahmad", 8, "a", {"أحمد بن حنبل"}),
+    "muwatta": ("muwatta-malik", 7, "w", {"مالك بن أنس"}),
+    "darimi": ("musnad-al-darimi", 9, "r", {"الدارمي"}),
 }
 BOOK_IDS = {v[1]: k for k, v in BOOKS.items()}
 # al-Tirmidhi's own verdict after the matn: "هذا حديث حسن صحيح" / "حديث المغيرة حديث حسن غريب"
@@ -43,10 +49,57 @@ def read(path):
         return json.load(f)
 
 
+ORIGINAL_FIELDS = ("mainId", "chapter", "hadith_num", "hadith_text", "hadith_text_diac", "matn_text_diac",
+                   "names", "chain_of_narrators", "takhreej", "shawahed", "comparisons")
+
+
+def read_book(slug):
+    """(original records, graph records) of a book, trimmed to the fields used here and cached
+    under data/work/slim/ (Musnad Ahmad alone is 2 GB of raw JSON)."""
+    cache = WORK / "slim" / f"{slug}.json"
+    raw = [SRC / "original" / f"{slug}.json", SRC / "graph" / f"{slug}.json"]
+    if cache.exists() and cache.stat().st_mtime > max(p.stat().st_mtime for p in raw):
+        return read(cache)
+    original = []
+    for rec in read(raw[0]):
+        r = {f: rec.get(f) for f in ORIGINAL_FIELDS}
+        r["features"] = {k: 1 for k in rec.get("features") or {}}
+        r["takhreej"] = [[t.get("bookId"), t.get("book_name"), t.get("mainId")] for t in rec.get("takhreej") or []]
+        r["shawahed"] = [[t.get("rawy_name"), t.get("bookId"), t.get("mainId")] for t in rec.get("shawahed") or []]
+        r["comparisons"] = [[t.get("comparison_type"), t.get("bookId"), t.get("mainId")] for t in rec.get("comparisons") or []]
+        original.append(r)
+    graph = [{"mainId": g["mainId"], "chain_of_narrators": g["chain_of_narrators"]} for g in read(raw[1])]
+    dump([original, graph], cache)
+    return original, graph
+
+
 def clean(text):
     text = re.sub(r"\[\d+/\d+\]", " ", text or "")       # print page markers
-    text = re.sub(r"^\s*[\d٠-٩]+\s*-\s*", "", text.strip())  # leading hadith number
+    # leading hadith number (al-A'zami's Muwatta: "394 / 118 -", the running and the marfu' number)
+    text = re.sub(r"^\s*[\d٠-٩]+(?:\s*/\s*[\d٠-٩]+)?\s*-\s*", "", text.strip())
     return re.sub(r"\s+", " ", text).strip()
+
+
+# the program's notes on the printed editions ("كذا في طبعة دار طوق النجاة ، والصواب : ..."), and
+# in Musnad Ahmad on how the Risala edition differs, follow the text without diacritics
+NOTE_OPENERS = ("كذا في طبعة", "ما بين المعقوفين في طبعة", "ورد الإسناد كاملا في طبعة")
+NOTE_SPLIT = re.compile(r"(?<=\.)\s+(?=\S)|\s+(?=%s)" % "|".join(NOTE_OPENERS))
+_MARKS = re.compile(r"[\u064B-\u0652]")
+
+
+def split_notes(text):
+    """(text, notes): trailing undiacritised sentences from the first one that mentions an edition."""
+    sentences = NOTE_SPLIT.split(text)
+    plain = lambda t: t.startswith(NOTE_OPENERS) or len(_MARKS.findall(t)) <= len(t) / 6
+    i = len(sentences)
+    while i > 0 and plain(sentences[i - 1]):
+        i -= 1
+    while i < len(sentences) and "طبعة" not in sentences[i]:
+        i += 1
+    if i >= len(sentences) or i == 0:
+        return text, []
+    notes = [n.strip() for n in sentences[i:] if n.strip()]
+    return " ".join(sentences[:i]).rstrip(), list(dict.fromkeys(notes))
 
 
 def locate(text, needle, start=0):
@@ -105,8 +158,8 @@ def main():
     hadiths, main_to_key, by_key = [], {}, {}
     compilers = {}
     for book, (slug, book_id, prefix, compiler_names) in BOOKS.items():
-        original = read(SRC / "original" / f"{slug}.json")
-        graph = {h["mainId"]: h for h in read(SRC / "graph" / f"{slug}.json")}
+        original, graph = read_book(slug)
+        graph = {h["mainId"]: h for h in graph}
         toc = read(TOC / f"{book}.json")
         toc_main = [r[0] for r in toc]
         current = None
@@ -144,9 +197,11 @@ def main():
             for extra in re.findall(r"(?:^|\s)(\d{1,4})\s*-\s", strip_diacritics(rec["hadith_text"])):
                 if num and int(extra) > int(num) and extra not in current["aliases"]:
                     current["aliases"].append(extra)
-            text = clean(rec["hadith_text_diac"])
+            text, notes = split_notes(clean(rec["hadith_text_diac"]))
             matn = clean(rec.get("matn_text_diac"))
             part = {"text": text, "mentions": [], "matn": None}
+            if notes:
+                part["notes"] = notes
             pos = 0
             for surface, diac, nid in rec.get("names") or []:
                 i = locate(text, diac, pos)
@@ -170,9 +225,9 @@ def main():
                     verdict = v.group(0).strip()
                     if verdict not in current["verdicts"]:
                         current["verdicts"].append(verdict)
-            current["takhreej"] += [[t.get("bookId"), t.get("book_name"), t.get("mainId")] for t in rec.get("takhreej") or []]
-            current["shawahed"] += [[s.get("rawy_name"), s.get("bookId"), s.get("mainId")] for s in rec.get("shawahed") or []]
-            current["comparisons"] += [[c.get("comparison_type"), c.get("bookId"), c.get("mainId")] for c in rec.get("comparisons") or []]
+            current["takhreej"] += rec["takhreej"]
+            current["shawahed"] += rec["shawahed"]
+            current["comparisons"] += rec["comparisons"]
 
     # an extra number inside a record ("299 - ... 300 - ...") only counts when it falls before the
     # next numbered hadith of the same book; other digits in the text are not hadith numbers
@@ -206,6 +261,7 @@ def main():
         h["group"] = dsu.find(h["key"])
 
     used = {i for h in hadiths for c in h["chains"] for i in c} | {m[2] for h in hadiths for p in h["parts"] for m in p["mentions"]}
+    used |= set(compilers.values())
     narrators = {n["narrator_id"]: n for n in narrators_src if n["narrator_id"] in used}
     for h in hadiths:
         for f in ("takhreej", "shawahed", "comparisons"):

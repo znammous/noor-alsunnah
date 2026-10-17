@@ -136,13 +136,17 @@ h1 { font-size: 1.6rem; } h2 { font-size: 1.2rem; } h3 { font-size: 1rem; }
 .verdicts cite { display: block; font-style: normal; font-family: var(--font-ui); font-size: .82rem; color: var(--muted); font-weight: 600; }
 .hadith-text p { margin: 0 0 .9em; }
 .hadith-text p:last-child { margin-bottom: 0; }
-.hadith-text p + p { padding-top: .9em; border-top: 1px dashed var(--line); }
+.hadith-text p + p, .hadith-text .edition-notes + p { padding-top: .9em; border-top: 1px dashed var(--line); }
+.hadith-text .edition-notes { margin: -.4em 0 .9em; padding: 0 1.2em 0 0; font-family: var(--font-ui); font-size: .8rem; line-height: 1.7; color: var(--muted); }
+.hadith-text .edition-notes:last-child { margin-bottom: 0; }
 .flag { font-size: .62rem; color: var(--c-maqbul); margin-inline-start: 3px; font-weight: 700; }
 .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--c); margin-inline-end: 6px; vertical-align: middle; flex: none; }
 
 /* chains */
 .chain { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; font-size: .9rem; }
 .chip { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; background: var(--panel-2); border: 1px solid var(--line); color: var(--ink); white-space: nowrap; }
+.chip { max-width: 100%; }
+@media (max-width: 600px) { .chip { white-space: normal; } }
 .chip:hover { text-decoration: none; border-color: var(--c, var(--accent)); }
 .chip > a { color: inherit; }
 .link-n { margin-inline-start: 6px; padding: 0 6px; border: 1px solid transparent; border-radius: 999px; background: none; color: var(--muted); font: inherit; font-size: .8rem; cursor: pointer; }
@@ -171,7 +175,8 @@ h1 { font-size: 1.6rem; } h2 { font-size: 1.2rem; } h3 { font-size: 1rem; }
 .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; }
 .seg button { border: 0; background: var(--panel); color: var(--ink); padding: 6px 12px; font: inherit; font-size: .88rem; cursor: pointer; }
 .seg button.on { background: var(--accent); color: var(--accent-ink); }
-.section-title .seg { max-width: 100%; overflow-x: auto; }
+.section-title .seg, .tree-tools .seg { max-width: 100%; overflow-x: auto; }
+.seg button { flex: none; }
 .btn { border: 1px solid var(--line); background: var(--panel); color: var(--ink); padding: 6px 12px; border-radius: 9px; font: inherit; font-size: .88rem; cursor: pointer; }
 .side { position: sticky; top: 76px; }
 .side .empty { color: var(--muted); font-size: .9rem; }
