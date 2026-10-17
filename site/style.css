@@ -286,7 +286,7 @@ mark { background: color-mix(in srgb, var(--gold) 30%, transparent); color: inhe
 .rank .row { display: grid; grid-template-columns: 2.2em minmax(0, 1fr) auto; gap: 3px 8px; width: 100%; padding: 7px 4px; border: 0; background: none; color: var(--ink); font: inherit; text-align: start; cursor: pointer; border-radius: 8px; }
 .rank .row:hover, .rank li.open .row { background: var(--panel-2); }
 .rank .rk { color: var(--muted); font-variant-numeric: tabular-nums; font-size: .85rem; }
-.rank .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rank .name { overflow-wrap: anywhere; }
 .rank .num { font-variant-numeric: tabular-nums; font-weight: 700; }
 .rank .bar { grid-column: 2 / -1; height: 8px; }
 .rank .bar span { display: block; height: 100%; background: var(--accent); border-start-end-radius: 4px; border-end-end-radius: 4px; min-width: 2px; }
