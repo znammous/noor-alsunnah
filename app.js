@@ -907,7 +907,7 @@
     s: ["شيخ مباشر لصاحب الكتاب", "عدد الأسانيد التي حدّث بها صاحب الكتاب عن الراوي مباشرة"],
     d: ["المدار", "عدد الأحاديث التي تلتقي عنده طرقها في الكتب التسعة ثم تتفرع عنه (محسوب آليًا)"],
   };
-  const TABAQA_GROUPS = { "1": ["الصحابة", 1, 1], tb: ["التابعون", 2, 6], at: ["أتباع التابعين", 7, 9], ak: ["الآخذون عن أتباع التابعين", 10, 12] };
+  const TABAQA_GROUPS = { "1": ["الصحابة", 1, 1], nc: ["من بعد الصحابة", 2, 12], tb: ["التابعون", 2, 6], at: ["أتباع التابعين", 7, 9], ak: ["الآخذون عن أتباع التابعين", 10, 12] };
   const TABAQA_NAMES = ["", "الصحابة", "كبار التابعين", "الوسطى من التابعين", "تلي الوسطى من التابعين", "صغار التابعين", "عاصروا صغار التابعين",
     "كبار أتباع التابعين", "الوسطى من أتباع التابعين", "صغار أتباع التابعين", "كبار الآخذين عن تبع الأتباع", "الوسطى من الآخذين عن تبع الأتباع", "صغار الآخذين عن تبع الأتباع"];
   const PRESETS = [
@@ -925,13 +925,24 @@
     ["أكثر رواة المدينة", { city: "المدينة", m: "u" }],
     ["أكثر رواة الكوفة", { city: "الكوفة", m: "u" }],
     ["أكثر رواة البصرة", { city: "البصرة", m: "u" }],
+    ["أكثر الصحابيات رواية", { t: "1", g: "f", m: "u" }],
+    ["أكثر النساء رواية بعد الصحابة", { t: "nc", g: "f", m: "u" }],
+    ["رجال الشيخين الأكثر رواية", { b: "bukhari", y: "muslim", m: "u" }],
+    ["رجال انفرد بهم البخاري عن مسلم", { b: "bukhari", x: "muslim", m: "u" }],
+    ["رجال انفرد بهم مسلم عن البخاري", { b: "muslim", x: "bukhari", m: "u" }],
+    ["شيوخ البخاري الذين لم يرو عنهم مسلم", { b: "bukhari", x: "muslim", m: "s" }],
   ];
-  const EXPLORE_DEFAULT = { b: "", m: "u", t: "", c: "", city: "", f: "", n: "20", q: "" };
+  // presets fall under the first group whose pattern matches their label
+  const PRESET_GROUPS = [["الصحابة والصحابيات", /^أكثر الصحاب/], ["الشيخان", /الشيخين|انفرد|لم يرو/], ["شيوخ أصحاب الكتب", /شيوخ/],
+    ["الرواة", /./]];
+  // the ranking's filters; the comparison's own settings are prefixed with c
+  const EXPLORE_DEFAULT = { b: "", m: "u", t: "", c: "", city: "", f: "", g: "", y: "", x: "", n: "20", q: "" };
+  const COMPARE_DEFAULT = { ca: "bukhari", cb: "muslim", cm: "u", ct: "", cs: "", cn: "15" };
 
   async function viewExplore(query) {
     const X = await getJSON("data/explore.json");
     const D = META.directory;
-    const st = { ...EXPLORE_DEFAULT };
+    const st = { ...EXPLORE_DEFAULT, ...COMPARE_DEFAULT };
     for (const [k, v] of new URLSearchParams(query || "")) if (k in st) st[k] = v;
     const cityCount = new Map();
     for (const r of Object.values(X.nar)) for (const c of r[2]) cityCount.set(c, (cityCount.get(c) || 0) + 1);
@@ -960,7 +971,7 @@
         <p class="muted small">«بدون المكرر» عدٌّ آلي يجمع الحديث الذي كرره المصنف في أكثر من موضع بحسب روابط التخريج في برنامج الجامع، فهو تقريبي: يعطي في صحيح البخاري ${fmt(X.books.bukhari.uniq)} حديثًا، وعدّها ابن حجر 2,602 حديثًا بلا تكرار. وأحاديث مسلم مرقّمة أصلًا على غير المكرر في ترقيم محمد فؤاد عبد الباقي، فالفرق فيه قليل.</p></div>
 
       <div class="panel" style="margin-top:16px"><h2>فلاتر جاهزة</h2>
-        <div class="presets" id="xpre">${PRESETS.map(([label], i) => `<button class="btn" data-i="${i}">${esc(label)}</button>`).join("")}</div></div>
+        <div id="xpre">${PRESET_GROUPS.map(([title, re]) => `<div class="pgroup"><h3>${title}</h3><div class="presets">${PRESETS.map(([label], i) => (re.test(label) && PRESET_GROUPS.find(([, r]) => r.test(label))[1] === re ? `<button class="btn" data-i="${i}">${esc(label)}</button>` : "")).join("")}</div></div>`).join("")}</div></div>
 
       <div class="panel" style="margin-top:16px">
         <h2 id="xtitle">ترتيب الرواة</h2>
@@ -973,12 +984,27 @@
           <label>الرتبة<select name="c">${opt("", "كل الرتب", st.c)}${["sahabi", "thiqa", "saduq", "maqbul", "weak", "unknown"].map((c) => opt(c, CLS_LABEL[c], st.c)).join("")}</select></label>
           <label>البلد<select name="city">${opt("", "كل البلدان", st.city)}${cities.map(([c, n]) => opt(c, `${c} (${fmt(n)})`, st.city)).join("")}</select></label>
           <label>الحال<select name="f">${opt("", "الكل", st.f)}${opt("1", "موصوف بالتدليس", st.f)}${opt("2", "اختلط أو تغيّر", st.f)}</select></label>
+          <label>الرجال والنساء<select name="g">${opt("", "الكل", st.g)}${opt("m", "الرجال", st.g)}${opt("f", "النساء", st.g)}</select></label>
+          <label>وله رواية في<select name="y">${opt("", "—", st.y)}${BOOKS.map((b) => opt(b, BOOK[b], st.y)).join("")}</select></label>
+          <label>وليس له رواية في<select name="x">${opt("", "—", st.x)}${BOOKS.map((b) => opt(b, BOOK[b], st.x)).join("")}</select></label>
           <label>العدد<select name="n">${["10", "20", "50", "100"].map((n) => opt(n, `أول ${n}`, st.n)).join("")}</select></label>
           <label class="grow">الاسم<input name="q" type="search" value="${esc(st.q)}" placeholder="تصفية بالاسم…"></label>
         </div>
         <div class="xbar"><p class="muted small" id="xnote"></p>
           <button class="btn" id="xreset">إعادة الضبط</button><button class="btn" id="xcopy">نسخ رابط هذا الترتيب</button></div>
         <ol class="rank" id="xl"></ol>
+      </div>
+
+      <div class="panel" style="margin-top:16px"><h2>مقارنة كتابين</h2>
+        <div class="filters" id="cf2">
+          <label>الكتاب الأول<select name="ca">${BOOKS.map((b) => opt(b, BOOK[b], st.ca)).join("")}</select></label>
+          <label>الكتاب الثاني<select name="cb">${BOOKS.map((b) => opt(b, BOOK[b], st.cb)).join("")}</select></label>
+          <label>طريقة العد<select name="cm">${opt("u", "بدون المكرر", st.cm)}${opt("r", "مع المكرر", st.cm)}</select></label>
+          <label>الطبقة<select name="ct">${opt("", "كل الطبقات", st.ct)}${Object.entries(TABAQA_GROUPS).map(([k, [l]]) => opt(k, l, st.ct)).join("")}</select></label>
+          <label>الترتيب<select name="cs">${opt("", "مجموع الكتابين", st.cs)}${opt("a", "الكتاب الأول", st.cs)}${opt("b", "الكتاب الثاني", st.cs)}</select></label>
+          <label>العدد<select name="cn">${["10", "15", "30", "50"].map((n) => opt(n, `أول ${n}`, st.cn)).join("")}</select></label>
+        </div>
+        <div id="cmp"></div>
       </div>`;
 
     const bi = (b) => BOOKS.indexOf(b);
@@ -994,10 +1020,10 @@
       const v = D[id], r = X.nar[id];
       return BOOKS.map((b, i) => [b, st.m === "s" ? r[4][i] : v[2][i], st.m === "s" ? r[4][i] : v[3][i]]);
     };
-    const inTabaqa = (t) => {
-      if (!st.t) return true;
-      if (st.t[0] === "=") return t === +st.t.slice(1);
-      const g = TABAQA_GROUPS[st.t];
+    const inTabaqa = (t, sel) => {
+      if (!sel) return true;
+      if (sel[0] === "=") return t === +sel.slice(1);
+      const g = TABAQA_GROUPS[sel];
       return g && t >= g[1] && t <= g[2];
     };
     let open = null;
@@ -1016,7 +1042,8 @@
       const nq = norm(st.q);
       const rows = Object.keys(D).filter((id) => {
         const v = D[id], r = X.nar[id];
-        return r && (!st.c || v[1] === st.c) && inTabaqa(r[0]) && (!st.city || r[2].includes(st.city)) && (!st.f || r[3] & +st.f) &&
+        return r && (!st.c || v[1] === st.c) && inTabaqa(r[0], st.t) && (!st.city || r[2].includes(st.city)) && (!st.f || r[3] & +st.f) &&
+          (!st.g || !(r[3] & 4) === (st.g === "m")) && (!st.y || v[2][bi(st.y)] > 0) && (!st.x || !v[2][bi(st.x)]) &&
           (!nq || norm(v[0]).includes(nq)) && !/^\[/.test(v[0]);
       }).map((id) => [id, value(id)]).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]);
       const shown = rows.slice(0, +st.n || 20);
@@ -1032,21 +1059,62 @@
           <span class="rk">${i + 1}</span><span class="name cls-${v[1]}"><span class="dot"></span>${esc(v[0])}</span><span class="num">${fmt(n)}</span>
           <span class="bar"><span style="width:${(100 * n) / max}%"></span></span></button>${open === id ? detail(id) : ""}</li>`;
       }).join("") || '<li class="muted" style="padding:12px 0">لا رواة بهذه الفلاتر</li>';
-      const qs = new URLSearchParams(Object.entries(st).filter(([k, v]) => v !== EXPLORE_DEFAULT[k])).toString();
+      saveState();
+    };
+    const saveState = () => {
+      const both = { ...EXPLORE_DEFAULT, ...COMPARE_DEFAULT };
+      const qs = new URLSearchParams(Object.entries(st).filter(([k, v]) => v !== both[k])).toString();
       try { history.replaceState(history.state, "", `#/explore${qs ? "?" + qs : ""}`); } catch (_) {}
     };
     const sync = () => { for (const el of document.querySelectorAll("#xf select, #xf input")) el.value = st[el.name]; };
+    // apply a ranking (from a preset or a comparison figure) and bring it into view
+    const applyRanking = (p) => {
+      Object.assign(st, EXPLORE_DEFAULT, { n: st.n }, p);
+      open = null; sync(); render();
+      $("#xtitle").scrollIntoView({ behavior: "smooth", block: "start" });
+    };
+
+    // ----- two books side by side -----
+    const compare = () => {
+      const A = st.ca, B = st.cb, ia = bi(A), ib = bi(B), uq = st.cm === "u";
+      const val = (id, i) => (uq ? D[id][3][i] : D[id][2][i]);
+      const ids = Object.keys(D).filter((id) => X.nar[id] && !/^\[/.test(D[id][0]) && inTabaqa(X.nar[id][0], st.ct));
+      const inA = ids.filter((id) => D[id][2][ia] > 0), inB = ids.filter((id) => D[id][2][ib] > 0);
+      const shared = inA.filter((id) => D[id][2][ib] > 0).length;
+      const key = st.cs === "a" ? (id) => val(id, ia) : st.cs === "b" ? (id) => val(id, ib) : (id) => val(id, ia) + val(id, ib);
+      const rows = ids.filter((id) => key(id) > 0).sort((p, q) => key(q) - key(p)).slice(0, +st.cn || 15);
+      const max = Math.max(1, ...rows.map((id) => Math.max(val(id, ia), val(id, ib))));
+      const bk = (b, cls) => {
+        const h = X.books[b];
+        return `<div class="ctile ${cls}"><div class="l"><i></i>${BOOK[b]}</div><div class="v">${fmt(h.uniq)}</div>
+          <div class="s">حديثًا بدون المكرر (تقريبًا) من ${fmt(h.hadith)}</div></div>`;
+      };
+      const tabLabel = st.ct ? (TABAQA_GROUPS[st.ct] || [""])[0] : "";
+      const fig = (n, label, p) => `<button class="ctile link" data-p='${esc(JSON.stringify(p))}'><div class="v">${fmt(n)}</div><div class="l">${label}</div></button>`;
+      const tp = st.ct ? { t: st.ct } : {};
+      $("#cmp").innerHTML = A === B ? '<p class="notice">اختر كتابين مختلفين للمقارنة.</p>' : `
+        <div class="ctiles">${bk(A, "sa")}${bk(B, "sb")}
+          ${fig(shared, `${tabLabel ? tabLabel + " " : "راويًا "}مشتركًا بينهما`, { b: A, y: B, m: st.cm, ...tp })}
+          ${fig(inA.length - shared, `انفرد بهم ${AUTHOR[A]}`, { b: A, x: B, m: st.cm, ...tp })}
+          ${fig(inB.length - shared, `انفرد بهم ${AUTHOR[B]}`, { b: B, x: A, m: st.cm, ...tp })}</div>
+        <p class="muted small">الأعداد الثلاثة الأخيرة للرواة${tabLabel ? ` (${tabLabel})` : ""}، واضغط على أيٍّ منها لعرض أسمائهم مرتبين.</p>
+        <div class="legend"><span><i class="sw sa"></i>${BOOK[A]}</span><span><i class="sw sb"></i>${BOOK[B]}</span></div>
+        <ol class="pair">${rows.map((id, i) => {
+          const a = val(id, ia), b = val(id, ib), v = D[id];
+          return `<li title="${esc(v[0])}: ${AUTHOR[A]} ${fmt(a)} · ${AUTHOR[B]} ${fmt(b)}"><span class="rk">${i + 1}</span>
+            <a class="name cls-${v[1]}" href="#/n/${encodeURIComponent(id)}"><span class="dot"></span>${esc(shortName(v[0]))}</a>
+            <span class="pb sa"><span style="width:${(100 * a) / max}%"></span><b>${fmt(a)}</b></span>
+            <span class="pb sb"><span style="width:${(100 * b) / max}%"></span><b>${fmt(b)}</b></span></li>`;
+        }).join("")}</ol>`;
+    };
+    $("#cf2").addEventListener("input", (e) => { if (!e.target.name) return; st[e.target.name] = e.target.value; compare(); saveState(); });
+    $("#cmp").addEventListener("click", (e) => { const t = e.target.closest("button.link"); if (t) applyRanking(JSON.parse(t.dataset.p)); });
+    compare();
     render();
 
     $("#xbm").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; setSeg("#xbm", b); bookMode = b.dataset.v; $("#xbooks").innerHTML = booksPanel(); });
     $("#xf").addEventListener("input", (e) => { if (!e.target.name) return; st[e.target.name] = e.target.value; open = null; render(); });
-    $("#xpre").addEventListener("click", (e) => {
-      const b = e.target.closest("button");
-      if (!b) return;
-      Object.assign(st, EXPLORE_DEFAULT, { n: st.n }, PRESETS[+b.dataset.i][1]);
-      open = null; sync(); render();
-      $("#xtitle").scrollIntoView({ behavior: "smooth", block: "start" });
-    });
+    $("#xpre").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) applyRanking(PRESETS[+b.dataset.i][1]); });
     $("#xreset").addEventListener("click", () => { Object.assign(st, EXPLORE_DEFAULT); open = null; sync(); render(); });
     $("#xcopy").addEventListener("click", async (e) => {
       try { await navigator.clipboard.writeText(location.href); e.target.textContent = "نُسخ الرابط ✓"; } catch (_) { e.target.textContent = "تعذّر النسخ"; }

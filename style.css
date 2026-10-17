@@ -302,3 +302,28 @@ mark { background: color-mix(in srgb, var(--gold) 30%, transparent); color: inhe
 .nfilters input { width: 100%; padding: 8px 12px; border: 1px solid var(--line); border-radius: 9px; background: var(--bg); color: var(--ink); font: inherit; }
 .nfilters #nnote { margin: 0; padding-top: 12px; border-top: 1px dashed var(--line); }
 .nfilters .seg { flex-wrap: wrap; overflow: hidden; }
+.pgroup + .pgroup { margin-top: 12px; }
+.pgroup h3 { margin: 0 0 6px; font-size: .85rem; color: var(--muted); font-weight: 500; }
+/* comparison of two books: two validated series colors per theme */
+:root { --sa: #2f66c0; --sb: #b0892f; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --sa: #5b93e6; --sb: #b3872a; } }
+:root[data-theme="dark"] { --sa: #5b93e6; --sb: #b3872a; }
+.sa { --s: var(--sa); } .sb { --s: var(--sb); }
+.ctiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin: 4px 0 8px; }
+.ctile { padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel-2); text-align: start; color: var(--ink); font: inherit; }
+.ctile .v { font-size: 1.45rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.ctile .l { color: var(--muted); font-size: .88rem; }
+.ctile .l i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; background: var(--s); margin-inline-end: 6px; }
+.ctile .s { color: var(--muted); font-size: .78rem; }
+.ctile.link { cursor: pointer; }
+.ctile.link:hover { border-color: var(--accent); }
+.ctile.link .l::after { content: " ←"; }
+.legend .sw { display: inline-block; width: 12px; height: 12px; border-radius: 3px; background: var(--s); margin-inline-end: 6px; vertical-align: -1px; }
+.pair { list-style: none; margin: 10px 0 0; padding: 0; }
+.pair li { display: grid; grid-template-columns: 2.2em minmax(0, 1fr); gap: 3px 8px; padding: 8px 0; border-bottom: 1px dashed var(--line); }
+.pair li:last-child { border-bottom: 0; }
+.pair .rk { color: var(--muted); font-size: .85rem; grid-row: span 3; }
+.pair .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pair .pb { display: flex; align-items: center; gap: 8px; height: 14px; }
+.pair .pb span { height: 8px; background: var(--s); border-start-end-radius: 4px; border-end-end-radius: 4px; min-width: 2px; }
+.pair .pb b { font-size: .8rem; font-variant-numeric: tabular-nums; font-weight: 600; color: var(--ink); }
