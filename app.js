@@ -131,7 +131,7 @@
     [/^\/book\/(bukhari|muslim|abudawud|tirmidhi|nasai|ibnmajah)$/, viewBook],
     [/^\/book\/(bukhari|muslim|abudawud|tirmidhi|nasai|ibnmajah)\/(\d+)(?:\/(\d+))?$/, viewKitab],
     [/^\/h\/([bmdtnj]\d+)$/, viewHadith],
-    [/^\/n\/(.+)$/, viewNarrator],
+    [/^\/n\/([^/]+)(?:\/([ts])\/([^/]+))?$/, viewNarrator],
     [/^\/narrators$/, viewNarrators],
     [/^\/search\/(.*)$/, viewSearch],
     [/^\/about$/, viewAbout],
@@ -652,7 +652,7 @@
   }
 
   // ---------- narrator page ----------
-  async function viewNarrator(id) {
+  async function viewNarrator(id, linkDir, linkX) {
     const n = await narrator(id);
     if (!n) { app.innerHTML = '<div class="panel">الراوي غير موجود.</div>'; return; }
     const D = META.directory;
@@ -720,14 +720,16 @@
       const row = dir && (dir === "t" ? n.teachers : n.students).find((r) => r[0] === x);
       edge = row ? { dir, x, keys: new Set(row[2] || []) } : null;
       book = "";
+      // the address follows the chosen link so it can be shared; replaceState does not re-route
+      history.replaceState(null, "", `#/n/${encodeURIComponent(n.id)}${edge ? `/${dir}/${encodeURIComponent(x)}` : ""}`);
       show();
       if (edge) $("#htitle").scrollIntoView({ behavior: "smooth" });
     };
-    show();
+    if (linkDir) pickEdge(linkDir, linkX); else show();
     const pickBook = (v) => { book = v; show(); };
     $("#hbook").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) pickBook(b.dataset.v); });
     app.querySelectorAll(".summary [data-book]").forEach((b) => b.addEventListener("click", () => {
-      edge = null;
+      if (edge) pickEdge(null);
       pickBook(b.dataset.book);
       $("#hlist").scrollIntoView({ behavior: "smooth" });
     }));
