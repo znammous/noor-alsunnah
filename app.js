@@ -965,7 +965,7 @@
     app.innerHTML = `
       <div class="section-title" style="margin-top:0"><h1>الإحصاءات</h1><p>استكشف الكتب التسعة ورواتها بالفلاتر</p></div>
       <div class="panel">
-        <div class="seg xtabs" id="xtabs" role="tablist">${PRESET_GROUPS.map(([title], g) => `<button role="tab" data-g="${g}">${title}</button>`).join("")}<button role="tab" data-g="c">تخصيص</button></div>
+        <div class="seg xtabs" id="xtabs" role="tablist"><button role="tab" data-g="c">تخصيص</button>${PRESET_GROUPS.map(([title], g) => `<button role="tab" data-g="${g}">${title}</button>`).join("")}</div>
         <div id="xpre">${PRESET_GROUPS.map(([, re], g) => `<div class="presets" data-g="${g}" hidden>${PRESETS.map(([label], i) => (PRESET_GROUPS.find(([, r]) => r.test(label))[1] === re ? `<button class="btn" data-i="${i}">${esc(label)}</button>` : "")).join("")}</div>`).join("")}</div>
         <div class="filters" id="xf" hidden>
           <label>الكتاب<select name="b">${opt("", "الكتب التسعة", st.b)}${BOOKS.map((b) => opt(b, BOOK[b], st.b)).join("")}</select></label>
@@ -1127,9 +1127,9 @@
     $("#xf").addEventListener("input", (e) => { if (!e.target.name) return; st[e.target.name] = e.target.value; open = null; render(); });
     $("#xpre").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) applyRanking(PRESETS[+b.dataset.i][1]); });
     $("#xtabs").addEventListener("click", (e) => { const t = e.target.closest("button"); if (t) showTab(t.dataset.g === "c" ? "c" : +t.dataset.g); });
-    // start on the current preset's group; a link with its own filters starts on the custom tab
+    // start on the custom filters, or on the current preset's group when the link is a preset
     const cur = document.querySelector("#xpre button.on");
-    showTab(cur ? +cur.parentElement.dataset.g : Object.keys(EXPLORE_DEFAULT).some((k) => k !== "n" && st[k] !== EXPLORE_DEFAULT[k]) ? "c" : 0);
+    showTab(cur ? +cur.parentElement.dataset.g : "c");
     $("#xreset").addEventListener("click", () => { Object.assign(st, EXPLORE_DEFAULT); open = null; sync(); render(); });
     $("#xcopy").addEventListener("click", async (e) => {
       try { await navigator.clipboard.writeText(location.href); e.target.textContent = "نُسخ الرابط ✓"; } catch (_) { e.target.textContent = "تعذّر النسخ"; }
