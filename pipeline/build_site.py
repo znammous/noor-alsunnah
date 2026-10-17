@@ -10,7 +10,7 @@ Layout (sharded to keep the file count low for static hosting):
 import re
 from collections import Counter, defaultdict
 
-from common import SITE_DATA, WORK, dump, load, norm, strip_diacritics
+from common import _DIACRITICS as DIACRITIC, SITE_DATA, WORK, dump, load, norm, strip_diacritics
 
 SHARD_BYTES = 400_000      # target size of a hadith shard (groups are packed until this is reached)
 NARR_SHARDS = 64
@@ -274,10 +274,32 @@ def main():
     for s, content in nshards.items():
         dump(content, SITE_DATA / "n" / f"{s}.json")
 
-    # ---------- search index per book: [key, group, normalised text, bab, number label] ----------
+    # ---------- search index per book: [key, group, text, bab, number label, matn ranges] ----------
+    # text keeps the original spelling without diacritics (the browser folds it for matching, char for char),
+    # and matn ranges are flat [start, end, ...] offsets into it so results can tell isnad from matn.
+    def search_text(h):
+        out, ranges, pos = [], [], 0
+        for p in h["parts"]:
+            t = re.sub(r"\s", " ", p["text"])  # 1:1, so the matn offsets still apply
+            kept = [i for i, ch in enumerate(t) if not DIACRITIC.match(ch)]
+            at = {i: j for j, i in enumerate(kept)}
+            plain = "".join(t[i] for i in kept)
+            if p["matn"]:
+                s0, e0 = p["matn"]
+                s1 = next((at[i] for i in range(s0, len(t)) if i in at), len(plain))
+                e1 = next((at[i] + 1 for i in range(min(e0, len(t)) - 1, -1, -1) if i in at), 0)
+                if e1 > s1:
+                    ranges += [pos + s1, pos + e1]
+            out.append(plain)
+            pos += len(plain) + 1
+        return " ".join(out), ranges
+
     for b in BOOKS:
-        search = [[h["k"], h["g"], norm(" ".join(p["text"] for p in h["parts"])), h["bab"], h["label"]]
-                  for h in hadiths.values() if h["book"] == b]
+        search = []
+        for h in hadiths.values():
+            if h["book"] == b:
+                text, ranges = search_text(h)
+                search.append([h["k"], h["g"], text, h["bab"], h["label"], ranges])
         dump(search, SITE_DATA / "search" / f"{b}.json")
 
     # ---------- dashboard indicators ----------
