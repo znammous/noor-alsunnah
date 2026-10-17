@@ -74,6 +74,12 @@ h1 { font-size: 1.6rem; } h2 { font-size: 1.2rem; } h3 { font-size: 1rem; }
 
 .app { max-width: 1280px; margin: 0 auto; padding: 24px 20px 48px; }
 .loading { padding: 60px; text-align: center; color: var(--muted); }
+/* the site name fills with light from the right, like ink running along the line */
+.loading .fill { position: relative; display: inline-block; font-family: var(--font-brand); font-weight: 700; font-size: 2.6rem; line-height: 1.6; color: var(--line); }
+.loading .fill::after { content: attr(data-t); position: absolute; inset: 0; color: var(--accent); text-shadow: 0 0 18px color-mix(in srgb, var(--accent) 45%, transparent);
+  clip-path: inset(-40% -15% -40% 100%); animation: fill 1.6s ease-in-out infinite; }
+@keyframes fill { 0% { clip-path: inset(-40% -15% -40% 100%); } 60%, 80% { clip-path: inset(-40% -15% -40% -15%); opacity: 1; } 100% { clip-path: inset(-40% -15% -40% -15%); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .loading .fill::after { animation: none; clip-path: none; opacity: .6; } }
 .foot { max-width: 1280px; margin: 0 auto; padding: 16px 20px 40px; color: var(--muted); font-size: .85rem; border-top: 1px solid var(--line); }
 
 .panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; box-shadow: var(--shadow); }
@@ -117,6 +123,10 @@ h1 { font-size: 1.6rem; } h2 { font-size: 1.2rem; } h3 { font-size: 1rem; }
 .ch-thiqat { background: var(--c-thiqa); } .ch-saduq { background: var(--c-saduq); }
 .ch-mutakallam { background: var(--c-weak); } .ch-unknown { background: var(--c-unknown); }
 .legend i[class^="ch-"] { border-radius: 2px; }
+.legend button { border: 1px solid transparent; background: none; color: inherit; font: inherit; padding: 2px 9px; border-radius: 999px; cursor: pointer; }
+.legend button:hover:not(:disabled) { border-color: var(--c); }
+.legend button.on { border-color: var(--c); background: color-mix(in srgb, var(--c) 18%, transparent); font-weight: 700; }
+.legend button:disabled { opacity: .35; cursor: default; }
 .dorar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin: 16px 0; }
 .dorar h3 { margin: 0 0 4px; }
 .dorar p { margin: 0; }

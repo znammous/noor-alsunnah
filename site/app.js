@@ -8,6 +8,7 @@
   // It receives POST {type: "view"|"search", key} and GET returns {views: [[key,n]], searches: [[q,n]]}.
   const ANALYTICS_ENDPOINT = window.ANALYTICS_ENDPOINT || null;
   const PAGE = 40;
+  const LOADING = '<div class="loading" role="status" aria-label="جارٍ التحميل"><span class="fill" data-t="نور السنة">نور السنة</span></div>';
   const CONTACT = "zuhair.nammous@gmail.com";
   const mailto = (subject) => `mailto:${CONTACT}?subject=${encodeURIComponent(subject)}`;
 
@@ -144,7 +145,7 @@
     for (const [re, fn] of routes) {
       const m = path.match(re);
       if (m) {
-        app.innerHTML = '<div class="loading">جارٍ التحميل…</div>';
+        app.innerHTML = LOADING;
         try { await meta(); await fn(...m.slice(1)); } catch (e) { console.error(e); app.innerHTML = `<div class="panel">تعذّر التحميل: ${esc(e.message)}</div>`; }
         window.scrollTo(0, 0);
         return;
@@ -408,13 +409,13 @@
             <a class="btn" href="${mailto(`نور السنة: ملاحظة على ${hkey(key)}`)}">أبلغ عن خطأ</a>
           </div>
           <div id="tree" role="img" aria-label="شجرة الرواة"></div>
-          <div class="legend">${["nabi", "sahabi", "thiqa", "saduq", "maqbul", "weak", "imam"].map((c) => `<span class="cls-${c}"><i style="background:var(--c)"></i>${CLS_LABEL[c]}</span>`).join("")}<span><i style="background:transparent;border:2px solid var(--gold)"></i>المدار</span><span class="muted">سُمك الخط = عدد الطرق</span></div>
+          <div class="legend" id="rankf"><span class="cls-nabi"><i style="background:var(--c)"></i>${CLS_LABEL.nabi}</span>${["sahabi", "thiqa", "saduq", "maqbul", "weak"].map((c) => `<button class="cls-${c}" data-c="${c}" title="تمييز رواة هذه الرتبة والطرق التي تمر بهم"><i style="background:var(--c)"></i>${CLS_LABEL[c]}</button>`).join("")}<span class="cls-imam"><i style="background:var(--c)"></i>${CLS_LABEL.imam}</span>${madar ? `<button data-c="madar" style="--c:var(--gold)" title="تمييز المدار والطرق التي تمر به"><i style="background:transparent;border:2px solid var(--gold)"></i>المدار</button>` : ""}<span class="muted">سُمك الخط = عدد الطرق · اضغط على رتبة لتمييزها</span></div>
         </div>
         <aside class="panel side" id="side"><p class="empty">اضغط على أي راوٍ في الشجرة لعرض ترجمته المختصرة وتمييز الطرق التي تمر به.</p></aside>
       </div>
 
       <div class="section-title"><h2>أسانيده</h2><p>وصف رجال كل إسناد بحسب رتبهم عند ابن حجر، وليس حكمًا على الحديث</p></div>
-      <div class="panel"><ul class="list">${h.chains.map((c) => chainRow(c, G.nar, compilerOf(key))).join("") || '<li class="muted">لا يوجد إسناد مستخرج لهذه الرواية.</li>'}</ul></div>
+      <div class="panel"><p class="notice" id="chainf" hidden></p><ul class="list" id="chains">${h.chains.map((c) => chainRow(c, G.nar, compilerOf(key))).join("") || '<li class="muted">لا يوجد إسناد مستخرج لهذه الرواية.</li>'}</ul></div>
 
       ${others.length ? `<div class="section-title"><h2>رواياته الأخرى في الكتب الستة</h2><p>كما في تخريج البرنامج · «متابعة»: عن الصحابي نفسه · «شاهد»: عن صحابي آخر</p></div>
       <div class="panel"><ul class="list">${others.map((k) => {
@@ -429,8 +430,49 @@
       <div class="panel"><div class="chain">${sp.books.map(([b, n]) => `<span class="chip">${esc(b)}<span class="muted small" style="margin-inline-start:6px">${fmt(n)}</span></span>`).join(" ")}${sp.n_books > sp.books.length ? `<span class="muted small">و${fmt(sp.n_books - sp.books.length)} كتابًا آخر</span>` : ""}</div>
         ${sp.shawahid.length ? `<h3 style="margin-top:14px">شواهده عن صحابة آخرين</h3><div class="chain">${sp.shawahid.map((n) => `<span class="chip cls-sahabi"><span class="dot"></span>${esc(n)}</span>`).join(" ")}</div>` : ""}</div>` : ""}`;
 
-    let scope = others.length ? "all" : "one", bookFilter = "";
-    const draw = () => drawTree(G, scope === "one" ? [key] : G.hadiths.filter((k) => !bookFilter || k[0] === bookFilter), key);
+    let scope = others.length ? "all" : "one", bookFilter = "", rank = "";
+    const sideEmpty = $("#side").innerHTML;
+    const inRank = (id, c) => (c === "madar" ? id === G.madar : (G.nar[id] || {}).cls === c);
+    // highlight the narrators of one rank (or the madar) and the routes through them; filter the chain list to match
+    const applyRank = (c) => {
+      rank = c;
+      $("#rankf").querySelectorAll("button").forEach((b) => b.classList.toggle("on", b.dataset.c === c));
+      const rows = [...$("#chains").children].filter((li) => li.dataset.ids !== undefined);
+      rows.forEach((li) => { li.hidden = !!c && !li.dataset.ids.split(" ").some((id) => inRank(id, c)); });
+      const shown = rows.filter((li) => !li.hidden).length;
+      const note = $("#chainf");
+      note.hidden = !c;
+      if (c) note.textContent = `${fmt(shown)} من ${fmt(rows.length)} أسانيد هذه الرواية فيها: ${c === "madar" ? "المدار" : CLS_LABEL[c]}`;
+      if (!cy) return;
+      cy.elements().removeClass("dim hl pick");
+      if (!c) { $("#side").innerHTML = sideEmpty; return; }
+      const hit = cy.nodes().filter((n) => inRank(n.id(), c));
+      const path = hit.union(hit.predecessors()).union(hit.successors());
+      cy.elements().not(path).addClass("dim");
+      path.edges().addClass("hl");
+      hit.addClass("pick");
+      const label = c === "madar" ? "المدار" : CLS_LABEL[c];
+      $("#side").innerHTML = `<h3 class="cls-${c}"><span class="dot"${c === "madar" ? ' style="background:var(--gold)"' : ""}></span>${label} في هذه الشجرة: ${fmt(hit.length)}</h3>
+        <div class="chain">${hit.sort((a, b) => b.data("n") - a.data("n")).map((n) => `<a class="chip cls-${n.data("cls")}" href="#/n/${encodeURIComponent(n.id())}"><span class="dot"></span>${esc(n.data("label"))}<span class="muted small" style="margin-inline-start:6px">${fmt(n.data("n"))}</span></a>`).join(" ")}</div>
+        <p class="muted small">العدد بجانب الاسم = عدد الطرق التي تمر به في الشجرة.</p>`;
+    };
+    // disable ranks absent from the current tree, keep the chosen one applied across redraws
+    const draw = () => {
+      drawTree(G, scope === "one" ? [key] : G.hadiths.filter((k) => !bookFilter || k[0] === bookFilter), key);
+      $("#rankf").querySelectorAll("button").forEach((b) => { b.disabled = !cy.nodes().some((n) => inRank(n.id(), b.dataset.c)); });
+      cy.on("tap", (e) => { if (e.target === cy && rank) applyRank(""); });
+      // tapping a narrator switches to its own routes (selectNode); just drop the rank filter
+      cy.on("tap", "node", () => {
+        if (!rank) return;
+        rank = "";
+        $("#rankf").querySelectorAll("button").forEach((b) => b.classList.remove("on"));
+        [...$("#chains").children].forEach((li) => { li.hidden = false; });
+        $("#chainf").hidden = true;
+        cy.elements().removeClass("pick");
+      });
+      applyRank(rank && !$(`#rankf button[data-c="${rank}"]`).disabled ? rank : "");
+    };
+    $("#rankf").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b || b.disabled) return; applyRank(rank === b.dataset.c ? "" : b.dataset.c); });
     draw();
     $("#scope")?.addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; scope = b.dataset.v; setSeg("#scope", b); draw(); });
     $("#bookf")?.addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; bookFilter = b.dataset.v; setSeg("#bookf", b); draw(); });
@@ -468,7 +510,7 @@
     if (label) tags.push(`<span class="tag ${cls}">${label}</span>`);
     tags.push(`<span class="tag">${c.ids.length} رواة</span>`);
     if (compiler === "البخاري" && c.ids.length === 3 && nar[c.ids[0]]?.cls === "sahabi") tags.push('<span class="tag ok">ثلاثي</span>');
-    return `<li><div class="meta-line">${tags.join("")}</div>${chainHTML(c.ids, nar, compiler)}</li>`;
+    return `<li data-ids="${esc(c.ids.join(" "))}"><div class="meta-line">${tags.join("")}</div>${chainHTML(c.ids, nar, compiler)}</li>`;
   }
 
   // ---------- tree ----------
@@ -535,6 +577,7 @@
         { selector: "edge[focus = 1]", style: { "line-color": css("--accent"), "target-arrow-color": css("--accent") } },
         { selector: ".dim", style: { "opacity": 0.15 } },
         { selector: ".hl", style: { "line-color": css("--gold"), "target-arrow-color": css("--gold") } },
+        { selector: "node.pick", style: { "border-width": 4, "font-weight": 700 } },
       ],
     });
     readable(cy, "nabi");
@@ -669,7 +712,7 @@
 
   async function renderNarratorHadiths(n, page, book = "", only = null) {
     const box = $("#hlist");
-    box.innerHTML = '<div class="loading">جارٍ التحميل…</div>';
+    box.innerHTML = LOADING;
     const books = BOOKS.filter((b) => (n.hadiths || {})[b] && (!book || b === book));
     const keys = books.flatMap((b) => n.hadiths[b]).filter((k) => !only || only.has(k));
     const idx = await searchIndex(books);
