@@ -389,6 +389,20 @@
   const hadithTextHTML = (h, nar) => h.parts.map((p) => `<p>${partHTML(p, nar)}</p>${notesHTML(p)}`).join("");
   const matnOf = (h) => { const p = h.parts[0]; return p.matn ? p.text.slice(p.matn[0], p.matn[1]) : p.text; };
 
+  // Scholars' verdicts in their own words, each with its source and a link to its page in al-Shamela
+  function gradesHTML(h) {
+    if (!h.grades || !h.grades.length) return "";
+    const src = META.grade_sources || {};
+    return `<div class="panel grades"><h3>أحكام المحدثين على هذا الحديث</h3>
+      <div class="verdicts">${h.grades.map(([s, v, page, num]) => {
+        const [by, work, book] = src[`${s}:${h.book}`] || [s, "", 0];
+        return `<blockquote><cite>${esc(by)}${num ? ` · الحديث ${esc(num)}` : ""}</cite>${esc(v)}
+          <span class="grade-src">${esc(work)}${book ? ` · <a href="https://shamela.ws/book/${book}/${page}" target="_blank" rel="noopener">المكتبة الشاملة ↗</a>` : ""}</span></blockquote>`;
+      }).join("")}</div>
+      <p class="muted small">تُنقل الأحكام بنصها منسوبةً إلى أصحابها، وهي اجتهاد منهم. وقد يكون الحكم على الإسناد خاصة («إسناده ضعيف») والحديث ثابت من طريق أخرى.${
+        h.grades.some(([s, v]) => s === "albani" && /(^|\s)[خمق](\s|$)/.test(v)) ? " ورموز الألباني: خ البخاري، م مسلم، ق متفق عليه." : ""}</p></div>`;
+  }
+
   // The Dorar API cannot be embedded (served as text/html with nosniff and no CORS), so we link
   // to its hadith encyclopedia search for the opening words of the matn.
   function dorarURL(h) {
@@ -440,8 +454,9 @@
         ${sp && sp.shawahid.length ? `<span class="pill">له شواهد عن: <b>${fmt(sp.shawahid.length)}</b> صحابيًا</span>` : ""}
       </div>
 
+      ${gradesHTML(h)}
       <div class="panel dorar">
-        <div><h3>أحكام المحدثين على هذا الحديث</h3>
+        <div><h3>${h.grades && h.grades.length ? "أحكام أخرى في الدرر السنية" : "أحكام المحدثين على هذا الحديث"}</h3>
           <p class="muted small">من الموسوعة الحديثية في موقع الدرر السنية: نتائج البحث عن طرف الحديث، وقد تشمل رواياتٍ أخرى مشابهة.</p></div>
         <a class="btn on" href="${dorarURL(h)}" target="_blank" rel="noopener">اعرض الأحكام في الدرر السنية ↗</a>
       </div>
@@ -1380,12 +1395,13 @@
         <li>«المدار» يُحسب آليًا: هو الراوي الذي تتفرع عنه أكثر الطرق داخل الكتب التسعة.</li>
         <li>جمع روايات الحديث الواحد في الكتب التسعة قائم على تخريج برنامج جامع خادم الحرمين الشريفين.</li>
         <li>أحاديث السنن فيها الصحيح والحسن والضعيف، ويُعرض حكم الترمذي بلفظه حيث ورد، وتُربط كل الأحاديث بأحكام المحدثين في الدرر السنية.</li>
+        <li>أحكام المحدثين المعروضة في صفحة الحديث تُنقل بنصها منسوبةً إلى أصحابها ولا نرجّح بينها: حكم الألباني على أحاديث سنن أبي داود والترمذي وابن ماجه (من كتبه «صحيح وضعيف السنن» كما نقلتها المكتبة الشاملة)، وكلام البوصيري في «مصباح الزجاجة» على زوائد ابن ماجه بنقل محمد فؤاد عبد الباقي، وحكم حسين سليم أسد في تحقيقه لمسند الدارمي.</li>
         <li>الترقيم: البخاري على «فتح الباري»، ومسلم وابن ماجه على ترقيم محمد فؤاد عبد الباقي، وأبو داود على ترقيم محمد محيي الدين عبد الحميد، والترمذي على ترقيم أحمد شاكر، والنسائي على ترقيم برنامج الجامع.</li>
         <li>فهرس الكتب الكبرى للسنن الأربع من <a href="https://shamela.ws/" target="_blank" rel="noopener">المكتبة الشاملة</a>.</li>
       </ul>
       <h2>مصادر البيانات</h2>
       <p>نصوص الأحاديث وأسانيدها، وتراجم الرواة ورتبهم، والتخريج والشواهد: من <a href="https://sunna.alifta.gov.sa/" target="_blank" rel="noopener">برنامج جامع خادم الحرمين الشريفين للسنة النبوية</a> (الرئاسة العامة للبحوث العلمية والإفتاء)، عن النسخة المهيكلة التي نشرها الباحث جهاد عمر (<a href="https://github.com/JehadOumer/Ifta-Sunnah-Hadith-and-Narrators-Dataset" target="_blank" rel="noopener">Ifta Sunnah Hadith &amp; Narrators Dataset</a>).</p>
-      <p>أحكام المحدثين على الأحاديث: روابط إلى <a href="https://dorar.net/hadith" target="_blank" rel="noopener">الموسوعة الحديثية في موقع الدرر السنية</a>، تُفتح في موقعهم.</p>
+      <p>أحكام المحدثين على الأحاديث: من طبعات <a href="https://shamela.ws/" target="_blank" rel="noopener">المكتبة الشاملة</a> المحققة (سنن أبي داود ت محيي الدين عبد الحميد، وسنن الترمذي ت شاكر، وسنن ابن ماجه ت عبد الباقي، ومسند الدارمي ت حسين سليم أسد)، مع روابط إلى <a href="https://dorar.net/hadith" target="_blank" rel="noopener">الموسوعة الحديثية في موقع الدرر السنية</a> تُفتح في موقعهم.</p>
       <p class="muted small">الحقوق العلمية محفوظة لأصحابها: برنامج الجامع للرئاسة العامة للبحوث العلمية والإفتاء، والموسوعة الحديثية للدرر السنية. والموقع مستقل ولا يمثل أيًّا منهما.</p>
       <h2>التواصل</h2>
       <p>للاقتراحات أو الإبلاغ عن خطأ في حديث أو راوٍ أو إسناد، راسلنا على: <a href="${mailto("نور السنة: اقتراح أو ملاحظة")}">${CONTACT}</a></p>
