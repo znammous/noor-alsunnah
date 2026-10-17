@@ -68,7 +68,7 @@
   const cache = new Map();
   function getJSON(path) {
     if (!cache.has(path)) {
-      cache.set(path, fetch(path).then((r) => {
+      cache.set(path, fetch(window.V ? `${path}?v=${window.V}` : path).then((r) => {
         if (!r.ok) throw new Error(path + " " + r.status);
         return r.json();
       }));
