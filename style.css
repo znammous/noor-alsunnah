@@ -85,7 +85,7 @@ h1 { font-size: 1.6rem; } h2 { font-size: 1.2rem; } h3 { font-size: 1rem; }
 .kpi .v { font-size: 1.7rem; font-weight: 700; font-variant-numeric: tabular-nums; }
 .kpi .l { color: var(--muted); font-size: .9rem; }
 .kpi .s { color: var(--muted); font-size: .78rem; }
-.section-title { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin: 28px 0 12px; }
+.section-title { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px; margin: 28px 0 12px; }
 .section-title p { margin: 0; color: var(--muted); font-size: .9rem; }
 .muted { color: var(--muted); }
 .small { font-size: .85rem; }
@@ -157,6 +157,7 @@ h1 { font-size: 1.6rem; } h2 { font-size: 1.2rem; } h3 { font-size: 1rem; }
 .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; }
 .seg button { border: 0; background: var(--panel); color: var(--ink); padding: 6px 12px; font: inherit; font-size: .88rem; cursor: pointer; }
 .seg button.on { background: var(--accent); color: var(--accent-ink); }
+.section-title .seg { max-width: 100%; overflow-x: auto; }
 .btn { border: 1px solid var(--line); background: var(--panel); color: var(--ink); padding: 6px 12px; border-radius: 9px; font: inherit; font-size: .88rem; cursor: pointer; }
 .side { position: sticky; top: 76px; }
 .side .empty { color: var(--muted); font-size: .9rem; }
