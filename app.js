@@ -140,6 +140,7 @@
     [new RegExp(`^/h/([${Object.values(PREFIX).join("")}]\\d+)$`), viewHadith],
     [/^\/n\/([^/]+)(?:\/([ts])\/([^/]+))?$/, viewNarrator],
     [/^\/narrators$/, viewNarrators],
+    [/^\/explore(?:\?(.*))?$/, viewExplore],
     [/^\/search\/(.*)$/, viewSearch],
     [/^\/about$/, viewAbout],
   ];
@@ -891,6 +892,168 @@
     seg("#cf", (v) => { cls = v; });
     seg("#bf", (v) => { book = v; });
     seg("#rf", (v) => { uniq = !!v; });
+  }
+
+  // ---------- statistics explorer ----------
+  // explore.json nar rows: [tabaqa, death year, cities, tadlis | ikhtilat << 1, chains each compiler heard from him, madar]
+  const MEASURES = {
+    r: ["المواضع (مع المكرر)", "عدد المواضع التي ورد الراوي في إسنادها، فالحديث المكرر يُعدّ في كل موضع"],
+    u: ["الأحاديث بدون المكرر", "الحديث الذي كرره المصنف يُعدّ مرة واحدة، وفي الإجمالي يُعدّ الحديث المروي في أكثر من كتاب مرة واحدة. عدّ آلي تقريبي بحسب روابط التخريج في المصدر"],
+    s: ["شيخ مباشر لصاحب الكتاب", "عدد الأسانيد التي حدّث بها صاحب الكتاب عن الراوي مباشرة"],
+    d: ["المدار", "عدد الأحاديث التي تلتقي عنده طرقها في الكتب التسعة ثم تتفرع عنه (محسوب آليًا)"],
+  };
+  const TABAQA_GROUPS = { "1": ["الصحابة", 1, 1], tb: ["التابعون", 2, 6], at: ["أتباع التابعين", 7, 9], ak: ["الآخذون عن أتباع التابعين", 10, 12] };
+  const TABAQA_NAMES = ["", "الصحابة", "كبار التابعين", "الوسطى من التابعين", "تلي الوسطى من التابعين", "صغار التابعين", "عاصروا صغار التابعين",
+    "كبار أتباع التابعين", "الوسطى من أتباع التابعين", "صغار أتباع التابعين", "كبار الآخذين عن تبع الأتباع", "الوسطى من الآخذين عن تبع الأتباع", "صغار الآخذين عن تبع الأتباع"];
+  const PRESETS = [
+    ["أكثر الصحابة رواية في الكتب التسعة", { t: "1", m: "u" }],
+    ["أكثر الصحابة رواية في صحيح البخاري", { b: "bukhari", t: "1", m: "u" }],
+    ["أكثر الصحابة رواية في صحيح مسلم", { b: "muslim", t: "1", m: "u" }],
+    ["أكثر الرواة ورودًا في صحيح البخاري", { b: "bukhari", m: "r" }],
+    ["أكثر شيوخ البخاري", { b: "bukhari", m: "s" }],
+    ["أكثر شيوخ مسلم", { b: "muslim", m: "s" }],
+    ["أكثر شيوخ الإمام أحمد", { b: "ahmad", m: "s" }],
+    ["أكثر التابعين رواية", { t: "tb", m: "u" }],
+    ["أكثر الرواة مدارًا", { m: "d" }],
+    ["أكثر المدلسين رواية", { f: "1", m: "u" }],
+    ["أكثر من تُكلِّم فيه رواية", { c: "weak", m: "u" }],
+    ["أكثر رواة المدينة", { city: "المدينة", m: "u" }],
+    ["أكثر رواة الكوفة", { city: "الكوفة", m: "u" }],
+    ["أكثر رواة البصرة", { city: "البصرة", m: "u" }],
+  ];
+  const EXPLORE_DEFAULT = { b: "", m: "u", t: "", c: "", city: "", f: "", n: "20", q: "" };
+
+  async function viewExplore(query) {
+    const X = await getJSON("data/explore.json");
+    const D = META.directory;
+    const st = { ...EXPLORE_DEFAULT };
+    for (const [k, v] of new URLSearchParams(query || "")) if (k in st) st[k] = v;
+    const cityCount = new Map();
+    for (const r of Object.values(X.nar)) for (const c of r[2]) cityCount.set(c, (cityCount.get(c) || 0) + 1);
+    const cities = [...cityCount].filter(([, n]) => n >= 15).sort((a, b) => b[1] - a[1]);
+    const opt = (v, label, cur) => `<option value="${esc(v)}"${v === cur ? " selected" : ""}>${esc(label)}</option>`;
+
+    let bookMode = "all";
+    const booksPanel = () => {
+      const key = bookMode === "marfu" ? ["marfu", "marfu_uniq"] : ["hadith", "uniq"];
+      const max = Math.max(...BOOKS.map((b) => X.books[b][key[0]]));
+      return `<ul class="bullets">${BOOKS.map((b) => {
+        const all = X.books[b][key[0]], u = X.books[b][key[1]];
+        return `<li title="${BOOK[b]}: ${fmt(all)} مع المكرر، ونحو ${fmt(u)} بدون المكرر">
+          <a href="#/book/${b}" class="name">${BOOK[b]}</a>
+          <span class="num"><b>${fmt(u)}</b> <span class="muted">من ${fmt(all)}</span></span>
+          <span class="track"><span class="all" style="width:${(100 * all) / max}%"></span><span class="u" style="width:${(100 * u) / max}%"></span></span></li>`;
+      }).join("")}</ul>`;
+    };
+
+    app.innerHTML = `
+      <div class="section-title" style="margin-top:0"><h1>الإحصاءات</h1><p>استكشف الكتب التسعة ورواتها بالفلاتر</p></div>
+      <div class="panel"><h2>الأحاديث في كل كتاب: مع المكرر وبدونه</h2>
+        <div class="tree-tools"><div class="seg" id="xbm"><button data-v="all" class="on">كل الأحاديث</button><button data-v="marfu">المرفوع فقط</button></div>
+          <div class="legend"><span><i class="lg-all"></i>مع المكرر</span><span><i class="lg-u"></i>بدون المكرر (تقريبي)</span></div></div>
+        <div id="xbooks">${booksPanel()}</div>
+        <p class="muted small">«بدون المكرر» عدٌّ آلي يجمع الحديث الذي كرره المصنف في أكثر من موضع بحسب روابط التخريج في برنامج الجامع، فهو تقريبي: يعطي في صحيح البخاري ${fmt(X.books.bukhari.uniq)} حديثًا، وعدّها ابن حجر 2,602 حديثًا بلا تكرار. وأحاديث مسلم مرقّمة أصلًا على غير المكرر في ترقيم محمد فؤاد عبد الباقي، فالفرق فيه قليل.</p></div>
+
+      <div class="panel" style="margin-top:16px"><h2>فلاتر جاهزة</h2>
+        <div class="presets" id="xpre">${PRESETS.map(([label], i) => `<button class="btn" data-i="${i}">${esc(label)}</button>`).join("")}</div></div>
+
+      <div class="panel" style="margin-top:16px">
+        <h2 id="xtitle">ترتيب الرواة</h2>
+        <div class="filters" id="xf">
+          <label>الكتاب<select name="b">${opt("", "الكتب التسعة", st.b)}${BOOKS.map((b) => opt(b, BOOK[b], st.b)).join("")}</select></label>
+          <label>المقياس<select name="m">${Object.entries(MEASURES).map(([k, [l]]) => opt(k, l, st.m)).join("")}</select></label>
+          <label>الطبقة<select name="t">${opt("", "كل الطبقات", st.t)}
+            <optgroup label="مجملة">${Object.entries(TABAQA_GROUPS).map(([k, [l]]) => opt(k, l, st.t)).join("")}</optgroup>
+            <optgroup label="طبقات ابن حجر">${TABAQA_NAMES.slice(2).map((l, i) => opt(`=${i + 2}`, `${i + 2}. ${l}`, st.t)).join("")}</optgroup></select></label>
+          <label>الرتبة<select name="c">${opt("", "كل الرتب", st.c)}${["sahabi", "thiqa", "saduq", "maqbul", "weak", "unknown"].map((c) => opt(c, CLS_LABEL[c], st.c)).join("")}</select></label>
+          <label>البلد<select name="city">${opt("", "كل البلدان", st.city)}${cities.map(([c, n]) => opt(c, `${c} (${fmt(n)})`, st.city)).join("")}</select></label>
+          <label>الحال<select name="f">${opt("", "الكل", st.f)}${opt("1", "موصوف بالتدليس", st.f)}${opt("2", "اختلط أو تغيّر", st.f)}</select></label>
+          <label>العدد<select name="n">${["10", "20", "50", "100"].map((n) => opt(n, `أول ${n}`, st.n)).join("")}</select></label>
+          <label class="grow">الاسم<input name="q" type="search" value="${esc(st.q)}" placeholder="تصفية بالاسم…"></label>
+        </div>
+        <div class="xbar"><p class="muted small" id="xnote"></p>
+          <button class="btn" id="xreset">إعادة الضبط</button><button class="btn" id="xcopy">نسخ رابط هذا الترتيب</button></div>
+        <ol class="rank" id="xl"></ol>
+      </div>`;
+
+    const bi = (b) => BOOKS.indexOf(b);
+    const value = (id) => {
+      const v = D[id], r = X.nar[id];
+      if (st.m === "d") return r[5];
+      if (st.m === "s") return st.b ? r[4][bi(st.b)] : r[4].reduce((a, n) => a + n, 0);
+      if (st.m === "u") return st.b ? v[3][bi(st.b)] : v[4];
+      return st.b ? v[2][bi(st.b)] : totalOf(v);
+    };
+    // the same measure, book by book (madar is only counted across the nine books)
+    const perBook = (id) => {
+      const v = D[id], r = X.nar[id];
+      return BOOKS.map((b, i) => [b, st.m === "s" ? r[4][i] : v[2][i], st.m === "s" ? r[4][i] : v[3][i]]);
+    };
+    const inTabaqa = (t) => {
+      if (!st.t) return true;
+      if (st.t[0] === "=") return t === +st.t.slice(1);
+      const g = TABAQA_GROUPS[st.t];
+      return g && t >= g[1] && t <= g[2];
+    };
+    let open = null;
+    const detail = (id) => {
+      const v = D[id], r = X.nar[id], rows = perBook(id);
+      const max = Math.max(...rows.map((x) => x[1]), 1);
+      const facts = [r[0] ? `الطبقة: ${TABAQA_NAMES[r[0]]}` : "", r[1] ? `الوفاة: ${r[1]} هـ` : "", r[2].length ? `البلد: ${r[2].join("، ")}` : "",
+        `الرتبة: ${CLS_LABEL[v[1]] || ""}`, r[3] & 1 ? "موصوف بالتدليس" : "", r[3] & 2 ? "اختلط أو تغيّر" : ""].filter(Boolean);
+      return `<div class="xdetail"><div class="meta-line">${facts.map((f) => `<span>${esc(f)}</span>`).join("")}<a href="#/n/${encodeURIComponent(id)}">صفحة الراوي ←</a></div>
+        <p class="muted small" style="margin:6px 0">${st.m === "s" ? "الأسانيد التي حدّث بها كل مصنف عنه مباشرة" : "توزيعه على الكتب: الخط الفاتح مع المكرر، والداكن بدون المكرر"}</p>
+        <ul class="bullets small-b">${rows.filter((x) => x[1]).map(([b, all, u]) => `<li><span class="name">${BOOK[b]}</span>
+          <span class="num"><b>${fmt(st.m === "s" ? all : u)}</b>${st.m === "s" ? "" : ` <span class="muted">من ${fmt(all)}</span>`}</span>
+          <span class="track"><span class="all" style="width:${(100 * all) / max}%"></span>${st.m === "s" ? "" : `<span class="u" style="width:${(100 * u) / max}%"></span>`}</span></li>`).join("") || '<li class="muted">لا يرد في الكتب التسعة بهذا المقياس</li>'}</ul></div>`;
+    };
+    const render = () => {
+      const nq = norm(st.q);
+      const rows = Object.keys(D).filter((id) => {
+        const v = D[id], r = X.nar[id];
+        return r && (!st.c || v[1] === st.c) && inTabaqa(r[0]) && (!st.city || r[2].includes(st.city)) && (!st.f || r[3] & +st.f) &&
+          (!nq || norm(v[0]).includes(nq)) && !/^\[/.test(v[0]);
+      }).map((id) => [id, value(id)]).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]);
+      const shown = rows.slice(0, +st.n || 20);
+      const max = shown.length ? shown[0][1] : 1;
+      const [mLabel, mNote] = MEASURES[st.m];
+      const preset = PRESETS.find(([, p]) => Object.keys(EXPLORE_DEFAULT).every((k) => k === "n" || (p[k] || EXPLORE_DEFAULT[k]) === st[k]));
+      $("#xtitle").textContent = preset ? preset[0] : "ترتيب الرواة";
+      for (const b of document.querySelectorAll("#xpre button")) b.classList.toggle("on", !!preset && PRESETS[+b.dataset.i] === preset);
+      $("#xnote").textContent = `${fmt(rows.length)} راويًا مطابقًا · ${mLabel}${st.m === "d" ? " في الكتب التسعة مجتمعة" : st.b ? ` في ${BOOK[st.b]}` : " في الكتب التسعة"}: ${mNote}`;
+      $("#xl").innerHTML = shown.map(([id, n], i) => {
+        const v = D[id];
+        return `<li data-id="${esc(id)}" class="${open === id ? "open" : ""}"><button class="row" aria-expanded="${open === id}" title="${esc(v[0])}: ${fmt(n)}">
+          <span class="rk">${i + 1}</span><span class="name cls-${v[1]}"><span class="dot"></span>${esc(shortName(v[0]))}</span><span class="num">${fmt(n)}</span>
+          <span class="bar"><span style="width:${(100 * n) / max}%"></span></span></button>${open === id ? detail(id) : ""}</li>`;
+      }).join("") || '<li class="muted" style="padding:12px 0">لا رواة بهذه الفلاتر</li>';
+      const qs = new URLSearchParams(Object.entries(st).filter(([k, v]) => v !== EXPLORE_DEFAULT[k])).toString();
+      try { history.replaceState(history.state, "", `#/explore${qs ? "?" + qs : ""}`); } catch (_) {}
+    };
+    const sync = () => { for (const el of document.querySelectorAll("#xf select, #xf input")) el.value = st[el.name]; };
+    render();
+
+    $("#xbm").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; setSeg("#xbm", b); bookMode = b.dataset.v; $("#xbooks").innerHTML = booksPanel(); });
+    $("#xf").addEventListener("input", (e) => { if (!e.target.name) return; st[e.target.name] = e.target.value; open = null; render(); });
+    $("#xpre").addEventListener("click", (e) => {
+      const b = e.target.closest("button");
+      if (!b) return;
+      Object.assign(st, EXPLORE_DEFAULT, { n: st.n }, PRESETS[+b.dataset.i][1]);
+      open = null; sync(); render();
+      $("#xtitle").scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+    $("#xreset").addEventListener("click", () => { Object.assign(st, EXPLORE_DEFAULT); open = null; sync(); render(); });
+    $("#xcopy").addEventListener("click", async (e) => {
+      try { await navigator.clipboard.writeText(location.href); e.target.textContent = "نُسخ الرابط ✓"; } catch (_) { e.target.textContent = "تعذّر النسخ"; }
+      setTimeout(() => { e.target.textContent = "نسخ رابط هذا الترتيب"; }, 1800);
+    });
+    $("#xl").addEventListener("click", (e) => {
+      const row = e.target.closest("button.row");
+      if (!row) return;
+      const id = row.parentElement.dataset.id;
+      open = open === id ? null : id;
+      render();
+    });
   }
 
   // ---------- search ----------
