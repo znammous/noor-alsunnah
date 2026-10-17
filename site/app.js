@@ -864,12 +864,17 @@
   async function viewNarrators() {
     const all = Object.entries(META.directory);
     app.innerHTML = `<h1>الرواة</h1><p class="muted">${fmt(all.length)} راويًا في أسانيد الكتب التسعة <span id="nc"></span></p>
-      <div class="tree-tools"><input id="nf" class="btn" style="flex:1;min-width:200px" placeholder="تصفية بالاسم…">
-        <div class="seg" id="cf"><button data-v="" class="on">الكل</button>${["sahabi", "thiqa", "saduq", "maqbul", "weak"].map((c) => `<button data-v="${c}">${CLS_LABEL[c]}</button>`).join("")}</div></div>
-      <div class="tree-tools"><div class="seg" id="bf"><button data-v="" class="on">الكتب التسعة</button>${BOOKS.map((b) => `<button data-v="${b}">${AUTHOR[b]}</button>`).join("")}</div>
-        <div class="seg" id="rf"><button data-v="" class="on">مع المكرر</button><button data-v="u">بدون المكرر</button></div></div>
-      <p class="muted small" id="nnote"></p>
-      <div class="panel"><ul class="bars" id="nl"></ul></div>`;
+      <div class="panel nfilters">
+        <label class="fl"><span>الاسم</span><input id="nf" type="search" placeholder="تصفية بالاسم…"></label>
+        <div class="fl"><span>الكتاب</span><div class="seg" id="bf"><button data-v="" class="on">الكتب التسعة</button>${BOOKS.map((b) => `<button data-v="${b}">${AUTHOR[b]}</button>`).join("")}</div></div>
+        <div class="frow">
+          <div class="fl"><span>الرتبة</span><div class="seg" id="cf"><button data-v="" class="on">الكل</button>${["sahabi", "thiqa", "saduq", "maqbul", "weak"].map((c) => `<button data-v="${c}">${CLS_LABEL[c]}</button>`).join("")}</div></div>
+          <div class="fl"><span>طريقة العد</span><div class="seg" id="rf"><button data-v="" class="on">مع المكرر</button><button data-v="u">بدون المكرر</button></div></div>
+        </div>
+        <p class="muted small" id="nnote"></p>
+        <p class="small" style="margin:0"><a href="#/explore">ترتيب الرواة بفلاتر أكثر ورسوم بيانية في صفحة الإحصاءات ←</a></p>
+      </div>
+      <div class="panel" style="margin-top:16px"><ul class="bars" id="nl"></ul></div>`;
     let q = "", cls = "", book = "", uniq = false;
     const bi = (b) => BOOKS.indexOf(b);
     // the measure the list is sorted and totalled by
