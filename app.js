@@ -964,36 +964,29 @@
 
     app.innerHTML = `
       <div class="section-title" style="margin-top:0"><h1>الإحصاءات</h1><p>استكشف الكتب التسعة ورواتها بالفلاتر</p></div>
-      <div class="xlayout">
-        <aside class="panel xside" id="xside" aria-label="الفلاتر">
-          <div class="xside-head"><h2>فلاتر جاهزة</h2><button class="btn xside-close" id="xclose" aria-label="إغلاق">✕</button></div>
-          <div id="xpre">${PRESET_GROUPS.map(([title, re]) => `<div class="pgroup"><h3>${title}</h3><div class="plist">${PRESETS.map(([label], i) => (PRESET_GROUPS.find(([, r]) => r.test(label))[1] === re ? `<button data-i="${i}">${esc(label)}</button>` : "")).join("")}</div></div>`).join("")}</div>
-          <details class="xcustom" id="xcustom"><summary>تخصيص الفلاتر</summary>
-            <div class="filters" id="xf">
-              <label>الكتاب<select name="b">${opt("", "الكتب التسعة", st.b)}${BOOKS.map((b) => opt(b, BOOK[b], st.b)).join("")}</select></label>
-              <label>المقياس<select name="m">${Object.entries(MEASURES).map(([k, [l]]) => opt(k, l, st.m)).join("")}</select></label>
-              <label>الطبقة<select name="t">${opt("", "كل الطبقات", st.t)}
-                <optgroup label="مجملة">${Object.entries(TABAQA_GROUPS).map(([k, [l]]) => opt(k, l, st.t)).join("")}</optgroup>
-                <optgroup label="طبقات ابن حجر">${TABAQA_NAMES.slice(2).map((l, i) => opt(`=${i + 2}`, `${i + 2}. ${l}`, st.t)).join("")}</optgroup></select></label>
-              <label>الرتبة<select name="c">${opt("", "كل الرتب", st.c)}${["sahabi", "thiqa", "saduq", "maqbul", "weak", "unknown"].map((c) => opt(c, CLS_LABEL[c], st.c)).join("")}</select></label>
-              <label>البلد<select name="city">${opt("", "كل البلدان", st.city)}${cities.map(([c, n]) => opt(c, `${c} (${fmt(n)})`, st.city)).join("")}</select></label>
-              <label>الحال<select name="f">${opt("", "الكل", st.f)}${opt("1", "موصوف بالتدليس", st.f)}${opt("2", "اختلط أو تغيّر", st.f)}</select></label>
-              <label>الرجال والنساء<select name="g">${opt("", "الكل", st.g)}${opt("m", "الرجال", st.g)}${opt("f", "النساء", st.g)}</select></label>
-              <label>وله رواية في<select name="y">${opt("", "—", st.y)}${BOOKS.map((b) => opt(b, BOOK[b], st.y)).join("")}</select></label>
-              <label>وليس له رواية في<select name="x">${opt("", "—", st.x)}${BOOKS.map((b) => opt(b, BOOK[b], st.x)).join("")}</select></label>
-              <label>العدد<select name="n">${["10", "20", "50", "100"].map((n) => opt(n, `أول ${n}`, st.n)).join("")}</select></label>
-              <label class="grow">الاسم<input name="q" type="search" value="${esc(st.q)}" placeholder="تصفية بالاسم…"></label>
-            </div>
-          </details>
-        </aside>
-        <div class="xside-back" id="xback"></div>
-
-        <div class="panel xmain">
-          <h2 id="xtitle">ترتيب الرواة</h2>
-          <div class="xbar"><button class="btn xside-open" id="xopen">☰ الفلاتر</button><p class="muted small" id="xnote"></p>
-            <button class="btn" id="xreset">إعادة الضبط</button><button class="btn" id="xcopy">نسخ رابط هذا الترتيب</button></div>
-          <ol class="rank" id="xl"></ol>
+      <div class="panel">
+        <div class="seg xtabs" id="xtabs" role="tablist">${PRESET_GROUPS.map(([title], g) => `<button role="tab" data-g="${g}">${title}</button>`).join("")}<button role="tab" data-g="c">تخصيص</button></div>
+        <div id="xpre">${PRESET_GROUPS.map(([, re], g) => `<div class="presets" data-g="${g}" hidden>${PRESETS.map(([label], i) => (PRESET_GROUPS.find(([, r]) => r.test(label))[1] === re ? `<button class="btn" data-i="${i}">${esc(label)}</button>` : "")).join("")}</div>`).join("")}</div>
+        <div class="filters" id="xf" hidden>
+          <label>الكتاب<select name="b">${opt("", "الكتب التسعة", st.b)}${BOOKS.map((b) => opt(b, BOOK[b], st.b)).join("")}</select></label>
+          <label>المقياس<select name="m">${Object.entries(MEASURES).map(([k, [l]]) => opt(k, l, st.m)).join("")}</select></label>
+          <label>الطبقة<select name="t">${opt("", "كل الطبقات", st.t)}
+            <optgroup label="مجملة">${Object.entries(TABAQA_GROUPS).map(([k, [l]]) => opt(k, l, st.t)).join("")}</optgroup>
+            <optgroup label="طبقات ابن حجر">${TABAQA_NAMES.slice(2).map((l, i) => opt(`=${i + 2}`, `${i + 2}. ${l}`, st.t)).join("")}</optgroup></select></label>
+          <label>الرتبة<select name="c">${opt("", "كل الرتب", st.c)}${["sahabi", "thiqa", "saduq", "maqbul", "weak", "unknown"].map((c) => opt(c, CLS_LABEL[c], st.c)).join("")}</select></label>
+          <label>البلد<select name="city">${opt("", "كل البلدان", st.city)}${cities.map(([c, n]) => opt(c, `${c} (${fmt(n)})`, st.city)).join("")}</select></label>
+          <label>الحال<select name="f">${opt("", "الكل", st.f)}${opt("1", "موصوف بالتدليس", st.f)}${opt("2", "اختلط أو تغيّر", st.f)}</select></label>
+          <label>الرجال والنساء<select name="g">${opt("", "الكل", st.g)}${opt("m", "الرجال", st.g)}${opt("f", "النساء", st.g)}</select></label>
+          <label>وله رواية في<select name="y">${opt("", "—", st.y)}${BOOKS.map((b) => opt(b, BOOK[b], st.y)).join("")}</select></label>
+          <label>وليس له رواية في<select name="x">${opt("", "—", st.x)}${BOOKS.map((b) => opt(b, BOOK[b], st.x)).join("")}</select></label>
+          <label>العدد<select name="n">${["10", "20", "50", "100"].map((n) => opt(n, `أول ${n}`, st.n)).join("")}</select></label>
+          <label class="grow">الاسم<input name="q" type="search" value="${esc(st.q)}" placeholder="تصفية بالاسم…"></label>
         </div>
+
+        <h2 id="xtitle">ترتيب الرواة</h2>
+        <div class="xbar"><p class="muted small" id="xnote"></p>
+          <button class="btn" id="xreset">إعادة الضبط</button><button class="btn" id="xcopy">نسخ رابط هذا الترتيب</button></div>
+        <ol class="rank" id="xl"></ol>
       </div>
 
       <div class="panel" style="margin-top:16px"><h2>مقارنة كتابين</h2>
@@ -1078,12 +1071,16 @@
       try { history.replaceState(history.state, "", `#/explore${qs ? "?" + qs : ""}`); } catch (_) {}
     };
     const sync = () => { for (const el of document.querySelectorAll("#xf select, #xf input")) el.value = st[el.name]; };
-    // the side list: a drawer on narrow screens
-    const side = (on) => { $("#xside").classList.toggle("open", on); $("#xback").classList.toggle("open", on); };
+    // tabs above the ranking: one per preset group, and the custom filters
+    const showTab = (g) => {
+      for (const t of document.querySelectorAll("#xtabs button")) { const on = t.dataset.g === String(g); t.classList.toggle("on", on); t.setAttribute("aria-selected", on); }
+      for (const d of document.querySelectorAll("#xpre .presets")) d.hidden = d.dataset.g !== String(g);
+      $("#xf").hidden = g !== "c";
+    };
     // apply a ranking (from a preset or a comparison figure); scroll only when its title is out of view
     const applyRanking = (p) => {
       Object.assign(st, EXPLORE_DEFAULT, { n: st.n }, p);
-      open = null; sync(); render(); side(false);
+      open = null; sync(); render();
       const top = $("#xtitle").getBoundingClientRect().top;
       if (top < 60 || top > innerHeight * 0.6) $("#xtitle").scrollIntoView({ behavior: "smooth", block: "start" });
     };
@@ -1129,12 +1126,10 @@
     $("#xbm").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; setSeg("#xbm", b); bookMode = b.dataset.v; $("#xbooks").innerHTML = booksPanel(); });
     $("#xf").addEventListener("input", (e) => { if (!e.target.name) return; st[e.target.name] = e.target.value; open = null; render(); });
     $("#xpre").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) applyRanking(PRESETS[+b.dataset.i][1]); });
-    $("#xopen").addEventListener("click", () => side(true));
-    $("#xclose").addEventListener("click", () => side(false));
-    $("#xback").addEventListener("click", () => side(false));
-    $("#xside").addEventListener("keydown", (e) => { if (e.key === "Escape") side(false); });
-    // a link with its own filters (not one of the presets) opens the custom filters
-    if ($("#xtitle").textContent === "ترتيب الرواة" && Object.keys(EXPLORE_DEFAULT).some((k) => k !== "n" && st[k] !== EXPLORE_DEFAULT[k])) $("#xcustom").open = true;
+    $("#xtabs").addEventListener("click", (e) => { const t = e.target.closest("button"); if (t) showTab(t.dataset.g === "c" ? "c" : +t.dataset.g); });
+    // start on the current preset's group; a link with its own filters starts on the custom tab
+    const cur = document.querySelector("#xpre button.on");
+    showTab(cur ? +cur.parentElement.dataset.g : Object.keys(EXPLORE_DEFAULT).some((k) => k !== "n" && st[k] !== EXPLORE_DEFAULT[k]) ? "c" : 0);
     $("#xreset").addEventListener("click", () => { Object.assign(st, EXPLORE_DEFAULT); open = null; sync(); render(); });
     $("#xcopy").addEventListener("click", async (e) => {
       try { await navigator.clipboard.writeText(location.href); e.target.textContent = "نُسخ الرابط ✓"; } catch (_) { e.target.textContent = "تعذّر النسخ"; }
