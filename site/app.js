@@ -609,7 +609,7 @@
       <div class="summary">
         <span class="pill">${esc(CLS_LABEL[n.cls] || "")}</span>
         ${flags.map((f) => `<span class="pill" style="color:var(--c-maqbul)">${f}</span>`).join("")}
-        ${BOOKS.filter((b) => (n.hadiths || {})[b]).map((b) => `<span class="pill">${AUTHOR[b]}: <b>${fmt(n.hadiths[b].length)}</b></span>`).join("")}
+        ${BOOKS.filter((b) => (n.hadiths || {})[b]).map((b) => `<button class="pill" data-book="${b}" title="عرض أحاديثه في ${AUTHOR[b]}">${AUTHOR[b]}: <b>${fmt(n.hadiths[b].length)}</b></button>`).join("")}
         <span class="pill">شيوخه: <b>${fmt(n.n_teachers)}</b></span>
         <span class="pill">تلاميذه: <b>${fmt(n.n_students)}</b></span>
       </div>
@@ -627,15 +627,19 @@
         <div class="panel"><h2>روى عنه</h2><p class="muted small">مع عدد الأسانيد في الكتب الستة</p><div class="chain">${rel(n.students || []) || '<span class="muted">—</span>'}</div></div>
       </div>
       <div class="section-title"><h2>أحاديثه في الكتب الستة</h2>
-        <div class="seg" id="hbook"><button data-v="" class="on">الكل</button>${BOOKS.filter((b) => (n.hadiths || {})[b]).map((b) => `<button data-v="${b}">${AUTHOR[b]}</button>`).join("")}</div></div>
+        <div class="seg" id="hbook"><button data-v="" class="on">الكل</button>${BOOKS.filter((b) => (n.hadiths || {})[b]).map((b) => `<button data-v="${b}">${AUTHOR[b]} <span class="small">${fmt(n.hadiths[b].length)}</span></button>`).join("")}</div></div>
       <div class="panel" id="hlist"></div>`;
     drawEgo(n, name, clsOf);
     renderNarratorHadiths(n, 1);
-    $("#hbook").addEventListener("click", (e) => {
-      const b = e.target.closest("button"); if (!b) return;
-      setSeg("#hbook", b);
-      renderNarratorHadiths(n, 1, b.dataset.v);
-    });
+    const pickBook = (v) => {
+      setSeg("#hbook", $(`#hbook [data-v="${v}"]`));
+      renderNarratorHadiths(n, 1, v);
+    };
+    $("#hbook").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) pickBook(b.dataset.v); });
+    app.querySelectorAll(".summary [data-book]").forEach((b) => b.addEventListener("click", () => {
+      pickBook(b.dataset.book);
+      $("#hlist").scrollIntoView({ behavior: "smooth" });
+    }));
   }
 
   async function renderNarratorHadiths(n, page, book = "") {
