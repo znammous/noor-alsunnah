@@ -882,8 +882,8 @@
         ? "بدون المكرر: الحديث الذي كرره المصنف في أكثر من موضع يُعدّ مرة واحدة، وفي الإجمالي يُعدّ الحديث المروي في أكثر من كتاب مرة واحدة كذلك. العدّ آلي تقريبي بحسب روابط التخريج في المصدر"
         : "مع المكرر: عدد المواضع (الأرقام) التي ورد الراوي في إسنادها، فالحديث المكرر يُعدّ في كل موضع") +
         (book ? ` — مرتبون حسب ${BOOK[book]}` : " — مرتبون حسب الإجمالي");
-      const counts = (v) => BOOKS.map((b, i) => { const c = (uniq ? v[3] : v[2])[i]; return c ? `${b === book ? "<b>" : ""}${AUTHOR[b]} ${fmt(c)}${b === book ? "</b>" : ""}` : ""; }).filter(Boolean).join(" · ");
-      $("#nl").innerHTML = rows.slice(0, 300).map(([id, v]) => `<li><span class="name"><a href="#/n/${encodeURIComponent(id)}" class="cls-${v[1]}"><span class="dot"></span>${esc(v[0])}</a></span><span class="num"><b class="ntotal" title="${uniq ? "الإجمالي بدون المكرر" : "الإجمالي مع المكرر"}">${fmt(uniq ? v[4] : totalOf(v))}</b> <span class="muted">${counts(v)}</span></span></li>`).join("") || '<li class="muted">لا نتائج</li>';
+      const counts = (v) => BOOKS.map((b, i) => { const c = (uniq ? v[3] : v[2])[i]; return c && b !== book ? `${AUTHOR[b]} ${fmt(c)}` : ""; }).filter(Boolean).join(" · ");
+      $("#nl").innerHTML = rows.slice(0, 300).map(([id, v]) => `<li><span class="name"><a href="#/n/${encodeURIComponent(id)}" class="cls-${v[1]}"><span class="dot"></span>${esc(v[0])}</a></span><span class="num"><b class="ntotal" title="${book ? `في ${BOOK[book]}` : "الإجمالي"} ${uniq ? "بدون المكرر" : "مع المكرر"}">${fmt(value(v))}</b> <span class="muted">${book ? `الإجمالي ${fmt(uniq ? v[4] : totalOf(v))} · ` : ""}${counts(v)}</span></span></li>`).join("") || '<li class="muted">لا نتائج</li>';
     };
     render();
     $("#nf").addEventListener("input", (e) => { q = e.target.value; render(); });
