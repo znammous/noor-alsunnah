@@ -9,6 +9,7 @@ Layout (sharded to keep the file count low for static hosting):
 """
 import re
 from collections import Counter, defaultdict
+from pathlib import Path
 
 from common import _DIACRITICS as DIACRITIC, SITE_DATA, WORK, dump, load, norm, strip_diacritics
 
@@ -44,6 +45,15 @@ TABAQA = {1: "الصحابة", 2: "كبار التابعين", 3: "الوسطى 
           9: "صغار أتباع التابعين", 10: "كبار الآخذين عن تبع الأتباع", 11: "الوسطى من الآخذين عن تبع الأتباع",
           12: "صغار الآخذين عن تبع الأتباع"}
 CHAIN_ORDER = ["thiqa", "saduq", "maqbul", "weak"]
+GRADES = Path(__file__).resolve().parent / "grades"
+# scholars' verdicts (make_grades.py): "source:book" -> (scholar, work, Shamela book id)
+GRADE_SOURCES = {
+    "albani:abudawud": ("الألباني", "صحيح وضعيف سنن أبي داود", 1726),
+    "albani:tirmidhi": ("الألباني", "صحيح وضعيف سنن الترمذي", 1435),
+    "albani:ibnmajah": ("الألباني", "صحيح وضعيف سنن ابن ماجه", 1198),
+    "busiri:ibnmajah": ("البوصيري", "مصباح الزجاجة في زوائد ابن ماجه، بنقل محمد فؤاد عبد الباقي", 1198),
+    "asad:darimi": ("حسين سليم أسد", "تحقيق مسند الدارمي", 21795),
+}
 
 
 COMPANION = re.compile(r"(?<!أ)صحابي|(?<!أ)صحابية|الصحابة|صحبة|وصحب(?:\s|$)|أحد العشرة|السابقين|الخلفاء الأربعة|"
@@ -184,6 +194,7 @@ def main():
             narr[nid] = {"id": nid, "name": label, "cls": "unknown", "unlinked": 1}
 
     # ---------- hadiths ----------
+    grades = {f.stem: load(f) for f in sorted(GRADES.glob("*.json"))}
     hadiths, kitabs = {}, {b: {} for b in BOOKS}
     for h in C["hadiths"]:
         book = h["book"]
@@ -201,6 +212,9 @@ def main():
             "parts": [{"text": p["text"], "matn": p["matn"], **({"notes": p["notes"]} if p.get("notes") else {}),
                        "mentions": [[s, e, str(i)] for s, e, i in p["mentions"]]} for p in h["parts"]],
             "chains": chains, "group_root": h["group"], "verdicts": h.get("verdicts", []),
+            **({"grades": g} if (g := [[src, v, page] + ([n] if h.get("aliases") else [])  # number when it spans several
+                                      for n in [h["num"], *h.get("aliases", [])]
+                                      for src, v, page in grades.get(book, {}).get(str(n), [])]) else {}),
             "rel": h["rel"], "spread": {**h["spread"], "n_books": len(h["spread"]["books"]),
                                          "books": h["spread"]["books"][:30], "shawahid": h["spread"]["shawahid"][:30]},
         }
@@ -490,6 +504,7 @@ def main():
                   for b, (pre, t, c) in BOOKS.items()},
         "index": index, "alias": alias, "directory": directory,
         "gshard": gshard, "narr_shards": NARR_SHARDS,
+        "grade_sources": GRADE_SOURCES,
     }
     dump(meta, SITE_DATA / "meta.json")
     print(f"site data: {len(hadiths)} hadiths in {len(shards)} shards, muttafaq {muttafaq}, sitta {sitta}, "
