@@ -449,6 +449,24 @@ def main():
     stats["nar"] = {i: light(narr[i]) for i in used}
     dump(stats, SITE_DATA / "stats.json")
 
+    # ---------- statistics explorer: per-book repeats, and narrator fields to filter the directory by ----------
+    # a book's hadiths joined by the source's rel links inside that book, counted once (approximate)
+    def book_uniq(b, keep=lambda h: True):
+        keys = [k for k, h in hadiths.items() if h["book"] == b and keep(h)]
+        return len(set(repeat_sets(keys).values()))
+    marfu = lambda h: h["type"] in ("مرفوع", "قدسي")
+    explore = {
+        "books": {b: {"hadith": stats["totals"]["books"][b]["hadith"], "uniq": book_uniq(b),
+                      "marfu": sum(1 for h in hadiths.values() if h["book"] == b and marfu(h)),
+                      "marfu_uniq": book_uniq(b, marfu)} for b in BOOKS},
+        # id -> [tabaqa, death year, cities, tadlis | ikhtilat << 1, chains heard by each compiler from him, madar]
+        "nar": {nid: [narr[nid].get("tabaka") or 0, narr[nid].get("death_year") or 0,
+                      [c.strip() for c in re.split(r"\s*[،,]\s*", narr[nid].get("iqama") or "") if c.strip()],
+                      (narr[nid].get("tadlis") or 0) | (narr[nid].get("ikhtilat") or 0) << 1,
+                      [shaykh_of[b][nid] for b in BOOKS], madar_count.get(nid, 0)] for nid in directory},
+    }
+    dump(explore, SITE_DATA / "explore.json")
+
     index = {k: [h["kitab"], h["g"], h["label"]] for k, h in hadiths.items()}
     alias = {f"{BOOKS[h['book']][0]}{a}": k for k, h in hadiths.items() for a in h["aliases"]
              if f"{BOOKS[h['book']][0]}{a}" not in hadiths}
