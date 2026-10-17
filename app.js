@@ -1029,7 +1029,7 @@
       $("#xl").innerHTML = shown.map(([id, n], i) => {
         const v = D[id];
         return `<li data-id="${esc(id)}" class="${open === id ? "open" : ""}"><button class="row" aria-expanded="${open === id}" title="${esc(v[0])}: ${fmt(n)}">
-          <span class="rk">${i + 1}</span><span class="name cls-${v[1]}"><span class="dot"></span>${esc(shortName(v[0]))}</span><span class="num">${fmt(n)}</span>
+          <span class="rk">${i + 1}</span><span class="name cls-${v[1]}"><span class="dot"></span>${esc(v[0])}</span><span class="num">${fmt(n)}</span>
           <span class="bar"><span style="width:${(100 * n) / max}%"></span></span></button>${open === id ? detail(id) : ""}</li>`;
       }).join("") || '<li class="muted" style="padding:12px 0">لا رواة بهذه الفلاتر</li>';
       const qs = new URLSearchParams(Object.entries(st).filter(([k, v]) => v !== EXPLORE_DEFAULT[k])).toString();
