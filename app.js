@@ -745,6 +745,7 @@
         <span class="pill">${esc(CLS_LABEL[n.cls] || "")}</span>
         ${flags.map((f) => `<span class="pill" style="color:var(--c-maqbul)">${f}</span>`).join("")}
         ${BOOKS.filter((b) => (n.hadiths || {})[b]).map((b) => `<button class="pill" data-book="${b}" title="عرض أحاديثه في ${AUTHOR[b]}">${AUTHOR[b]}: <b>${fmt(n.hadiths[b].length)}</b></button>`).join("")}
+        ${n.hadiths ? `<span class="pill" title="مجموع المواضع في الكتب التسعة، وعدد الأحاديث بعد حذف المكرر داخل كل كتاب وبين الكتب (تقريبي)">المجموع: <b>${fmt(D[n.id] ? totalOf(D[n.id]) : 0)}</b> · بدون المكرر <b>${fmt(n.uniq || 0)}</b></span>` : ""}
         <span class="pill">شيوخه: <b>${fmt(n.n_teachers)}</b></span>
         <span class="pill">تلاميذه: <b>${fmt(n.n_students)}</b></span>
       </div>
@@ -762,17 +763,18 @@
         <div class="panel"><h2>روى عن</h2><p class="muted small">مع عدد الأسانيد في الكتب التسعة — اضغط العدد لعرض الأحاديث</p><div class="chain" id="rel-t">${rel(n.teachers || [], "t") || '<span class="muted">—</span>'}</div></div>
         <div class="panel"><h2>روى عنه</h2><p class="muted small">مع عدد الأسانيد في الكتب التسعة — اضغط العدد لعرض الأحاديث</p><div class="chain" id="rel-s">${rel(n.students || [], "s") || '<span class="muted">—</span>'}</div></div>
       </div>
-      <div class="section-title"><h2 id="htitle">أحاديثه في الكتب التسعة</h2><div class="seg" id="hbook"></div></div>
+      <div class="section-title"><h2 id="htitle">أحاديثه في الكتب التسعة</h2><div class="seg" id="hbook"></div><div class="seg" id="hrep"><button data-v="" class="on">مع المكرر</button><button data-v="u" title="الحديث الذي كرره المصنف يظهر في أول مواضعه فقط">بدون المكرر</button></div></div>
       <div class="panel" id="hlist"></div>`;
     // the list shows either all his hadiths or one link (teacher → him, or him → student), optionally per book
-    let book = "", edge = null;
+    let book = "", edge = null, uniq = false;
+    const dup = new Set(n.dup || []);
     const ego = drawEgo(n, name, clsOf, (dir, x) => pickEdge(dir, x));
     const show = () => {
-      const inEdge = (k) => !edge || edge.keys.has(k);
+      const inEdge = (k) => (!edge || edge.keys.has(k)) && !(uniq && dup.has(k));
       const counts = Object.fromEntries(BOOKS.filter((b) => (n.hadiths || {})[b]).map((b) => [b, n.hadiths[b].filter(inEdge).length]));
       if (book && !counts[book]) book = "";
       const total = Object.values(counts).reduce((a, c) => a + c, 0);
-      $("#hbook").innerHTML = `<button data-v="" class="${book ? "" : "on"}">الكل${edge ? ` <span class="small">${fmt(total)}</span>` : ""}</button>` + Object.entries(counts).filter(([, c]) => c)
+      $("#hbook").innerHTML = `<button data-v="" class="${book ? "" : "on"}">الكل <span class="small">${fmt(total)}</span></button>` + Object.entries(counts).filter(([, c]) => c)
         .map(([b, c]) => `<button data-v="${b}" class="${b === book ? "on" : ""}">${AUTHOR[b]} <span class="small">${fmt(c)}</span></button>`).join("");
       const me = esc(shortName(n.name)), other = edge && esc(shortName(name(edge.x)));
       $("#htitle").innerHTML = !edge ? "أحاديثه في الكتب التسعة"
@@ -781,7 +783,7 @@
       app.querySelectorAll(".link-n").forEach((b) => b.classList.toggle("on", !!edge && b.dataset.dir === edge.dir && b.dataset.x === edge.x));
       ego.edges().removeClass("on");
       if (edge) ego.edges(`[dir = "${edge.dir}"]`).filter((e) => e.data("x") === edge.x).addClass("on");
-      renderNarratorHadiths(n, 1, book, edge && edge.keys);
+      renderNarratorHadiths(n, 1, book, edge && edge.keys, uniq && dup);
     };
     const pickEdge = (dir, x) => {
       const row = dir && (dir === "t" ? n.teachers : n.students).find((r) => r[0] === x);
@@ -795,6 +797,7 @@
     if (linkDir) pickEdge(linkDir, linkX); else show();
     const pickBook = (v) => { book = v; show(); };
     $("#hbook").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) pickBook(b.dataset.v); });
+    $("#hrep").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; setSeg("#hrep", b); uniq = !!b.dataset.v; show(); });
     app.querySelectorAll(".summary [data-book]").forEach((b) => b.addEventListener("click", () => {
       if (edge) pickEdge(null);
       pickBook(b.dataset.book);
@@ -803,11 +806,11 @@
     app.querySelectorAll(".link-n").forEach((b) => b.addEventListener("click", () => pickEdge(b.dataset.dir, b.dataset.x)));
   }
 
-  async function renderNarratorHadiths(n, page, book = "", only = null) {
+  async function renderNarratorHadiths(n, page, book = "", only = null, skip = null) {
     const box = $("#hlist");
     box.innerHTML = LOADING;
     const books = BOOKS.filter((b) => (n.hadiths || {})[b] && (!book || b === book));
-    const keys = books.flatMap((b) => n.hadiths[b]).filter((k) => !only || only.has(k));
+    const keys = books.flatMap((b) => n.hadiths[b]).filter((k) => (!only || only.has(k)) && !(skip && skip.has(k)));
     const idx = await searchIndex(books);
     const textOf = new Map(idx.map((r) => [r[0], r]));
     const pages = Math.ceil(keys.length / PAGE);
@@ -817,7 +820,7 @@
       return `<li><div class="meta-line"><a href="#/h/${k}">${hkey(k)}</a>${r && r[3] ? `<span>${esc(r[3])}</span>` : ""}</div><div class="snip">${esc(clip(r ? r[2] : "", 200))}</div></li>`;
     }).join("")}</ul>${pages > 1 ? `<div class="pager">${page > 1 ? '<button class="btn" data-p="-1">السابق</button>' : ""}<span class="muted">${page} / ${pages}</span>${page < pages ? '<button class="btn" data-p="1">التالي</button>' : ""}</div>` : ""}`;
     box.querySelectorAll("[data-p]").forEach((b) => b.addEventListener("click", () => {
-      renderNarratorHadiths(n, page + +b.dataset.p, book, only);
+      renderNarratorHadiths(n, page + +b.dataset.p, book, only, skip);
       box.scrollIntoView({ behavior: "smooth" });
     }));
   }
@@ -856,21 +859,38 @@
   }
 
   // ---------- narrators directory ----------
+  // directory rows: [name, grade, places per book, places per book without repeats, total without repeats]
   async function viewNarrators() {
-    const all = Object.entries(META.directory).sort((a, b) => totalOf(b[1]) - totalOf(a[1]));
-    app.innerHTML = `<h1>الرواة</h1><p class="muted">${fmt(all.length)} راويًا في أسانيد الكتب التسعة، مرتبين حسب عدد الأحاديث</p>
+    const all = Object.entries(META.directory);
+    app.innerHTML = `<h1>الرواة</h1><p class="muted">${fmt(all.length)} راويًا في أسانيد الكتب التسعة <span id="nc"></span></p>
       <div class="tree-tools"><input id="nf" class="btn" style="flex:1;min-width:200px" placeholder="تصفية بالاسم…">
         <div class="seg" id="cf"><button data-v="" class="on">الكل</button>${["sahabi", "thiqa", "saduq", "maqbul", "weak"].map((c) => `<button data-v="${c}">${CLS_LABEL[c]}</button>`).join("")}</div></div>
+      <div class="tree-tools"><div class="seg" id="bf"><button data-v="" class="on">الكتب التسعة</button>${BOOKS.map((b) => `<button data-v="${b}">${AUTHOR[b]}</button>`).join("")}</div>
+        <div class="seg" id="rf"><button data-v="" class="on">مع المكرر</button><button data-v="u">بدون المكرر</button></div></div>
+      <p class="muted small" id="nnote"></p>
       <div class="panel"><ul class="bars" id="nl"></ul></div>`;
-    let q = "", cls = "";
+    let q = "", cls = "", book = "", uniq = false;
+    const bi = (b) => BOOKS.indexOf(b);
+    // the measure the list is sorted and totalled by
+    const value = (v) => (book ? (uniq ? v[3] : v[2])[bi(book)] : uniq ? v[4] : totalOf(v));
     const render = () => {
       const nq = norm(q);
-      const rows = all.filter(([, v]) => (!cls || v[1] === cls) && (!nq || norm(v[0]).includes(nq))).slice(0, 300);
-      $("#nl").innerHTML = rows.map(([id, v]) => `<li><span class="name"><a href="#/n/${encodeURIComponent(id)}" class="cls-${v[1]}"><span class="dot"></span>${esc(v[0])}</a></span><span class="num">${countsLabel(v[2])}</span></li>`).join("") || '<li class="muted">لا نتائج</li>';
+      const rows = all.filter(([, v]) => (!cls || v[1] === cls) && (!nq || norm(v[0]).includes(nq)) && value(v) > 0)
+        .sort((a, b) => value(b[1]) - value(a[1]));
+      $("#nc").textContent = rows.length === all.length ? "" : `· المطابق ${fmt(rows.length)}`;
+      $("#nnote").textContent = (uniq
+        ? "بدون المكرر: الحديث الذي كرره المصنف في أكثر من موضع يُعدّ مرة واحدة، وفي الإجمالي يُعدّ الحديث المروي في أكثر من كتاب مرة واحدة كذلك. العدّ آلي تقريبي بحسب روابط التخريج في المصدر"
+        : "مع المكرر: عدد المواضع (الأرقام) التي ورد الراوي في إسنادها، فالحديث المكرر يُعدّ في كل موضع") +
+        (book ? ` — مرتبون حسب ${BOOK[book]}` : " — مرتبون حسب الإجمالي");
+      const counts = (v) => BOOKS.map((b, i) => { const c = (uniq ? v[3] : v[2])[i]; return c ? `${b === book ? "<b>" : ""}${AUTHOR[b]} ${fmt(c)}${b === book ? "</b>" : ""}` : ""; }).filter(Boolean).join(" · ");
+      $("#nl").innerHTML = rows.slice(0, 300).map(([id, v]) => `<li><span class="name"><a href="#/n/${encodeURIComponent(id)}" class="cls-${v[1]}"><span class="dot"></span>${esc(v[0])}</a></span><span class="num"><b class="ntotal" title="${uniq ? "الإجمالي بدون المكرر" : "الإجمالي مع المكرر"}">${fmt(uniq ? v[4] : totalOf(v))}</b> <span class="muted">${counts(v)}</span></span></li>`).join("") || '<li class="muted">لا نتائج</li>';
     };
     render();
     $("#nf").addEventListener("input", (e) => { q = e.target.value; render(); });
-    $("#cf").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; cls = b.dataset.v; setSeg("#cf", b); render(); });
+    const seg = (sel, set) => $(sel).addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; set(b.dataset.v); setSeg(sel, b); render(); });
+    seg("#cf", (v) => { cls = v; });
+    seg("#bf", (v) => { book = v; });
+    seg("#rf", (v) => { uniq = !!v; });
   }
 
   // ---------- search ----------
