@@ -302,33 +302,11 @@ mark { background: color-mix(in srgb, var(--gold) 30%, transparent); color: inhe
 .nfilters input { width: 100%; padding: 8px 12px; border: 1px solid var(--line); border-radius: 9px; background: var(--bg); color: var(--ink); font: inherit; }
 .nfilters #nnote { margin: 0; padding-top: 12px; border-top: 1px dashed var(--line); }
 .nfilters .seg { flex-wrap: wrap; overflow: hidden; }
-.pgroup + .pgroup { margin-top: 14px; }
-.pgroup h3 { margin: 0 0 4px; font-size: .8rem; color: var(--muted); font-weight: 600; }
-/* statistics: presets and filters in a side list beside the ranking */
-.xlayout { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 16px; align-items: start; }
-.xside { position: sticky; top: 76px; max-height: calc(100vh - 92px); overflow-y: auto; padding: 14px; }
-.xside-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
-.xside-head h2 { margin: 0; font-size: 1.05rem; }
-.xside-close, .xside-open, .xside-back { display: none; }
-.plist { display: flex; flex-direction: column; gap: 2px; }
-.plist button { border: 0; background: none; color: var(--ink); font: inherit; font-size: .88rem; text-align: start; padding: 6px 10px; border-radius: 8px; cursor: pointer; border-inline-start: 3px solid transparent; }
-.plist button:hover { background: var(--panel-2); }
-.plist button.on { background: color-mix(in srgb, var(--accent) 16%, transparent); border-inline-start-color: var(--accent); font-weight: 700; }
-.xcustom { margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--line); }
-.xcustom summary { cursor: pointer; font-weight: 600; font-size: .92rem; color: var(--accent); }
-.xcustom .filters { grid-template-columns: 1fr; margin: 10px 0 0; }
-.xcustom .filters .grow { grid-column: auto; }
-.xmain #xtitle { margin-bottom: 8px; scroll-margin-top: 84px; }
-@media (max-width: 900px) {
-  .xlayout { grid-template-columns: minmax(0, 1fr); }
-  .xside { position: fixed; top: 0; bottom: 0; inset-inline-start: 0; z-index: 40; width: min(330px, 88vw); max-height: none;
-    border-radius: 0; transform: translateX(105%); transition: transform .2s ease; }
-  .xside.open { transform: none; }
-  .xside-close, .xside-open { display: inline-block; }
-  .xside-back { position: fixed; inset: 0; z-index: 35; background: rgba(0,0,0,.4); }
-  .xside-back.open { display: block; }
-}
-@media (prefers-reduced-motion: reduce) { .xside { transition: none; } }
+/* statistics: preset groups as tabs above the ranking */
+.xtabs { display: inline-flex; max-width: 100%; overflow-x: auto; margin-bottom: 12px; }
+#xpre .presets, #xf { padding-bottom: 14px; margin: 0 0 14px; border-bottom: 1px dashed var(--line); }
+#xpre [hidden], #xf[hidden] { display: none; }
+#xtitle { scroll-margin-top: 84px; }
 /* comparison of two books: two validated series colors per theme */
 :root { --sa: #2f66c0; --sb: #b0892f; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --sa: #5b93e6; --sb: #b3872a; } }
