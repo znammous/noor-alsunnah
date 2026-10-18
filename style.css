@@ -234,6 +234,9 @@ details.jarh li { font-family: var(--font-text); font-size: 1.05rem; margin: 4px
 .s-tools { display: flex; flex-wrap: wrap; gap: 10px 22px; align-items: center; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
 .s-row { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
 .s-lbl { color: var(--muted); font-size: .85rem; }
+#sGrade { flex-wrap: wrap; overflow: hidden; }
+#sGrade button small { opacity: .75; }
+#sGrade button:disabled { opacity: .45; cursor: default; }
 .s-check { display: inline-flex; gap: 6px; align-items: center; font-size: .88rem; cursor: pointer; }
 .s-check input { accent-color: var(--accent); }
 .s-books { display: flex; flex-wrap: wrap; gap: 6px; width: 100%; }
