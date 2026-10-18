@@ -981,6 +981,7 @@
           ${n.rank || n.rank_dhahabi ? `<div class="verdicts">
             ${n.rank ? `<blockquote><cite>رتبته عند ابن حجر</cite>${esc(n.rank)}${rankNote(n)}</blockquote>` : ""}
             ${n.rank_dhahabi ? `<blockquote><cite>رتبته عند الذهبي</cite>${esc(n.rank_dhahabi)}</blockquote>` : ""}</div>` : ""}
+          ${n.hady ? `<div class="verdicts"><blockquote><cite>قال ابن حجر في «هدي الساري» مقدمة «فتح الباري» (ص ${esc(n.hady[1])}، ط السلفية) — <a href="https://shamela.ws/book/1673/${n.hady[0]}" target="_blank" rel="noopener">المكتبة الشاملة</a></cite>${esc(n.hady[2])}</blockquote></div>` : ""}
           <dl class="facts">${facts.map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join("")}</dl>
         </div>
         <div class="panel"><h2>شبكة الراوي</h2><p class="muted small">أبرز شيوخه (يمينًا) وتلاميذه (يسارًا) في الكتب التسعة — اضغط الاسم للانتقال، والسهم لعرض أحاديث الطريق</p>${graphBox('<div id="ego"></div>')}
