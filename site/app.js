@@ -482,6 +482,58 @@
     return `https://dorar.net/hadith/search?q=${encodeURIComponent(words)}&st=w`;
   }
 
+  // ---------- the simplified explanation (موسوعة الأحاديث النبوية, hadeethenc.com) ----------
+  const SHARH_BY = "موسوعة الأحاديث النبوية";
+  const SHARH_ORG = "إعداد مركز الترجمة بالمكتب التعاوني للدعوة وتوعية الجاليات بالربوة";
+  const sharhLang = () => { try { return localStorage.getItem("sharhLang") || "ar"; } catch { return "ar"; } };
+  const sharhEntry = (lang, id) => getJSON(`data/sharh/${lang}/${id % META.sharh.buckets}.json`).then((b) => b[id]).catch(() => null);
+
+  async function renderSharh(el, h) {
+    if (!el || !META.sharh) return;
+    const ids = h.sx || [];
+    if (!ids.length) {
+      el.innerHTML = `<p class="notice sharh-none">لا يوجد شرح ميسّر لهذا الحديث في ${SHARH_BY}. <a href="${dorarURL(h)}" target="_blank" rel="noopener">ابحث عن شرحه في الدرر السنية ↗</a></p>`;
+      return;
+    }
+    const langs = META.sharh.langs;
+    const draw = async () => {
+      let lang = sharhLang();
+      if (!langs.some(([c]) => c === lang)) lang = "ar";
+      const [ar, tr] = await Promise.all([Promise.all(ids.map((i) => sharhEntry("ar", i))),
+        lang === "ar" ? null : Promise.all(ids.map((i) => sharhEntry(lang, i)))]);
+      if (!el.isConnected) return;
+      const [, native, , rtl] = langs.find(([c]) => c === lang);
+      const blocks = ids.map((id, n) => {
+        const a = ar[n], t = tr && tr[n];
+        if (!a && !t) return "";
+        const page = `https://hadeethenc.com/${t ? lang : "ar"}/browse/hadith/${id}`;
+        const missing = tr && !t ? `<p class="notice">لا تتوفر ترجمة هذا الشرح بـ${esc(native)} بعد، فيُعرض بالعربية.</p>` : "";
+        const e = t || a;
+        const dir = t ? (rtl ? "rtl" : "ltr") : "rtl";
+        return `<article class="sharh-item">${missing}
+          <div dir="${dir}" lang="${t ? lang : "ar"}" class="${t && !rtl ? "ltr" : ""}">
+            ${ids.length > 1 ? `<h4>${esc(e.t)}</h4>` : ""}
+            ${t && t.h ? `<p class="sharh-hadith">${esc(t.h)}</p>` : ""}
+            <p class="sharh-text">${esc(e.x)}</p>
+            ${e.f && e.f.length ? `<details${ids.length > 1 ? "" : " open"}><summary>${t ? "Benefits · الفوائد" : "من فوائد الحديث"}</summary><ul>${e.f.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></details>` : ""}
+            ${!t && a.w && a.w.length ? `<details><summary>معاني الكلمات</summary><dl class="sharh-words">${a.w.map(([w, m]) => `<dt>${esc(w)}</dt><dd>${esc(m)}</dd>`).join("")}</dl></details>` : ""}
+          </div>
+          <span class="grade-src">${SHARH_BY} · <a href="${page}" target="_blank" rel="noopener">الحديث في الموسوعة ↗</a> · <a href="${mailto(`نور السنة: ملاحظة على الشرح الميسر في ${hkey(h.k)}`,
+            `الحديث: ${hkey(h.k)}\n${location.href}\n\nالشرح المعروض: ${e.t || ""}\n${page}\n\nما الخطأ؟ (مثلًا: الشرح لحديث آخر، أو خطأ في الترجمة)\n`)}">أبلغ عن خطأ في هذا الشرح</a></span></article>`;
+      }).join("");
+      el.innerHTML = `<div class="panel sharh">
+        <div class="sharh-head"><h3>الشرح الميسّر</h3>
+          <label class="sharh-lang">اللغة <select>${langs.map(([c, name, n]) => `<option value="${c}"${c === lang ? " selected" : ""}>${esc(name)}</option>`).join("")}</select></label></div>
+        ${blocks}
+        <p class="muted small">من ${SHARH_BY} (${SHARH_ORG})، شرح مختصر لعموم القرّاء، يُنقل بنصه. وقد يكون لفظ الحديث في الموسوعة مختلفًا يسيرًا عن لفظ هذه الرواية.</p></div>`;
+      el.querySelector("select").addEventListener("change", (ev) => {
+        try { localStorage.setItem("sharhLang", ev.target.value); } catch {}
+        draw();
+      });
+    };
+    draw();
+  }
+
   async function viewHadith(key) {
     if (!META.index[key] && META.alias[key]) { location.replace("#/h/" + META.alias[key]); return; }
     const entry = META.index[key];
@@ -531,6 +583,7 @@
           <p class="muted small">من الموسوعة الحديثية في موقع الدرر السنية: نتائج البحث عن طرف الحديث، وقد تشمل رواياتٍ أخرى مشابهة.</p></div>
         <a class="btn on" href="${dorarURL(h)}" target="_blank" rel="noopener">اعرض الأحكام في الدرر السنية ↗</a>
       </div>
+      <div id="sharh"></div>
 
       <div class="hadith-layout">
         <div class="tree-wrap">
@@ -565,6 +618,7 @@
       <div class="panel"><div class="chain">${sp.books.map(([b, n]) => `<span class="chip">${esc(b)}<span class="muted small" style="margin-inline-start:6px">${fmt(n)}</span></span>`).join(" ")}${sp.n_books > sp.books.length ? `<span class="muted small">و${fmt(sp.n_books - sp.books.length)} كتابًا آخر</span>` : ""}</div>
         ${sp.shawahid.length ? `<h3 style="margin-top:14px">شواهده عن صحابة آخرين</h3><div class="chain">${sp.shawahid.map((n) => `<span class="chip cls-sahabi"><span class="dot"></span>${esc(n)}</span>`).join(" ")}</div>` : ""}</div>` : ""}`;
 
+    renderSharh($("#sharh"), h);
     let scope = others.length ? "all" : "one", bookFilter = "", rank = "";
     // default side panel: the narrators of the drawn tree, grouped by Ibn Hajar's tabaqat
     const tabaqat = () => {
@@ -1968,13 +2022,15 @@
         <li>جمع روايات الحديث الواحد في الكتب التسعة قائم على تخريج برنامج جامع خادم الحرمين الشريفين.</li>
         <li>أحاديث السنن فيها الصحيح والحسن والضعيف، ويُعرض حكم الترمذي بلفظه حيث ورد، وتُربط كل الأحاديث بأحكام المحدثين في الدرر السنية.</li>
         <li>أحكام المحدثين المعروضة في صفحة الحديث تُنقل بنصها منسوبةً إلى أصحابها ولا نرجّح بينها: حكم الألباني على أحاديث سنن أبي داود والترمذي وابن ماجه (من كتبه «صحيح وضعيف السنن» كما نقلتها المكتبة الشاملة) وسنن النسائي (من «صحيح سنن النسائي» و«ضعيف سنن النسائي»)، وحكم محققي طبعة الرسالة العالمية لسنن النسائي، وحكم شعيب الأرناؤوط ومحققي طبعة مؤسسة الرسالة لمسند أحمد، وكلام البوصيري في «مصباح الزجاجة» على زوائد ابن ماجه بنقل محمد فؤاد عبد الباقي، وحكم حسين سليم أسد في تحقيقه لمسند الدارمي.</li>
+        <li>الشرح الميسّر في صفحة الحديث منقول بنصه من «موسوعة الأحاديث النبوية»، وهو شرح مختصر لعموم القرّاء مع فوائد الحديث ومعاني كلماته وترجماته إلى لغات المسلمين. ويُربط شرح الموسوعة بكل رواية في الكتب التسعة يوافق لفظها لفظ الحديث في الموسوعة، فقد يختلف اللفظان يسيرًا.</li>
         <li>الترقيم: البخاري على «فتح الباري»، ومسلم وابن ماجه على ترقيم محمد فؤاد عبد الباقي، وأبو داود على ترقيم محمد محيي الدين عبد الحميد، والترمذي على ترقيم أحمد شاكر، والنسائي على ترقيم برنامج الجامع.</li>
         <li>فهرس الكتب الكبرى للسنن الأربع من <a href="https://shamela.ws/" target="_blank" rel="noopener">المكتبة الشاملة</a>.</li>
       </ul>
       <h2>مصادر البيانات</h2>
       <p>نصوص الأحاديث وأسانيدها، وتراجم الرواة ورتبهم، والتخريج والشواهد: من <a href="https://sunna.alifta.gov.sa/" target="_blank" rel="noopener">برنامج جامع خادم الحرمين الشريفين للسنة النبوية</a> (الرئاسة العامة للبحوث العلمية والإفتاء)، عن النسخة المهيكلة التي نشرها الباحث جهاد عمر (<a href="https://github.com/JehadOumer/Ifta-Sunnah-Hadith-and-Narrators-Dataset" target="_blank" rel="noopener">Ifta Sunnah Hadith &amp; Narrators Dataset</a>).</p>
       <p>أحكام المحدثين على الأحاديث: من طبعات <a href="https://shamela.ws/" target="_blank" rel="noopener">المكتبة الشاملة</a> المحققة (سنن أبي داود ت محيي الدين عبد الحميد، وسنن الترمذي ت شاكر، وسنن ابن ماجه ت عبد الباقي، و«صحيح سنن النسائي» و«ضعيف سنن النسائي» للألباني، وسنن النسائي ط الرسالة العالمية، ومسند أحمد ط مؤسسة الرسالة، ومسند الدارمي ت حسين سليم أسد)، مع روابط إلى <a href="https://dorar.net/hadith" target="_blank" rel="noopener">الموسوعة الحديثية في موقع الدرر السنية</a> تُفتح في موقعهم.</p>
-      <p class="muted small">الحقوق العلمية محفوظة لأصحابها: برنامج الجامع للرئاسة العامة للبحوث العلمية والإفتاء، والموسوعة الحديثية للدرر السنية. والموقع مستقل ولا يمثل أيًّا منهما.</p>
+      <p>الشرح الميسّر وترجماته: من <a href="https://hadeethenc.com/" target="_blank" rel="noopener">موسوعة الأحاديث النبوية</a> (إعداد مركز الترجمة بالمكتب التعاوني للدعوة وتوعية الجاليات بالربوة)، عن واجهتها البرمجية المفتوحة، مع رابط كل حديث في موقعها.</p>
+      <p class="muted small">الحقوق العلمية محفوظة لأصحابها: برنامج الجامع للرئاسة العامة للبحوث العلمية والإفتاء، والموسوعة الحديثية للدرر السنية، وموسوعة الأحاديث النبوية لمعدّيها. والموقع مستقل ولا يمثل أيًّا منهم.</p>
       <h2>التواصل</h2>
       <p>للاقتراحات أو الإبلاغ عن خطأ في حديث أو راوٍ أو إسناد، راسلنا على: <a href="${mailto("نور السنة: اقتراح أو ملاحظة")}">${CONTACT}</a></p>
       <p class="notice">هذه نسخة أولية للتجربة والمراجعة، ونرحب بالتنبيه على أي خطأ.</p>

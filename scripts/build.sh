@@ -3,5 +3,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/../pipeline"
 python3 ifta_load.py
-rm -rf ../site/data
+# site/data/sharh is written by make_sharh.py from the encyclopedia's data, so it is kept
+mkdir -p ../site/data
+find ../site/data -mindepth 1 -maxdepth 1 ! -name sharh -exec rm -rf {} +
 python3 build_site.py

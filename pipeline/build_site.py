@@ -82,6 +82,8 @@ def hadith_class(book, rows):
 
 
 GRADES = Path(__file__).resolve().parent / "grades"
+# the simplified explanations (make_sharh.py): hadith key -> encyclopedia ids, and the languages
+SHARH = Path(__file__).resolve().parent / "sharh"
 # Ibn Hajar on al-Bukhari's narrators below صدوق, quoted from «هدي الساري» (make_rijal.py)
 HADY = Path(__file__).resolve().parent / "rijal" / "hady.json"
 # scholars' verdicts (make_grades.py): "source:book" -> (scholar, work, Shamela book id)
@@ -251,6 +253,7 @@ def main():
 
     # ---------- hadiths ----------
     grades = {f.stem: load(f) for f in sorted(GRADES.glob("*.json"))}
+    sharh = load(SHARH / "links.json") if (SHARH / "links.json").exists() else {}
     hadiths, kitabs = {}, {b: {} for b in BOOKS}
     for h in C["hadiths"]:
         book = h["book"]
@@ -271,6 +274,7 @@ def main():
             **({"grades": g} if (g := [[src, v, page] + ([n] if h.get("aliases") else [])  # number when it spans several
                                       for n in [h["num"], *h.get("aliases", [])]
                                       for src, v, page in grades.get(book, {}).get(str(n), [])]) else {}),
+            **({"sx": sharh[h["key"]]} if h["key"] in sharh else {}),
             "rel": h["rel"], "spread": {**h["spread"], "n_books": len(h["spread"]["books"]),
                                          "books": h["spread"]["books"][:30], "shawahid": h["spread"]["shawahid"][:30]},
         }
@@ -633,6 +637,7 @@ def main():
         "index": index, "alias": alias, "directory": directory,
         "gshard": gshard, "narr_shards": NARR_SHARDS,
         "grade_sources": GRADE_SOURCES,
+        **({"sharh": load(SHARH / "langs.json")} if (SHARH / "langs.json").exists() else {}),
     }
     dump(meta, SITE_DATA / "meta.json")
     print(f"site data: {len(hadiths)} hadiths in {len(shards)} shards, muttafaq {muttafaq}, sitta {sitta}, "

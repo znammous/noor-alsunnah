@@ -135,6 +135,24 @@ a.col:hover b { filter: brightness(1.2); }
 .dorar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin: 16px 0; }
 .dorar h3 { margin: 0 0 4px; }
 .dorar p { margin: 0; }
+.sharh { margin: 16px 0; }
+.sharh-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+.sharh-head h3 { margin: 0; }
+.sharh-lang { font-size: .88rem; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.sharh-lang select { padding: 5px 8px; border: 1px solid var(--line); border-radius: 9px; background: var(--bg); color: var(--ink); font: inherit; max-width: 60vw; }
+.sharh-item { border-top: 1px solid var(--line); padding: 10px 0; }
+.sharh-item:first-of-type { border-top: 0; }
+.sharh-item h4 { margin: 0 0 6px; }
+.sharh-text, .sharh-hadith, .sharh-item li, .sharh-words { font-family: var(--font-text); font-size: 1.15rem; line-height: 1.9; }
+.sharh-item .ltr { font-family: var(--font-ui); text-align: left; }
+.sharh-item .ltr .sharh-text, .sharh-item .ltr .sharh-hadith, .sharh-item .ltr li { font-family: var(--font-ui); font-size: 1rem; line-height: 1.7; }
+.sharh-hadith { background: var(--panel-2); border-radius: 10px; padding: 8px 14px; }
+.sharh-item details { margin: 6px 0; }
+.sharh-item summary { cursor: pointer; font-weight: 600; font-family: var(--font-ui); font-size: .95rem; }
+.sharh-words dt { font-weight: 700; color: var(--gold); }
+.sharh-words dd { margin: 0 0 6px; }
+.sharh-item .grade-src { display: block; font-size: .78rem; color: var(--muted); }
+.sharh-none { margin: 0 0 16px; }
 .verdicts { display: grid; gap: 10px; margin: 6px 0 14px; }
 .verdicts blockquote { margin: 0; font-family: var(--font-text); font-size: 1.15rem; line-height: 1.8; background: var(--panel-2);
   border-inline-start: 4px solid var(--gold); border-radius: 10px; padding: 8px 14px; }
