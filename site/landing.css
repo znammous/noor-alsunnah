@@ -179,3 +179,12 @@ h3 { font-family: var(--font-title); font-size: 1.15rem; }
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .print-note { display: block; margin-top: 6px; }
 }
+
+/* feature groups: a numbered heading over each row of cards */
+.group { display: flex; align-items: center; gap: 12px; color: var(--gold); font-size: 1.35rem; margin: 40px 0 18px; }
+.group:first-of-type { margin-top: 0; }
+.group span { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; border: 1.5px solid rgba(242,193,78,.6); font-size: 1rem; }
+.group::after { content: ""; flex: 1; height: 1px; background: linear-gradient(to left, rgba(242,193,78,.35), transparent); }
+a.card { display: block; text-decoration: none; color: inherit; }
+.also { text-align: center; margin: 30px 0 0; color: var(--text-muted); }
+.also a { color: var(--gold); text-decoration: none; border-bottom: 1px dotted rgba(242,193,78,.6); }
