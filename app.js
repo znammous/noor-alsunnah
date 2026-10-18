@@ -538,7 +538,7 @@
     // the same list, for the saved image of the tree
     const tabaqatSide = () => {
       const by = tabaqat();
-      return { title: "طبقات الرواة", groups: [...by.keys()].sort((a, b) => (a || 99) - (b || 99)).map((t) => ({ name: tabaqaName(t),
+      return { title: "طبقات الرواة", text: { title: "نص الحديث" + (h.bab ? " · " + h.bab : ""), body: matnOf(h).trim() }, groups: [...by.keys()].sort((a, b) => (a || 99) - (b || 99)).map((t) => ({ name: tabaqaName(t),
         items: by.get(t).sort((a, b) => b.data("n") - a.data("n")).map((n) => ({ label: n.data("label"), cls: n.data("cls"), madar: n.id() === G.madar })) })) };
     };
     const overview = () => {
@@ -728,7 +728,8 @@
     <p class="graph-hint">تفاعلي: اسحب للتحريك، وكبّر بالأزرار أو بالعجلة مع <bdi>Ctrl</bdi>، و⟲ يعيد الشكل الأصلي</p></div>`;
   const NOTICE = "مشروع وقفي مفتوح لخدمة السنة النبوية · البيانات من مصادر مفتوحة (انظر عن المشروع) · الأحكام المعروضة منقولة عن أهل العلم والأداة مساعِدة للباحث لا تُغني عن النظر.";
   // the whole graph as a PNG blob, with a caption bar (site name + what it shows) under it
-  // side: optional { title, groups: [{ name, items: [{ label, cls }] }] } printed as a column left of the graph
+  // side: optional { title, groups: [{ name, items: [{ label, cls }] }], text: { title, body } }: the groups as a column
+  // left of the graph, the text (the hadith's matn) in the space under it
   async function graphPNG(c, caption, side) {
     const bg = getComputedStyle(document.body).backgroundColor;
     const img = new Image();
@@ -754,8 +755,20 @@
         y += chipH + 26;
       }
     }
-    const h = Math.max(img.height, y);
     cv.width = Math.max(img.width + colW, 900);
+    // the matn, word-wrapped to the graph's width, capped so a long hadith does not dwarf the tree
+    const text = side && side.text, lines = [], lineH = 46, areaW = cv.width - colW;
+    if (text) {
+      await document.fonts.load("26px Amiri").catch(() => {});
+      g.direction = "rtl"; g.font = '26px Amiri, "Traditional Arabic", serif';
+      for (const w of text.body.split(/\s+/)) {
+        const last = lines.length - 1, joined = last < 0 ? w : lines[last] + " " + w;
+        if (last >= 0 && g.measureText(joined).width <= areaW - 2 * pad) lines[last] = joined; else lines.push(w);
+      }
+      if (lines.length > 14) { lines.length = 14; lines[13] += " …"; }
+    }
+    const textH = text ? 70 + lines.length * lineH + pad : 0;
+    const h = Math.max(img.height + textH, y);
     // the site's disclaimer under the caption, wrapped at its " · " separators to the image width
     g.direction = "rtl"; g.font = font(400, 19);
     const note = [];
@@ -766,7 +779,15 @@
     const noteH = note.length * 30 + 18;
     cv.height = h + bar + noteH;
     g.fillStyle = bg; g.fillRect(0, 0, cv.width, cv.height);
-    g.drawImage(img, colW + (cv.width - colW - img.width) / 2, (h - img.height) / 2);
+    g.drawImage(img, colW + (areaW - img.width) / 2, text ? 0 : (h - img.height) / 2);
+    if (text) {
+      const ty = img.height + (h - img.height - textH) / 2, right = cv.width - pad;
+      g.fillStyle = css("--line"); g.fillRect(colW + pad, ty, areaW - 2 * pad, 1);
+      g.direction = "rtl"; g.textAlign = "right"; g.textBaseline = "middle";
+      g.font = font(700, 24); g.fillStyle = css("--gold"); g.fillText(text.title, right, ty + 36);
+      g.font = '26px Amiri, "Traditional Arabic", serif'; g.fillStyle = css("--ink");
+      lines.forEach((l, i) => g.fillText(l, right, ty + 70 + lineH / 2 + i * lineH));
+    }
     if (side) {
       g.fillStyle = css("--line"); g.fillRect(colW, 0, 2, h);
       g.direction = "rtl"; g.textBaseline = "middle";
