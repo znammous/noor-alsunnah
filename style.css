@@ -380,3 +380,14 @@ p.more { margin: 12px 0 0; }
 .tools .tool:hover { border-color: var(--gold); text-decoration: none; }
 .tools .tool b { color: var(--gold); font-size: 1.02rem; }
 .tools .tool span { color: var(--muted); font-size: .88rem; line-height: 1.7; }
+/* the selected choice: gold with a soft glow, like the gold buttons */
+.seg { padding: 3px; gap: 3px; background: var(--panel); }
+.seg button { border-radius: 7px; transition: background .15s, box-shadow .15s; }
+.seg button:hover:not(.on) { background: var(--panel-2); }
+.subnav a.on, .seg button.on, .presets .btn.on {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--gold) 82%, #fff), var(--gold));
+  border-color: var(--gold); color: #1a1405; font-weight: 700;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--gold) 60%, transparent), 0 0 14px color-mix(in srgb, var(--gold) 55%, transparent), inset 0 1px 0 rgba(255, 255, 255, .45);
+}
+.subnav a.on:hover { color: #1a1405; }
+.subnav { padding-top: 4px; }
