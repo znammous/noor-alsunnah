@@ -12,7 +12,7 @@ SITE = Path(__file__).resolve().parent.parent / "site"
 
 h = hashlib.sha1()
 for p in sorted(SITE.rglob("*")):
-    if p.is_file() and p.suffix != ".html":
+    if p.is_file() and p.suffix != ".html" and p.name != "sw.js":
         h.update(str(p.relative_to(SITE)).encode())
         h.update(p.read_bytes())
 v = h.hexdigest()[:10]
@@ -25,4 +25,7 @@ for name in ("app.html", "index.html"):
     # link previews (WhatsApp etc.) cache the image by URL, so a new og.jpg needs a new one
     text = re.sub(r'(assets/og\.jpg)(\?v=\w+)?"', rf'\1?v={v}"', text)
     page.write_text(text, encoding="utf-8")
+# the service worker names its caches after the version, so a publish replaces what readers saved offline
+sw = SITE / "sw.js"
+sw.write_text(re.sub(r'const V = "\w*";', f'const V = "{v}";', sw.read_text(encoding="utf-8")), encoding="utf-8")
 print(v)

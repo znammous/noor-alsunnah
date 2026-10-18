@@ -1,0 +1,25 @@
+{
+  "id": "./app.html",
+  "name": "نور السنة — دراسة أسانيد الكتب التسعة",
+  "short_name": "نور السنة",
+  "description": "شجرة الرواة لكل حديث، وطرقه ومداره، وتراجم رجاله، وأحكام المحدثين عليه.",
+  "lang": "ar",
+  "dir": "rtl",
+  "start_url": "./app.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#04173a",
+  "theme_color": "#04173a",
+  "categories": ["education", "books", "reference"],
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "الكتب التسعة", "url": "./app.html#/books" },
+    { "name": "الرواة", "url": "./app.html#/narrators" },
+    { "name": "ترتيب الأحاديث", "url": "./app.html#/turuq" }
+  ]
+}
