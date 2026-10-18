@@ -149,6 +149,18 @@ def chain_class(ids, narr):
     return "unknown" if unknown else "thiqat"
 
 
+def chain_culprits(ids, cls, narr):
+    """The narrators whose grade gives a chain its class."""
+    grade = lambda i: narr.get(i, {}).get("cls", "unknown")
+    if cls == "mutakallam":
+        return [i for i in ids if grade(i) in ("maqbul", "weak")]
+    if cls == "saduq":
+        return [i for i in ids if grade(i) == "saduq"]
+    if cls == "unknown":
+        return [i for i in ids if grade(i) not in CHAIN_ORDER + ["sahabi", "nabi"]]
+    return []
+
+
 def snippet(h, n=150):
     p = h["parts"][0]
     t = p["text"][p["matn"][0]:p["matn"][1]] if p.get("matn") else p["text"]
@@ -244,6 +256,8 @@ def main():
     sanad_freq = Counter()
     chain_len = {b: Counter() for b in BOOKS}
     chain_cls = {b: Counter() for b in BOOKS}
+    # each book's chains by class: [hadith key, the narrators that set the class]
+    chain_rows = {b: defaultdict(list) for b in BOOKS}
     # chains with only three narrators between the compiler and the Prophet ﷺ (not Abdullah's zawa'id)
     thulathiyyat, thulathiyyat_ahmad, shortest_muslim = [], [], []
 
@@ -255,6 +269,7 @@ def main():
         for c in h["chains"]:
             ids = c["ids"]
             chain_cls[book][c["c"]] += 1
+            chain_rows[book][c["c"]].append([k, *dict.fromkeys(chain_culprits(ids, c["c"], narr))])
             chain_len[book][len(ids)] += 1
             full = [PROPHET] + ids + ([] if c.get("z") else [COMPILER[book]])
             for x in full[1:]:
@@ -480,6 +495,8 @@ def main():
              for x in s["chain"]}
     stats["nar"] = {i: light(narr[i]) for i in used}
     dump(stats, SITE_DATA / "stats.json")
+    for b, rows in chain_rows.items():
+        dump(rows, SITE_DATA / "chains" / f"{b}.json")
 
     # ---------- statistics explorer: per-book repeats, and narrator fields to filter the directory by ----------
     # a book's hadiths joined by the source's rel links inside that book, counted once (approximate)
