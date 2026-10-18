@@ -671,7 +671,7 @@
 
   // zoom buttons + a hint over a graph; the mouse wheel scrolls the page unless Ctrl/⌘ is held (pinch sends ctrlKey)
   const graphBox = (inner) => `<div class="graph-box">${inner}
-    <div class="graph-ctl"><button data-z="in" title="تكبير" aria-label="تكبير">+</button><button data-z="out" title="تصغير" aria-label="تصغير">−</button><button data-z="reset" title="العودة إلى الشكل الأصلي" aria-label="العودة إلى الشكل الأصلي">⟲</button></div>
+    <div class="graph-ctl"><button data-z="in" title="تكبير" aria-label="تكبير">+</button><button data-z="out" title="تصغير" aria-label="تصغير">−</button><button data-z="reset" title="العودة إلى الشكل الأصلي" aria-label="العودة إلى الشكل الأصلي">⟲</button><button data-z="full" title="ملء الشاشة" aria-label="ملء الشاشة">⛶</button></div>
     <p class="graph-hint">تفاعلي: اسحب للتحريك، وكبّر بالأزرار أو بالعجلة مع <bdi>Ctrl</bdi>، و⟲ يعيد الشكل الأصلي</p></div>`;
   function graphTools(el, get, reset) {
     const box = el.parentElement, hint = $(".graph-hint", box);
@@ -680,8 +680,15 @@
       const b = e.target.closest("[data-z]"), c = get();
       if (!b || !c) return;
       if (b.dataset.z === "reset") return reset();
+      if (b.dataset.z === "full") return document.fullscreenElement ? document.exitFullscreen() : (box.requestFullscreen || box.webkitRequestFullscreen).call(box);
       const center = { x: c.width() / 2, y: c.height() / 2 };
       c.animate({ zoom: { level: c.zoom() * (b.dataset.z === "in" ? 1.3 : 1 / 1.3), renderedPosition: center } }, { duration: 150 });
+    });
+    // fullscreen: the canvas changes size, so resize and refit; button toggles to "exit"
+    box.addEventListener("fullscreenchange", () => {
+      const on = document.fullscreenElement === box, fb = $('[data-z="full"]', box), c = get();
+      fb.title = fb.ariaLabel = on ? "الخروج من ملء الشاشة" : "ملء الشاشة";
+      if (c) { c.resize(); reset(); }
     });
     box.addEventListener("wheel", (e) => {
       if (e.ctrlKey || e.metaKey) return;
