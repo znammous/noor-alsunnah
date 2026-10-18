@@ -30,10 +30,11 @@ ARABIC_DIGITS = str.maketrans("٠١٢٣٤٥٦٧٨٩", "0123456789")
 # book key -> Shamela book id
 BOOKS = {"abudawud": 1726, "tirmidhi": 1435, "ibnmajah": 1198, "darimi": 21795}
 # book key -> [(Shamela book id, source key)], matched by text
-TEXT_BOOKS = {"nasai": [(1147, "albani-sahih"), (1148, "albani-daif"), (1339, "risala")]}
+TEXT_BOOKS = {"nasai": [(1147, "albani-sahih"), (1148, "albani-daif"), (1339, "risala")],
+              "ahmad": [(25794, "arnaut")]}
 
 TAG = re.compile(r"\[(حكم الألباني|تعليق محمد فؤاد عبد الباقي|شرح محمد فؤاد عبد الباقي|تعليق المحقق)\]\s*:?\s*")
-START = re.compile(r"(?:^|\n|\])\s*(\d{1,5})\s*-\s")
+START = re.compile(r"(?:^|\n|\])\s*•?\s*(\d{1,5})\s*-\s")   # • marks the zawa'id of Abdullah b. Ahmad
 PAGE_MARK = re.compile(r"⦗[^⦘]*⦘")
 
 
@@ -153,6 +154,7 @@ def same_hadith(words, text):
 FOOTNOTE = re.compile(r"(?:^|\n)\((\d{1,2})\)\s*(.*?)(?=\n\(\d{1,2}\)|\Z)", re.S)
 MARKER = re.compile(r"\((\d{1,2})\)")
 ALBANI_INLINE = re.compile(r"(?:^|\n)\s*\(((?:صحيح|حسن|ضعيف|شاذ|منكر|موضوع)[^)]*)\)")
+REPEAT = re.compile(r"^هو مكرر \((\d+)\) سند[اًً]+ ومتن")
 # the footnote that grades the hadith, not one on its manuscripts or its men
 EDITORS_VERDICT = re.compile(r"^(?:إسناد|حديث|صحيح|حسن|ضعيف|رجال|أثر|مرفوع|موقوف|مرسل|منكر|شاذ)")
 
@@ -273,6 +275,12 @@ def text_book(book, sources, corpus):
         segs = segments(book_id)
         for seg in segs:
             seg["verdict"], seg["match"] = text_verdict(src, seg)
+        own = {seg["n"]: seg["verdict"] for seg in segs if seg["verdict"]}
+        for seg in segs:
+            rep = next((m for m in map(REPEAT.match, seg["notes"]) if m), None)
+            if not seg["verdict"] and rep and own.get(int(rep.group(1))):
+                seg["verdict"] = f"{own[int(rep.group(1))]} (حكمهم على الحديث {rep.group(1)} في طبعتهم، وهذا مكرره)"
+                stats[f"{book_id} repeats graded as their original"] += 1
         stats[f"{book_id} hadiths"] = len(segs)
         graded = [seg for seg in segs if seg["verdict"]]
         stats[f"{book_id} graded"] = len(graded)
