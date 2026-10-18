@@ -142,6 +142,7 @@
     [/^\/narrators$/, viewNarrators],
     [/^\/explore(?:\?(.*))?$/, viewExplore],
     [/^\/turuq(?:\?(.*))?$/, viewTuruq],
+    [/^\/chains(?:\?(.*))?$/, viewChains],
     [/^\/search\/(.*)$/, viewSearch],
     [/^\/about$/, viewAbout],
   ];
@@ -204,14 +205,17 @@
     };
     const hist = (rows, height = 150) => {
       const max = Math.max(...rows.map((r) => r[1]), 1);
-      return `<div class="hist" style="height:${height}px">${rows.map(([label, v, title]) => `<div class="col" title="${esc(title || label)}: ${fmt(v)}"><i>${fmt(v)}</i><b style="height:${(100 * v) / max}%"></b><small>${esc(label)}</small></div>`).join("")}</div>`;
+      return `<div class="hist" style="height:${height}px">${rows.map(([label, v, title, href]) => {
+        const tag = href ? "a" : "div";
+        return `<${tag} class="col"${href ? ` href="${href}"` : ""} title="${esc(title || label)}: ${fmt(v)}"><i>${fmt(v)}</i><b style="height:${(100 * v) / max}%"></b><small>${esc(label)}</small></${tag}>`;
+      }).join("")}</div>`;
     };
     const gradeTotal = S.grades.reduce((a, [, v]) => a + v, 0) || 1;
     const lenRows = (b) => S.chain_length[b].filter(([l]) => l >= 2 && l <= 10);
     const classRows = (b) => {
       const rows = S.chain_classes[b], tot = rows.reduce((a, [, v]) => a + v, 0) || 1;
-      return `<div class="stack">${rows.map(([c, v]) => `<span class="ch-${c}" style="width:${(100 * v) / tot}%" title="${CHAIN_LABEL[c][0]}: ${fmt(v)}"></span>`).join("")}</div>
-        <div class="legend">${rows.map(([c, v]) => `<span><i class="ch-${c}"></i>${CHAIN_LABEL[c][0]} ${fmt(v)}</span>`).join("")}</div>`;
+      return `<div class="stack">${rows.map(([c, v]) => `<a href="#/chains?b=${b}&c=${c}" class="ch-${c}" style="width:${(100 * v) / tot}%" title="${CHAIN_LABEL[c][0]}: ${fmt(v)}"></a>`).join("")}</div>
+        <div class="legend">${rows.map(([c, v]) => `<a href="#/chains?b=${b}&c=${c}"><i class="ch-${c}"></i>${CHAIN_LABEL[c][0]} ${fmt(v)}</a>`).join("")}</div>`;
     };
 
     app.innerHTML = `
@@ -256,12 +260,12 @@
       <div class="grid g2" style="margin-top:16px">
         <div class="panel"><h2>رجال الأسانيد</h2><p class="muted small">وصف كل إسناد بأدنى رتبة فيه عند ابن حجر</p>
           ${BOOKS.map((b, i) => `<h3 class="muted"${i ? ' style="margin-top:12px"' : ""}>${BOOK[b]}</h3>${classRows(b)}`).join("")}
-          <p class="muted small" style="margin-top:12px">وصفٌ لرجال الأسانيد المفردة لا حكمٌ على الأحاديث: فأحاديث الصحيحين صحيحة بحكم الشيخين، وأحاديث بقية الكتب يُرجع في الحكم عليها إلى أحكام المحدثين.</p></div>
+          <p class="muted small" style="margin-top:12px">اضغط على أي لون لعرض أسانيده ورواته. وصفٌ لرجال الأسانيد المفردة لا حكمٌ على الأحاديث: فأحاديث الصحيحين صحيحة بحكم الشيخين، وأحاديث بقية الكتب يُرجع في الحكم عليها إلى أحكام المحدثين.</p></div>
         <div class="panel"><h2>رتب الرواة</h2><p class="muted small">تصنيف مبسّط لرتب الرواة عند ابن حجر في «التقريب»</p>
-          <div class="stack">${S.grades.map(([c, v]) => `<span class="cls-${c}" style="width:${(100 * v) / gradeTotal}%;background:var(--c)" title="${CLS_LABEL[c]}: ${fmt(v)}"></span>`).join("")}</div>
-          <div class="legend">${S.grades.filter(([, v]) => v).map(([c, v]) => `<span class="cls-${c}"><i style="background:var(--c)"></i>${CLS_LABEL[c]} ${fmt(v)}</span>`).join("")}</div>
-          <h3 style="margin-top:18px">الرواة حسب الطبقة</h3>${hist(S.tabaqat.map(([label, v, t]) => [String(t), v, label]))}
-          <p class="muted small">1 = الصحابة … 12 = صغار الآخذين عن تبع الأتباع (طبقات ابن حجر)</p></div>
+          <div class="stack">${S.grades.map(([c, v]) => `<a href="#/explore?c=${c}" class="cls-${c}" style="width:${(100 * v) / gradeTotal}%;background:var(--c)" title="${CLS_LABEL[c]}: ${fmt(v)}"></a>`).join("")}</div>
+          <div class="legend">${S.grades.filter(([, v]) => v).map(([c, v]) => `<a href="#/explore?c=${c}" class="cls-${c}"><i style="background:var(--c)"></i>${CLS_LABEL[c]} ${fmt(v)}</a>`).join("")}</div>
+          <h3 style="margin-top:18px">الرواة حسب الطبقة</h3>${hist(S.tabaqat.map(([label, v, t]) => [String(t), v, label, `#/explore?t=${encodeURIComponent(t === 1 ? "1" : `=${t}`)}`]))}
+          <p class="muted small">1 = الصحابة … 12 = صغار الآخذين عن تبع الأتباع (طبقات ابن حجر). اضغط على رتبة أو طبقة لعرض رواتها</p></div>
       </div>
 
       <div class="grid g2" style="margin-top:16px">
@@ -992,6 +996,68 @@
   // the ranking's filters; the comparison's own settings are prefixed with c
   const EXPLORE_DEFAULT = { b: "", m: "u", t: "", c: "", city: "", f: "", g: "", y: "", x: "", n: "20", q: "" };
   const COMPARE_DEFAULT = { ca: "bukhari", cb: "muslim", cm: "u", ct: "", cs: "", cn: "15" };
+
+  // ---------- a book's chains by the weakest grade among their narrators ----------
+  const CHAIN_COLOR = { thiqat: "--c-thiqa", saduq: "--c-saduq", mutakallam: "--c-weak", unknown: "--c-unknown" };
+  async function viewChains(query) {
+    const st = { b: "bukhari", c: "mutakallam", n: "" };
+    for (const [k, v] of new URLSearchParams(query || "")) if (k in st) st[k] = v;
+    if (!BOOKS.includes(st.b)) st.b = "bukhari";
+    if (!(st.c in CHAIN_LABEL)) st.c = "mutakallam";
+    const D = META.directory, cache = {};
+    app.innerHTML = `
+      <div class="section-title" style="margin-top:0"><h1>رجال الأسانيد</h1><p>أسانيد كل كتاب موصوفةً بأدنى رتبة فيها عند ابن حجر</p></div>
+      <div class="panel">
+        <div class="seg" id="chb">${BOOKS.map((b) => `<button data-v="${b}" class="${b === st.b ? "on" : ""}">${AUTHOR[b]}</button>`).join("")}</div>
+        <div class="legend" id="chc"></div>
+        <p class="muted small" style="margin-top:10px">وصفٌ لرجال الأسانيد المفردة لا حكمٌ على الأحاديث: فأحاديث الصحيحين صحيحة بحكم الشيخين، وأحاديث بقية الكتب يُرجع في الحكم عليها إلى أحكام المحدثين.</p>
+      </div>
+      <div class="grid g2" style="margin-top:16px">
+        <div class="panel" id="chwho"></div>
+        <div class="panel"><h2 id="chtitle"></h2><p class="muted small" id="chnote"></p><ul class="list" id="chl"></ul><p id="chmore"></p></div>
+      </div>`;
+    const nameLink = (id) => { const n = D[id]; return n ? `<a href="#/n/${encodeURIComponent(id)}" class="cls-${n[1]}"><span class="dot"></span>${esc(shortName(n[0]))}</a>` : ""; };
+    let shown = 0, rows = [];
+    const more = () => {
+      const kitabs = META.books[st.b].kitabs;
+      $("#chl").insertAdjacentHTML("beforeend", rows.slice(shown, shown + 100).map(([k, n, who]) => {
+        const kitab = kitabs.find((x) => x.no === (META.index[k] || [])[0]);
+        return `<li><div class="meta-line"><a href="#/h/${k}">${hkey(k)}</a>${n > 1 ? `<span class="tag">${counted(n, TURUQ_SORT.c[3])}</span>` : ""}${kitab ? `<span>${esc(kitab.title)}</span>` : ""}</div>${who.size ? `<div class="small">${[...who].map(nameLink).join(" · ")}</div>` : ""}</li>`;
+      }).join(""));
+      shown += 100;
+      $("#chmore").innerHTML = shown < rows.length ? `<button class="btn" id="chmb">عرض المزيد (${fmt(rows.length - shown)})</button>` : "";
+    };
+    const render = async () => {
+      const all = cache[st.b] || (cache[st.b] = await getJSON(`data/chains/${st.b}.json`));
+      $("#chc").innerHTML = Object.keys(CHAIN_LABEL).filter((c) => all[c]).map((c) => `<button data-c="${c}" class="${c === st.c ? "on" : ""}" style="--c:var(${CHAIN_COLOR[c]})"><i class="ch-${c}"></i>${CHAIN_LABEL[c][0]} ${fmt(all[c].length)}</button>`).join("");
+      const list = all[st.c] || [];
+      // the narrators that most often give this book's chains this class
+      const who = new Map();
+      for (const [, ...ids] of list) for (const id of ids) who.set(id, (who.get(id) || 0) + 1);
+      const top = [...who].sort((a, b) => b[1] - a[1]).slice(0, 15), max = top.length ? top[0][1] : 1;
+      $("#chwho").innerHTML = top.length ? `<h2>الرواة الذين نزلوا بهذه الأسانيد</h2><p class="muted small">عدد أسانيد ${BOOK[st.b]} التي ورد فيها الراوي بهذه الرتبة. اضغط على العدد لعرض أسانيده</p>
+        <ul class="bars">${top.map(([id, v]) => `<li${id === st.n ? ' class="on"' : ""}><span class="name">${nameLink(id)}</span><span class="num"><a href="#/chains?b=${st.b}&c=${st.c}&n=${encodeURIComponent(id)}">${fmt(v)} إسنادًا</a></span><span class="bar"><span style="width:${(100 * v) / max}%"></span></span></li>`).join("")}</ul>`
+        : `<h2>${CHAIN_LABEL[st.c][0]}</h2><p class="muted">كل رجال هذه الأسانيد ثقات أو صحابة عند ابن حجر.</p>`;
+      // a hadith's chains of this class shown together: [key, chains, narrators]
+      const byKey = new Map();
+      for (const [k, ...ids] of list) {
+        if (st.n && !ids.includes(st.n)) continue;
+        const r = byKey.get(k) || byKey.set(k, [k, 0, new Set()]).get(k);
+        r[1]++; ids.forEach((id) => r[2].add(id));
+      }
+      rows = [...byKey.values()];
+      const chains = rows.reduce((a, r) => a + r[1], 0);
+      $("#chtitle").textContent = `${CHAIN_LABEL[st.c][0]} في ${BOOK[st.b]}`;
+      $("#chnote").innerHTML = `${counted(chains, TURUQ_SORT.c[3])} في ${counted(rows.length, ["حديث", "حديثين", "أحاديث", "حديثًا"])}` + (st.n && D[st.n] ? ` فيها ${nameLink(st.n)} · <a href="#/chains?b=${st.b}&c=${st.c}">إلغاء التصفية</a>` : "");
+      $("#chl").innerHTML = rows.length ? "" : '<li class="muted">لا أسانيد بهذا الوصف</li>'; shown = 0; more();
+      const qs = new URLSearchParams(Object.entries(st).filter(([, v]) => v)).toString();
+      try { history.replaceState(history.state, "", `#/chains?${qs}`); } catch (_) {}
+    };
+    await render();
+    $("#chb").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; setSeg("#chb", b); st.b = b.dataset.v; st.n = ""; render(); });
+    $("#chc").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; st.c = b.dataset.c; st.n = ""; render(); });
+    $("#chmore").addEventListener("click", (e) => { if (e.target.closest("#chmb")) more(); });
+  }
 
   // ---------- hadiths ranked by their turuq in the nine books ----------
   // rows: [lead key, chains, hadiths, book prefixes, madar, companions, Jami' narrations, Jami' books, snippet]

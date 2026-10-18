@@ -112,7 +112,12 @@ h1 { font-size: 1.6rem; } h2 { font-size: 1.2rem; } h3 { font-size: 1rem; }
 .hist .col i { font-style: normal; font-size: .72rem; color: var(--muted); }
 
 .stack { display: flex; height: 22px; border-radius: 6px; overflow: hidden; }
-.stack span { display: block; height: 100%; }
+.stack span, .stack a { display: block; height: 100%; }
+.stack a:hover { filter: brightness(1.2); }
+.legend a { color: inherit; text-decoration: none; }
+.legend a:hover { text-decoration: underline; }
+a.col { text-decoration: none; color: inherit; }
+a.col:hover b { filter: brightness(1.2); }
 .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 10px; font-size: .85rem; }
 .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-inline-end: 6px; vertical-align: middle; }
 
