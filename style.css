@@ -406,3 +406,20 @@ p.more { margin: 12px 0 0; }
 .install[hidden] { display: none !important; }
 .theme.install { display: grid; place-items: center; padding: 0; }
 .theme.install svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+/* rank meanings and follow-ups */
+.rank-note { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line); font-family: var(--font-ui); font-size: .88rem; line-height: 1.8; }
+.rank-note p { margin: 0 0 6px; }
+.follow details { border-top: 1px solid var(--line); padding: 8px 0; }
+.follow summary { cursor: pointer; font-weight: 600; }
+.follow ul { margin: 8px 0 0; padding-inline-start: 18px; line-height: 2; }
+.fw { display: inline-block; padding: 0 8px; border-radius: 999px; font-size: .8rem; background: var(--panel-2); border: 1px solid var(--line); }
+.fw-t, .fw-q { border-color: var(--c-thiqa); } .fw-s, .fw-h { border-color: var(--c-saduq); } .fw-f { border-color: var(--c-weak); }
+.terms .ranks { padding-inline-start: 22px; }
+.terms .ranks li { margin-bottom: 14px; }
+.terms .ranks h3 { margin: 0 0 4px; }
+.terms blockquote { margin: 0 0 4px; font-family: var(--font-text); font-size: 1.1rem; line-height: 1.8; background: var(--panel-2);
+  border-inline-start: 4px solid var(--gold); border-radius: 10px; padding: 6px 12px; }
+.terms p { margin: 0; }
+.terms-dl dd { line-height: 1.9; }
+@media (max-width: 600px) { .terms-dl { display: block; } .terms-dl dt { font-weight: 700; margin-top: 10px; } .terms-dl dd { margin: 0; } }
