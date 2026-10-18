@@ -141,6 +141,7 @@
     [/^\/n\/([^/]+)(?:\/([ts])\/([^/]+))?$/, viewNarrator],
     [/^\/narrators$/, viewNarrators],
     [/^\/explore(?:\?(.*))?$/, viewExplore],
+    [/^\/turuq(?:\?(.*))?$/, viewTuruq],
     [/^\/search\/(.*)$/, viewSearch],
     [/^\/about$/, viewAbout],
   ];
@@ -244,10 +245,10 @@
       </div>
 
       <div class="grid g2" style="margin-top:16px">
-        <div class="panel"><h2>الأكثر طرقًا في الكتب التسعة</h2>
+        <div class="panel"><h2>الأكثر طرقًا في الكتب التسعة</h2><p class="small" style="margin:0 0 6px"><a href="#/turuq">الترتيب الكامل بالفلاتر ←</a></p>
           <ul class="list">${S.most_turuq.slice(0, 8).map((g) => `<li><div class="meta-line"><span class="tag ok">${fmt(g.n_chains)} إسنادًا</span><span>${fmt(g.n_hadiths)} رواية</span><span>${g.books.map((b) => BOOK[b]).join(" و")}</span></div>
             <a href="#/h/${g.first}" class="snip" style="color:inherit">${esc(g.snippet)}</a></li>`).join("")}</ul></div>
-        <div class="panel"><h2>الأوسع انتشارًا في كتب السنة</h2><p class="muted small">أحاديث الكتب التسعة بحسب عدد رواياتها في تخريج برنامج الجامع</p>
+        <div class="panel"><h2>الأوسع انتشارًا في كتب السنة</h2><p class="muted small">أحاديث الكتب التسعة بحسب عدد رواياتها في تخريج برنامج الجامع · <a href="#/turuq?s=w">الترتيب الكامل ←</a></p>
           <ul class="list">${S.widest.slice(0, 8).map((g) => `<li><div class="meta-line"><span class="tag ok">${fmt(g.n_hadith)} رواية</span><span>في ${fmt(g.n_books)} كتابًا</span>${g.n_shawahid ? `<span>وله شواهد عن ${fmt(g.n_shawahid)} صحابيًا</span>` : ""}</div>
             <a href="#/h/${g.first}" class="snip" style="color:inherit">${esc(g.snippet)}</a></li>`).join("")}</ul></div>
       </div>
@@ -992,6 +993,98 @@
   const EXPLORE_DEFAULT = { b: "", m: "u", t: "", c: "", city: "", f: "", g: "", y: "", x: "", n: "20", q: "" };
   const COMPARE_DEFAULT = { ca: "bukhari", cb: "muslim", cm: "u", ct: "", cs: "", cn: "15" };
 
+  // ---------- hadiths ranked by their turuq in the nine books ----------
+  // rows: [lead key, chains, hadiths, book prefixes, madar, companions, Jami' narrations, Jami' books, snippet]
+  const TURUQ_DEFAULT = { s: "c", b: "", x: "", k: "", q: "", n: "50" };
+  const TURUQ_SORT = {
+    c: ["عدد الأسانيد", "مجموع أسانيده في الكتب التسعة", 1, ["إسناد", "إسنادان", "أسانيد", "إسنادًا"]],
+    h: ["عدد المواضع", "مواضعه في الكتب التسعة مع المكرر", 2, ["موضع", "موضعان", "مواضع", "موضعًا"]],
+    p: ["عدد الصحابة", "الصحابة الذين رووه في الكتب التسعة", 5, ["صحابي", "صحابيان", "صحابة", "صحابيًا"]],
+    w: ["الانتشار في كتب السنة", "عدد رواياته في كتب السنة كلها في تخريج برنامج الجامع", 6, ["رواية", "روايتان", "روايات", "رواية"]],
+  };
+  // a number with its counted noun: 1 / 2 / 3–10 / 11+
+  const counted = (n, [one, two, few, many]) => n === 1 ? one : n === 2 ? two : `${fmt(n)} ${n % 100 >= 3 && n % 100 <= 10 ? few : many}`;
+  const TURUQ_PRESETS = [
+    ["الأكثر أسانيد", {}],
+    ["الأكثر صحابة", { s: "p" }],
+    ["الأوسع انتشارًا في كتب السنة", { s: "w" }],
+    ["المخرَّج في الكتب التسعة كلها", { k: "9" }],
+    ["المتفق عليه", { b: "bukhari", y: "muslim" }],
+  ];
+  async function viewTuruq(query) {
+    const R = await getJSON("data/turuq.json");
+    const D = META.directory;
+    const st = { ...TURUQ_DEFAULT, y: "" };
+    for (const [k, v] of new URLSearchParams(query || "")) if (k in st) st[k] = v;
+    const opt = (v, label, cur) => `<option value="${esc(v)}"${v === cur ? " selected" : ""}>${esc(label)}</option>`;
+    const bookSel = (name, first) => `<select name="${name}">${opt("", first, st[name])}${BOOKS.map((b) => opt(b, BOOK[b], st[name])).join("")}</select>`;
+    app.innerHTML = `
+      <div class="section-title" style="margin-top:0"><h1>الأحاديث الأكثر طرقًا</h1><p>ترتيب أحاديث الكتب التسعة بعدد أسانيدها ومواضعها ورواتها من الصحابة</p></div>
+      <div class="panel">
+        <div class="presets" id="tpre">${TURUQ_PRESETS.map(([label], i) => `<button class="btn" data-i="${i}">${esc(label)}</button>`).join("")}</div>
+        <div class="filters" id="tf">
+          <label>الترتيب<select name="s">${Object.entries(TURUQ_SORT).map(([k, [l]]) => opt(k, l, st.s)).join("")}</select></label>
+          <label>مخرَّج في${bookSel("b", "أي كتاب")}</label>
+          <label>وفي${bookSel("y", "—")}</label>
+          <label>وليس في${bookSel("x", "—")}</label>
+          <label>عدد الكتب<select name="k">${opt("", "أي عدد", st.k)}${[2, 3, 4, 5, 6, 7, 8, 9].map((n) => opt(String(n), n === 9 ? "الكتب التسعة كلها" : `${n} كتب فأكثر`, st.k)).join("")}</select></label>
+          <label>العدد<select name="n">${["20", "50", "100", "200", "500"].map((n) => opt(n, `أول ${n}`, st.n)).join("")}</select></label>
+          <label class="grow">في المتن أو المدار<input name="q" type="search" value="${esc(st.q)}" placeholder="كلمة من المتن أو اسم المدار…"></label>
+        </div>
+        <h2 id="ttitle">الأحاديث الأكثر طرقًا</h2>
+        <div class="xbar"><p class="muted small" id="tnote"></p>
+          <button class="btn" id="treset">إعادة الضبط</button><button class="btn" id="tcopy">نسخ رابط هذا الترتيب</button></div>
+        <ol class="rank hrank" id="tl"></ol>
+        <p class="muted small">الأسانيد والمواضع بحسب روابط التخريج في برنامج الجامع بين الكتب التسعة، فالعدّ آلي تقريبي. و«المدار» الراوي الذي تلتقي عنده أكثر طرق الحديث ثم تتفرع عنه.</p>
+      </div>`;
+
+    const render = () => {
+      const [label, note, col] = TURUQ_SORT[st.s] || TURUQ_SORT.c;
+      const nq = norm(st.q), has = (r, b) => b && r[3].includes(PREFIX[b]);
+      const rows = R.filter((r) => (!st.b || has(r, st.b)) && (!st.y || has(r, st.y)) && !(st.x && has(r, st.x)) &&
+        (!st.k || r[3].length >= +st.k) && (!nq || norm(r[8]).includes(nq) || (D[r[4]] && norm(D[r[4]][0]).includes(nq))))
+        .sort((a, b) => b[col] - a[col] || b[1] - a[1]);
+      const shown = rows.slice(0, +st.n || 50), max = shown.length ? shown[0][col] : 1;
+      const preset = TURUQ_PRESETS.find(([, p]) => Object.keys(st).every((k) => k === "n" || (p[k] || TURUQ_DEFAULT[k] || "") === st[k]));
+      $("#ttitle").textContent = preset ? preset[0] : "ترتيب الأحاديث";
+      for (const b of document.querySelectorAll("#tpre button")) b.classList.toggle("on", !!preset && TURUQ_PRESETS[+b.dataset.i] === preset);
+      $("#tnote").textContent = `${fmt(rows.length)} حديثًا مطابقًا · مرتبة بـ${label}: ${note}`;
+      $("#tl").innerHTML = shown.map((r, i) => {
+        const m = D[r[4]];
+        return `<li><div class="row"><span class="rk">${i + 1}</span>
+          <a href="#/h/${r[0]}" class="snip">${esc(r[8])}</a><span class="num" title="${label}">${fmt(r[col])}</span>
+          <span class="bar"><span style="width:${(100 * r[col]) / max}%"></span></span>
+          <div class="meta-line"><a href="#/h/${r[0]}">${hkey(r[0])}</a><span>${counted(r[1], TURUQ_SORT.c[3])}</span><span>${counted(r[2], TURUQ_SORT.h[3])}</span>
+            ${r[5] ? `<span>${counted(r[5], TURUQ_SORT.p[3])}</span>` : ""}
+            ${m ? `<span>المدار: <a href="#/n/${encodeURIComponent(r[4])}" class="cls-${m[1]}">${esc(shortName(m[0]))}</a></span>` : ""}
+            ${r[6] ? `<span title="في تخريج برنامج الجامع">${counted(r[6], TURUQ_SORT.w[3])} في ${counted(r[7], ["كتاب", "كتابين", "كتب", "كتابًا"])}</span>` : ""}
+            <span class="books">${BOOKS.filter((b) => r[3].includes(PREFIX[b])).map((b) => AUTHOR[b]).join(" · ")}</span></div></div></li>`;
+      }).join("") || '<li class="muted" style="padding:12px 0">لا أحاديث بهذه الفلاتر</li>';
+      const qs = new URLSearchParams(Object.entries(st).filter(([k, v]) => v !== (TURUQ_DEFAULT[k] || ""))).toString();
+      try { history.replaceState(history.state, "", `#/turuq${qs ? "?" + qs : ""}`); } catch (_) {}
+    };
+    const sync = () => { for (const el of document.querySelectorAll("#tf select, #tf input")) el.value = st[el.name]; };
+    let qt = 0;
+    $("#tf").addEventListener("input", (e) => {
+      if (!e.target.name) return;
+      st[e.target.name] = e.target.value;
+      clearTimeout(qt);
+      qt = setTimeout(render, e.target.name === "q" ? 200 : 0);
+    });
+    $("#tpre").addEventListener("click", (e) => {
+      const b = e.target.closest("button");
+      if (!b) return;
+      Object.assign(st, TURUQ_DEFAULT, { y: "", n: st.n }, TURUQ_PRESETS[+b.dataset.i][1]);
+      sync(); render();
+    });
+    $("#treset").addEventListener("click", () => { Object.assign(st, TURUQ_DEFAULT, { y: "" }); sync(); render(); });
+    $("#tcopy").addEventListener("click", async (e) => {
+      try { await navigator.clipboard.writeText(location.href); e.target.textContent = "نُسخ الرابط ✓"; } catch (_) { e.target.textContent = "تعذّر النسخ"; }
+      setTimeout(() => { e.target.textContent = "نسخ رابط هذا الترتيب"; }, 1800);
+    });
+    render();
+  }
+
   async function viewExplore(query) {
     const X = await getJSON("data/explore.json");
     const D = META.directory;
@@ -1016,7 +1109,7 @@
     };
 
     app.innerHTML = `
-      <div class="section-title" style="margin-top:0"><h1>الإحصاءات</h1><p>استكشف الكتب التسعة ورواتها بالفلاتر</p></div>
+      <div class="section-title" style="margin-top:0"><h1>الإحصاءات</h1><p>استكشف الكتب التسعة ورواتها بالفلاتر · <a href="#/turuq">ترتيب الأحاديث بعدد طرقها ←</a></p></div>
       <div class="panel">
         <div class="seg xtabs" id="xtabs" role="tablist"><button role="tab" data-g="c">تخصيص</button>${PRESET_GROUPS.map(([title], g) => `<button role="tab" data-g="${g}">${title}</button>`).join("")}</div>
         <div id="xpre">${PRESET_GROUPS.map(([, re], g) => `<div class="presets" data-g="${g}" hidden>${PRESETS.map(([label], i) => (PRESET_GROUPS.find(([, r]) => r.test(label))[1] === re ? `<button class="btn" data-i="${i}">${esc(label)}</button>` : "")).join("")}</div>`).join("")}</div>

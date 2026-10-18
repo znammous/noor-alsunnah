@@ -499,6 +499,18 @@ def main():
     }
     dump(explore, SITE_DATA / "explore.json")
 
+    # ---------- hadith ranking by turuq: every distinct set of parallels with more than one chain ----------
+    # [first key, chains, hadiths, book prefixes, madar, companions, Jami' narrations, Jami' books, snippet]
+    turuq = sorted((h for h in reps if h["set"]["n_chains"] > 1), key=lambda h: -h["set"]["n_chains"])
+    # each set is shown at its place in the earliest book (al-Bukhari first, then Muslim, ...)
+    lead = lambda h: min([h["k"]] + h["rel"], key=lambda k: (BOOK_ORDER[hadiths[k]["book"]], int(hadiths[k]["num"])))
+    # overlapping sets often share their lead hadith: keep the one with the most chains
+    seen_lead = set()
+    turuq = [h for h in turuq if lead(h) not in seen_lead and not seen_lead.add(lead(h))]
+    dump([[lead(h), h["set"]["n_chains"], 1 + len(h["rel"]), "".join(BOOKS[b][0] for b in h["set"]["books"]),
+           h["set"]["madar"] or "", len(h["set"]["companions"]), h["spread"]["n_hadith"], h["spread"]["n_books"],
+           snippet(hadiths[lead(h)], 90)] for h in turuq], SITE_DATA / "turuq.json")
+
     index = {k: [h["kitab"], h["g"], h["label"]] for k, h in hadiths.items()}
     alias = {f"{BOOKS[h['book']][0]}{a}": k for k, h in hadiths.items() for a in h["aliases"]
              if f"{BOOKS[h['book']][0]}{a}" not in hadiths}
