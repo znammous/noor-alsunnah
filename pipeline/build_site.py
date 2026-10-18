@@ -375,10 +375,45 @@ def main():
                     parent[find(k)] = find(r)
         return {k: find(k) for k in keys}
 
+    # Ibn Hajar's «مقبول» is «accepted where followed»: for the narrators graded below صدوق, how each of
+    # their hadiths stands in the program's chains. [code, the other narrator, the hadith that shows it]
+    # q مقرون: named with another narrator between the same teacher and student in the same isnad
+    # t متابعة تامة: someone else narrates it from his teacher; s متابعة قاصرة: it reaches his companion
+    # by another route; h شاهد: another companion narrates it; f: no other route in the program
+    def follow_up(nid, k):
+        h = hadiths[k]
+        others = [(r, c) for r in sorted([k] + h["rel"], key=lambda r: (r != k, BOOK_ORDER[hadiths[r]["book"]], key_num(r)))
+                  for c in hadiths[r]["chains"] if nid not in c["ids"]]
+        full = lambda r, c: [PROPHET] + c["ids"] + ([] if c.get("z") else [COMPILER[hadiths[r]["book"]]])
+        best = None
+        for c in h["chains"]:
+            if nid not in c["ids"]:
+                continue
+            f = full(k, c)
+            i = f.index(nid)
+            t, s, top = f[i - 1], f[i + 1] if i + 1 < len(f) else None, c["ids"][0]
+            for r, o in others:
+                g = full(r, o)
+                if r == k and s and any(g[j] == t and g[j + 2] == s for j in range(len(g) - 2)):
+                    cand = ("q", g[g.index(t) + 1], r)
+                elif t != PROPHET and t in g and g.index(t) + 1 < len(g):
+                    cand = ("t", g[g.index(t) + 1], r)
+                elif narr[top]["cls"] == "sahabi" and o["ids"][0] == top and top != nid:
+                    cand = ("s", "", r)
+                elif narr[o["ids"][0]]["cls"] == "sahabi" and o["ids"][0] != top:
+                    cand = ("h", o["ids"][0], r)
+                else:
+                    continue
+                if not best or "qtsh".index(cand[0]) < "qtsh".index(best[0]):
+                    best = cand
+        return list(best) if best else ["f", "", ""]
+
     for nid, n in narr.items():
         per_book = in_book[nid]
         if not any(per_book.values()) or n.get("unlinked"):
             continue
+        if n["cls"] in ("maqbul", "weak"):
+            n["follow"] = {k: follow_up(nid, k) for b in BOOKS for k in per_book[b]}
         # a compiler's own book is his page's business, not a measure of how much he narrates
         counted = [b for b in BOOKS if own_book.get(nid) != b]
         uniq, dup = [], []

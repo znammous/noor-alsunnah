@@ -34,6 +34,49 @@
     nabi: "النبي ﷺ", sahabi: "صحابي", thiqa: "ثقة", saduq: "صدوق", maqbul: "مقبول / مجهول الحال",
     weak: "تُكلِّم فيه", unknown: "لم تتوفر رتبته", imam: "صاحب الكتاب", taliq: "موضع تعليق", mubham: "مبهم",
   };
+  // Ibn Hajar's twelve ranks, in his words from the introduction of «تقريب التهذيب»
+  const RANKS = [
+    ["الصحابة", "الصحابة، فأُصرّح بذلك لشرفهم.", "لا يُبحث عن عدالة الصحابي؛ فالصحابة كلهم عدول عند أهل السنة."],
+    ["من أُكِّد مدحه", "من أُكِّد مدحه: إما بأفعل كأوثق الناس، أو بتكرير الصفة لفظًا كثقة ثقة، أو معنًى كثقة حافظ.", "أعلى درجات القبول بعد الصحابة، وحديثه صحيح."],
+    ["ثقة", "من أُفرد بصفة، كثقة أو متقن أو ثبت أو عدل.", "حديثه صحيح."],
+    ["صدوق", "من قصر عن درجة الثالثة قليلًا، وإليه الإشارة بصدوق، أو لا بأس به، أو ليس به بأس.", "عدل لكن ضبطه دون ضبط الثقة، وحديثه حسن في الجملة."],
+    ["صدوق يهم", "من قصر عن الرابعة قليلًا، وإليه الإشارة بصدوق سيئ الحفظ، أو صدوق يهم، أو له أوهام، أو يخطئ، أو تغيّر بأخرة. ويلتحق بذلك من رُمي بنوع من البدعة كالتشيع والقدر والنصب والإرجاء والتجهم، مع بيان الداعية من غيره.", "يُحتجّ به فيما لم يُخطئ فيه، ويُنظر في حديثه عند التفرد والمخالفة."],
+    ["مقبول", "من ليس له من الحديث إلا القليل، ولم يثبت فيه ما يُترك حديثه من أجله، وإليه الإشارة بلفظ: مقبول حيث يُتابَع، وإلا فليّن الحديث.", "ليس طعنًا فيه، بل لقلة حديثه وعدم وقوف ابن حجر على توثيق معتبر له: فإذا وافقه غيره قُبل حديثه، وإذا تفرّد كان ليّنًا. وقد خالفه بعض المتأخرين في كثير ممن روى لهم الشيخان، فعدّوا إخراجهما لهم توثيقًا."],
+    ["مستور / مجهول الحال", "من روى عنه أكثر من واحد ولم يُوثَّق، وإليه الإشارة بلفظ مستور أو مجهول الحال.", "عُرفت عينه برواية اثنين فأكثر عنه، ولم تُعرف حاله في الضبط والعدالة."],
+    ["ضعيف", "من لم يوجد فيه توثيق لمعتبر، ووُجد فيه إطلاق الضعف ولو لم يُفسَّر، وإليه الإشارة بلفظ ضعيف.", "لا يُحتجّ به منفردًا، ويُعتبر به في المتابعات والشواهد."],
+    ["مجهول", "من لم يرو عنه غير واحد ولم يُوثَّق، وإليه الإشارة بلفظ مجهول.", "مجهول العين: لم يرو عنه إلا راوٍ واحد."],
+    ["متروك", "من لم يُوثَّق البتة، وضُعِّف مع ذلك بقادح، وإليه الإشارة بمتروك، أو متروك الحديث، أو واهي الحديث، أو ساقط.", "شديد الضعف، لا يُعتبر به ولا يتقوّى حديثه بغيره."],
+    ["متهم بالكذب", "من اتُّهم بالكذب.", "حديثه في غاية الضعف."],
+    ["كذاب / وضّاع", "من أُطلق عليه اسم الكذب والوضع.", "حديثه موضوع."],
+  ];
+  // the rank (1-12) of a verdict as Ibn Hajar words it; its first clause decides
+  function rankLevel(rank, cls) {
+    if (cls === "sahabi") return 1;
+    const t = norm(rank || ""), head = norm(String(rank || "").split(/[،,؛]/)[0]).split(/ الا | لكن /)[0];
+    const RULES = [[12, /كذاب|وضاع|يضع الحديث|كذبوه|تكذيبه/], [11, /متهم|رمي بالوضع|اتهم/], [10, /متروك|تركوه|واه|ساقط/],
+      [9, /مجهول(?! الحال)|^(و?لا (يعرف|تعرف))$/], [7, /مستور|مجهول الحال|لا (يعرف|تعرف) حال/],
+      [5, /صدوق.*(يهم|يخطي|اوهام|سيي الحفظ|تغير|اختلط|رمي|يدلس|يتشيع|خطا|لين)/], [6, /مقبول|لين/],
+      [8, /ضعيف|ضعف|ليس بالقوي|منكر الحديث/], [4, /صدوق|لا باس به|ليس به باس/],
+      [2, /اوثق|ثقه ثقه|ثقه (حافظ|ثبت|متقن|حجه|امام)|ثبت حجه|حافظ (حجه|ثبت)|امام حافظ|امير المومنين في الحديث|مجمع علي ثقته|احد الحفاظ/],
+      [3, /ثقه|ثبت|متقن|عدل|حافظ|امام/]];
+    for (const scope of [head, t]) for (const [lv, re] of RULES) if (re.test(scope)) {
+      // «ثقة، حافظ»: the praise doubled after the first clause still makes the second rank
+      return lv === 3 && RULES[9][1].test(t) ? 2 : lv;
+    }
+    return 0;
+  }
+
+  // terms the narrator pages and the follow-up notes use
+  const TERMS = {
+    mutabaa: ["المتابعة", "أن يوافق راوٍ غيرَه في رواية الحديث نفسه. فإن رواه غيره عن شيخه نفسه فهي «متابعة تامة»، وإن رواه غيره عن شيخ أعلى منه في الإسناد (كشيخ شيخه أو الصحابي) فهي «متابعة قاصرة». والمتابعة تدل على أن الراوي لم ينفرد بالحديث ولم يخطئ فيه، ولذلك قال ابن حجر في المقبول: «حيث يُتابَع»."],
+    shahid: ["الشاهد", "أن يُروى معنى الحديث عن صحابي آخر. فالمتابعة تكون في الرواة دون الصحابي، والشاهد يكون بتعدد الصحابي."],
+    maqrun: ["المقرون", "أن يذكر المصنف الراوي مع غيره في موضع واحد من الإسناد: «حدثنا فلان وفلان قالا…». فلا يكون الحديث معتمدًا عليه وحده، والشيخان يفعلان ذلك كثيرًا مع من دون الثقة."],
+    usul: ["الأصول والمتابعات", "يقدّم الشيخان في الباب الإسنادَ الذي يعتمدانه (الأصل)، ثم يذكران بعده طرقًا أخرى للحديث نفسه تقويةً وبيانًا (المتابعات والشواهد). ويتساهلان في رجال المتابعات ما لا يتساهلان في رجال الأصول، ولذلك يقع فيها من هو دون الثقة."],
+    fard: ["التفرد", "أن ينفرد الراوي بالحديث فلا يرويه غيره. وتفرد من دون الثقة موضع نظر، وإخراج الشيخين له قد يكون لأنهما عرفا من حاله أو من الحديث ما لم يذكره غيرهما."],
+    tadlis: ["التدليس", "أن يروي الراوي عمن لقيه ما لم يسمعه منه بلفظ يوهم السماع، كـ«عن» و«قال». فلا يُقبل من المدلس إلا ما صرّح فيه بالسماع («حدثنا»، «سمعت»)، وما في الصحيحين من عنعنة المدلسين محمول على ثبوت السماع من طريق أخرى."],
+    ikhtilat: ["الاختلاط", "أن يسوء حفظ الراوي في آخر عمره لكبر أو مرض أو ذهاب كتب. فيُقبل منه ما رواه قبل الاختلاط ويُردّ ما بعده، وأهل العلم يميّزون من سمع منه قديمًا ممن سمع منه بعد اختلاطه."],
+  };
+  const termLink = (k) => `<a href="#/terms" title="${esc(TERMS[k][1])}">${TERMS[k][0]}</a>`;
   // chains are described by the weakest Ibn Hajar grade among their narrators (not a verdict on the hadith)
   const CHAIN_LABEL = { thiqat: ["رجاله ثقات", "ok"], saduq: ["فيه من قيل فيه: صدوق", "mid"], mutakallam: ["فيه من تُكلِّم فيه", "low"], unknown: ["فيه من لم تُذكر رتبته", ""] };
   const SPECIAL = new Set(["nabi", ...BOOKS]);
@@ -130,9 +173,9 @@
     return `<div class="panel kpi"><div class="v">${fmt(v)}</div><div class="l">${l}</div><div class="s">${s}</div></div>`;
   }
   // the top menu's sections and the pages under each, shown as tabs at the top of the page
-  const NAV_OF = { home: /^\/$/, books: /^\/book/, narrators: /^\/(narrators|explore|compare|n\/)/, hadiths: /^\/(turuq|awali|h\/)/, isnads: /^\/(chains|isnads)/, about: /^\/(about|tools)/ };
+  const NAV_OF = { home: /^\/$/, books: /^\/book/, narrators: /^\/(narrators|explore|compare|terms|n\/)/, hadiths: /^\/(turuq|awali|h\/)/, isnads: /^\/(chains|isnads)/, about: /^\/(about|tools)/ };
   const SUBNAV = {
-    narrators: [["narrators", "فهرس الرواة"], ["explore", "ترتيب الرواة"], ["compare", "مقارنة الكتب"]],
+    narrators: [["narrators", "فهرس الرواة"], ["explore", "ترتيب الرواة"], ["compare", "مقارنة الكتب"], ["terms", "مراتب الرواة"]],
     hadiths: [["turuq", "ترتيب الأحاديث"], ["awali", "الثلاثيات وعوالي الأسانيد"]],
     isnads: [["chains", "رجال الأسانيد"], ["isnads", "أشهر الأسانيد وأطوالها"]],
   };
@@ -176,6 +219,7 @@
     [/^\/awali(?:\?(.*))?$/, viewAwali],
     [/^\/chains(?:\?(.*))?$/, viewChains],
     [/^\/search\/(.*)$/, viewSearch],
+    [/^\/terms$/, viewTerms],
     [/^\/about$/, viewAbout],
   ];
   // each history entry remembers its own scroll, so «back» returns to where the reader left off
@@ -935,13 +979,14 @@
       <div class="grid g2">
         <div class="panel"><h2>الترجمة</h2>
           ${n.rank || n.rank_dhahabi ? `<div class="verdicts">
-            ${n.rank ? `<blockquote><cite>رتبته عند ابن حجر</cite>${esc(n.rank)}</blockquote>` : ""}
+            ${n.rank ? `<blockquote><cite>رتبته عند ابن حجر</cite>${esc(n.rank)}${rankNote(n)}</blockquote>` : ""}
             ${n.rank_dhahabi ? `<blockquote><cite>رتبته عند الذهبي</cite>${esc(n.rank_dhahabi)}</blockquote>` : ""}</div>` : ""}
           <dl class="facts">${facts.map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join("")}</dl>
         </div>
         <div class="panel"><h2>شبكة الراوي</h2><p class="muted small">أبرز شيوخه (يمينًا) وتلاميذه (يسارًا) في الكتب التسعة — اضغط الاسم للانتقال، والسهم لعرض أحاديث الطريق</p>${graphBox('<div id="ego"></div>')}
           <div class="legend">${["nabi", "sahabi", "thiqa", "saduq", "maqbul", "weak", "unknown"].map((c) => `<span class="cls-${c}"><i style="background:var(--c)"></i>${CLS_LABEL[c]}</span>`).join("")}<span class="muted">سُمك الخط = عدد الأسانيد</span></div></div>
       </div>
+      ${followPanel(n, name)}
       <div class="grid g2" style="margin-top:16px">
         <div class="panel"><h2>روى عن</h2><p class="muted small">مع عدد الأسانيد في الكتب التسعة — اضغط العدد لعرض الأحاديث</p><div class="chain" id="rel-t">${rel(n.teachers || [], "t") || '<span class="muted">—</span>'}</div></div>
         <div class="panel"><h2>روى عنه</h2><p class="muted small">مع عدد الأسانيد في الكتب التسعة — اضغط العدد لعرض الأحاديث</p><div class="chain" id="rel-s">${rel(n.students || [], "s") || '<span class="muted">—</span>'}</div></div>
@@ -987,6 +1032,60 @@
       $("#hlist").scrollIntoView({ behavior: "smooth" });
     }));
     app.querySelectorAll(".link-n").forEach((b) => b.addEventListener("click", () => pickEdge(b.dataset.dir, b.dataset.x)));
+  }
+
+  // what Ibn Hajar's word means: his rank among the twelve, and the notes on tadlis and ikhtilat
+  function rankNote(n) {
+    const lv = rankLevel(n.rank, n.cls);
+    const parts = lv ? [`<b>المرتبة ${["الأولى", "الثانية", "الثالثة", "الرابعة", "الخامسة", "السادسة", "السابعة", "الثامنة", "التاسعة", "العاشرة", "الحادية عشرة", "الثانية عشرة"][lv - 1]} من مراتب «التقريب» (${RANKS[lv - 1][0]}):</b> ${esc(RANKS[lv - 1][2])}`] : [];
+    if (n.tadlis) parts.push(`<b>${TERMS.tadlis[0]}:</b> ${esc(TERMS.tadlis[1])}`);
+    if (n.ikhtilat) parts.push(`<b>${TERMS.ikhtilat[0]}:</b> ${esc(TERMS.ikhtilat[1])}`);
+    return parts.length ? `<div class="rank-note">${parts.map((p) => `<p>${p}</p>`).join("")}<a href="#/terms">مراتب الرواة ومصطلحاتها ←</a></div>` : "";
+  }
+
+  // for the narrators below صدوق: does another route carry each of his hadiths (pipeline follow_up)?
+  const FOLLOW = {
+    q: ["مقرون بغيره", "maqrun"], t: ["متابعة تامة", "mutabaa"], s: ["متابعة قاصرة", "mutabaa"],
+    h: ["له شاهد", "shahid"], f: ["لم نجد له طريقًا آخر", "fard"],
+  };
+  function followPanel(n, name) {
+    const F = n.follow;
+    if (!F) return "";
+    const books = BOOKS.filter((b) => (n.hadiths || {})[b]);
+    const count = (code, b) => (b ? n.hadiths[b] : Object.keys(F)).filter((k) => F[k] && F[k][0] === code).length;
+    const label = (x) => esc(shortName(x.startsWith("u:") ? x.slice(2) : name(x)));
+    const row = (k) => {
+      const [code, x, r] = F[k] || ["f", "", ""];
+      const who = x && code !== "s" ? (META.directory[x] ? `<a href="#/n/${encodeURIComponent(x)}">${label(x)}</a>` : label(x)) : "";
+      const what = { q: `قرنه بـ${who}`, t: `تابعه ${who}`, s: "رُوي عن صحابيّه من طريق أخرى", h: `شاهده من حديث ${who}`, f: "" }[code];
+      const where = r && r !== k ? ` <span class="muted">في</span> <a href="#/h/${r}">${hkey(r)}</a>` : r ? ' <span class="muted">في الحديث نفسه</span>' : "";
+      return `<li><a href="#/h/${k}">${hkey(k)}</a> <span class="fw fw-${code}">${FOLLOW[code][0]}</span> ${what}${what ? where : ""}</li>`;
+    };
+    const intro = n.cls === "maqbul"
+      ? `قال ابن حجر في «المقبول»: «مقبول حيث يُتابَع، وإلا فليّن الحديث». فالسؤال في كل حديث له: هل وافقه غيره؟`
+      : "من تُكلِّم فيه يُعتبر بحديثه إذا وافقه غيره، ويُتوقّف فيما تفرّد به.";
+    const summary = (b) => Object.keys(FOLLOW).map((c) => [c, count(c, b)]).filter(([, v]) => v)
+      .map(([c, v]) => `<span class="fw fw-${c}">${FOLLOW[c][0]}: <b>${fmt(v)}</b></span>`).join(" ");
+    return `<div class="panel follow" style="margin-top:16px"><h2>هل تُوبع على أحاديثه؟</h2>
+      <p>${intro}</p>
+      <p class="small">${summary()}</p>
+      ${books.map((b) => `<details${SAHIHAYN.has(b) || books.length === 1 ? " open" : ""}><summary>${AUTHOR[b]} — ${fmt(n.hadiths[b].length)} · ${summary(b)}</summary>
+        <ul>${n.hadiths[b].slice(0, 300).map(row).join("")}</ul>${n.hadiths[b].length > 300 ? `<p class="muted small">أول 300 موضع من ${fmt(n.hadiths[b].length)}</p>` : ""}</details>`).join("")}
+      <p class="muted small">آلي تقريبي: يُبحث في أسانيد الحديث نفسه وما ربطه به برنامج الجامع من رواياته في الكتب التسعة فقط، فقد تكون له متابعة أو شاهد خارجها. ومعاني المصطلحات: ${["mutabaa", "shahid", "maqrun", "usul"].map(termLink).join("، ")}.</p>
+    </div>`;
+  }
+
+  function viewTerms() {
+    app.innerHTML = `${subnav("narrators", "terms")}<div class="panel terms" style="max-width:860px">
+      <h1>مراتب الرواة ومصطلحاتها</h1>
+      <p>رتب الرواة المعروضة في الموقع هي ألفاظ الحافظ ابن حجر في «تقريب التهذيب». وقد قسّم الرواة في مقدمته اثنتي عشرة مرتبة، هذا نصه فيها مع بيان مختصر:</p>
+      <ol class="ranks">${RANKS.map(([t, def, note]) => `<li><h3>${t}</h3><blockquote>${esc(def)}</blockquote><p>${esc(note)}</p></li>`).join("")}</ol>
+      <p class="muted small">ألوان الرواة في الشجرات: الثقة للمرتبتين الثانية والثالثة، والصدوق للرابعة والخامسة، و«مقبول / مجهول الحال» للسادسة والسابعة، و«تُكلِّم فيه» لما بعدها.</p>
+      <h2>مصطلحات الأسانيد</h2>
+      <dl class="facts terms-dl">${Object.values(TERMS).map(([t, d]) => `<dt>${t}</dt><dd>${esc(d)}</dd>`).join("")}</dl>
+      <h2>لماذا يروي الشيخان عمن دون الثقة؟</h2>
+      <p>أحاديث الصحيحين صحيحة بحكم الشيخين وتلقي الأمة لهما بالقبول. ورواية الشيخين عمن قيل فيه «مقبول» أو تُكلِّم فيه تكون غالبًا في المتابعات والشواهد، أو مقرونًا بغيره، أو مما انتقياه من صحيح حديثه. وقد عقد ابن حجر في «هدي الساري» مقدمة «فتح الباري» فصلًا لمن تُكلِّم فيه من رجال البخاري، يذكر فيه وجه إخراجه له. وفي صفحة كل راوٍ من هؤلاء بيانٌ آلي لموقع كل حديث له: هل تُوبع عليه أو له شاهد أو انفرد به.</p>
+    </div>`;
   }
 
   async function renderNarratorHadiths(n, page, book = "", only = null, skip = null) {
