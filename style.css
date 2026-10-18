@@ -177,7 +177,8 @@ h1 { font-size: 1.6rem; } h2 { font-size: 1.2rem; } h3 { font-size: 1rem; }
 .seg button.on { background: var(--accent); color: var(--accent-ink); }
 .section-title .seg, .tree-tools .seg { max-width: 100%; overflow-x: auto; }
 .seg button { flex: none; }
-.btn { border: 1px solid var(--line); background: var(--panel); color: var(--ink); padding: 6px 12px; border-radius: 9px; font: inherit; font-size: .88rem; cursor: pointer; }
+.btn { border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line)); background: var(--panel-2); color: var(--accent); padding: 6px 12px; border-radius: 9px; font: inherit; font-size: .88rem; font-weight: 600; cursor: pointer; transition: background .15s, color .15s, border-color .15s; }
+.btn:hover { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 .side { position: sticky; top: 76px; }
 .side .empty { color: var(--muted); font-size: .9rem; }
 .facts { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: .9rem; margin: 10px 0; }
@@ -243,8 +244,8 @@ mark { background: color-mix(in srgb, var(--gold) 30%, transparent); color: inhe
 #ego { width: 100%; height: 420px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
 .graph-box { position: relative; }
 .graph-ctl { position: absolute; top: 10px; inset-inline-start: 10px; display: flex; flex-direction: column; gap: 4px; z-index: 2; }
-.graph-ctl button { width: 32px; height: 32px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel-2); color: var(--ink); font: inherit; font-size: 1.05rem; line-height: 1; cursor: pointer; }
-.graph-ctl button:hover { border-color: var(--accent); color: var(--accent); }
+.graph-ctl button { width: 32px; height: 32px; border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line)); border-radius: 8px; background: var(--panel-2); color: var(--ink); font: inherit; font-size: 1.05rem; line-height: 1; cursor: pointer; }
+.graph-ctl button:hover { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 .graph-ctl button svg { display: block; margin: auto; }
 .graph-ctl button.done { border-color: var(--gold); color: var(--gold); }
 .graph-box:fullscreen { background: var(--bg); padding: 12px; }
