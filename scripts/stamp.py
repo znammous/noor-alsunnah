@@ -17,7 +17,7 @@ for p in sorted(SITE.rglob("*")):
         h.update(p.read_bytes())
 v = h.hexdigest()[:10]
 
-ASSET = re.compile(r'((?:href|src)="|")(style\.css|landing\.css|app\.js|app\.html|data/stats\.json)(\?v=\w+)?')
+ASSET = re.compile(r'((?:href|src)="|")(style\.css|landing\.css|app\.js|install\.js|app\.html|data/stats\.json)(\?v=\w+)?')
 for name in ("app.html", "index.html"):
     page = SITE / name
     text = ASSET.sub(lambda m: f"{m[1]}{m[2]}?v={v}", page.read_text(encoding="utf-8"))

@@ -1,13 +1,13 @@
 // Service worker: makes «نور السنة» installable and keeps what the reader has opened available offline.
 // V is stamped by scripts/stamp.py on every publish; a new V drops the previous version's caches.
-const V = "86dfb9fdc9";
+const V = "bfe366c0e0";
 const SHELL = `shell-${V}`, DATA = `data-${V}`, FONTS = "fonts";
 const PRECACHE = [
   "./", "index.html", "app.html", "manifest.webmanifest",
   `style.css?v=${V}`, `landing.css?v=${V}`, `app.js?v=${V}`,
   `data/meta.json?v=${V}`, `data/stats.json?v=${V}`,
   "vendor/cytoscape.min.js", "vendor/dagre.min.js", "vendor/cytoscape-dagre.js",
-  "icons/icon-192.png", "icons/apple-touch-icon.png",
+  `install.js?v=${V}`, "icons/icon-192.png", "icons/apple-touch-icon.png",
 ];
 
 self.addEventListener("install", (e) => {
