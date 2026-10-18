@@ -470,7 +470,6 @@
             </div>
             ${G.books.length > 1 ? `<div class="seg" id="bookf"><button data-v="" class="on">الكل</button>${BOOKS.filter((b) => G.books.includes(b)).map((b) => `<button data-v="${PREFIX[b]}">${AUTHOR[b]}</button>`).join("")}</div>` : ""}
             <button class="btn" id="fit">ملاءمة العرض</button>
-            <button class="btn" id="png">حفظ صورة</button>
             <a class="btn" href="${mailto(`نور السنة: ملاحظة على ${hkey(key)}`)}">أبلغ عن خطأ</a>
           </div>
           ${graphBox('<div id="tree" role="img" aria-label="شجرة الرواة"></div>')}
@@ -542,14 +541,7 @@
     $("#scope")?.addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; scope = b.dataset.v; setSeg("#scope", b); draw(); });
     $("#bookf")?.addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; bookFilter = b.dataset.v; setSeg("#bookf", b); draw(); });
     $("#fit").addEventListener("click", () => cy && cy.fit(undefined, 16));
-    graphTools($("#tree"), () => cy, () => readable(cy, "nabi"));
-    $("#png").addEventListener("click", () => {
-      if (!cy) return;
-      const a = document.createElement("a");
-      a.href = cy.png({ full: true, scale: 2, bg: getComputedStyle(document.body).backgroundColor });
-      a.download = `isnad-${key}.png`;
-      a.click();
-    });
+    graphTools($("#tree"), () => cy, () => readable(cy, "nabi"), "شجرة إسناد " + hkey(key), `isnad-${key}`);
   }
 
   // A valid number the current data export lacks: send the reader to the official program.
@@ -671,19 +663,54 @@
 
   // zoom buttons + a hint over a graph; the mouse wheel scrolls the page unless Ctrl/⌘ is held (pinch sends ctrlKey)
   const graphBox = (inner) => `<div class="graph-box">${inner}
-    <div class="graph-ctl"><button data-z="in" title="تكبير" aria-label="تكبير">+</button><button data-z="out" title="تصغير" aria-label="تصغير">−</button><button data-z="reset" title="العودة إلى الشكل الأصلي" aria-label="العودة إلى الشكل الأصلي">⟲</button><button data-z="full" title="ملء الشاشة" aria-label="ملء الشاشة">⛶</button></div>
+    <div class="graph-ctl"><button data-z="in" title="تكبير" aria-label="تكبير">+</button><button data-z="out" title="تصغير" aria-label="تصغير">−</button><button data-z="reset" title="العودة إلى الشكل الأصلي" aria-label="العودة إلى الشكل الأصلي">⟲</button><button data-z="full" title="ملء الشاشة" aria-label="ملء الشاشة">⛶</button><button data-z="shot" title="لقطة: حفظ صورة الشجرة" aria-label="حفظ صورة الشجرة"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg></button><button data-z="share" title="مشاركة الصورة والرابط" aria-label="مشاركة"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path d="M8.2 10.8l7.6-4.4M8.2 13.2l7.6 4.4"/></svg></button></div>
     <p class="graph-hint">تفاعلي: اسحب للتحريك، وكبّر بالأزرار أو بالعجلة مع <bdi>Ctrl</bdi>، و⟲ يعيد الشكل الأصلي</p></div>`;
-  function graphTools(el, get, reset) {
+  // the whole graph as a PNG blob, with a caption bar (site name + what it shows) under it
+  async function graphPNG(c, caption) {
+    const bg = getComputedStyle(document.body).backgroundColor;
+    const img = new Image();
+    img.src = c.png({ full: true, scale: 2, bg, maxWidth: 6000, maxHeight: 6000 });
+    await img.decode();
+    const bar = 64, cv = document.createElement("canvas");
+    cv.width = Math.max(img.width, 900); cv.height = img.height + bar;
+    const g = cv.getContext("2d");
+    g.fillStyle = bg; g.fillRect(0, 0, cv.width, cv.height);
+    g.drawImage(img, (cv.width - img.width) / 2, 0);
+    g.fillStyle = css("--line"); g.fillRect(0, img.height, cv.width, 2);
+    g.direction = "rtl"; g.textBaseline = "middle"; g.font = "700 26px Tajawal, -apple-system, sans-serif";
+    g.fillStyle = css("--gold"); g.textAlign = "right"; g.fillText("نور السنة", cv.width - 24, img.height + bar / 2);
+    g.font = "22px Tajawal, -apple-system, sans-serif"; g.fillStyle = css("--ink");
+    g.textAlign = "center"; g.fillText(caption, cv.width / 2, img.height + bar / 2);
+    g.fillStyle = css("--muted"); g.textAlign = "left"; g.direction = "ltr"; g.fillText(location.host, 24, img.height + bar / 2);
+    return new Promise((ok) => cv.toBlob(ok, "image/png"));
+  }
+  function graphTools(el, get, reset, caption, file) {
     const box = el.parentElement, hint = $(".graph-hint", box);
     let t = null;
     box.addEventListener("click", (e) => {
       const b = e.target.closest("[data-z]"), c = get();
       if (!b || !c) return;
       if (b.dataset.z === "reset") return reset();
+      if (b.dataset.z === "shot" || b.dataset.z === "share") return shareGraph(b, c, b.dataset.z === "share");
       if (b.dataset.z === "full") return document.fullscreenElement ? document.exitFullscreen() : (box.requestFullscreen || box.webkitRequestFullscreen).call(box);
       const center = { x: c.width() / 2, y: c.height() / 2 };
       c.animate({ zoom: { level: c.zoom() * (b.dataset.z === "in" ? 1.3 : 1 / 1.3), renderedPosition: center } }, { duration: 150 });
     });
+    // save the image; or share it with the link (system share sheet), falling back to saving + copying the link
+    async function shareGraph(b, c, share) {
+      const flash = (t) => { b.title = t; b.classList.add("done"); setTimeout(() => { b.classList.remove("done"); b.title = share ? "مشاركة الصورة والرابط" : "لقطة: حفظ صورة الشجرة"; }, 1800); };
+      const blob = await graphPNG(c, caption), f = new File([blob], file + ".png", { type: "image/png" });
+      const data = { files: [f], title: "نور السنة: " + caption, text: "نور السنة: " + caption + "\n" + location.href };
+      if (share && navigator.canShare && navigator.canShare(data)) {
+        try { await navigator.share(data); } catch (_) { /* cancelled */ }
+        return;
+      }
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob); a.download = f.name; a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+      if (!share) return flash("حُفظت الصورة ✓");
+      try { await navigator.clipboard.writeText(location.href); flash("حُفظت الصورة ونُسخ الرابط ✓"); } catch (_) { flash("حُفظت الصورة"); }
+    }
     // fullscreen: the canvas changes size, so resize and refit; button toggles to "exit"
     box.addEventListener("fullscreenchange", () => {
       const on = document.fullscreenElement === box, fb = $('[data-z="full"]', box), c = get();
@@ -870,7 +897,7 @@
     });
     curves(ego);
     readable(ego, n.id, true);
-    graphTools($("#ego"), () => ego, () => readable(ego, n.id, true));
+    graphTools($("#ego"), () => ego, () => readable(ego, n.id, true), "شبكة " + n.name, `rawi-${n.id}`);
     ego.on("tap", "node", (e) => {
       const ref = e.target.data("ref");
       if (ref && META.directory[ref]) go("#/n/" + encodeURIComponent(ref));
