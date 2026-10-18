@@ -10,7 +10,7 @@
   const PAGE = 40;
   const LOADING = '<div class="loading" role="status" aria-label="جارٍ التحميل"><span class="fill" data-t="نور السنة">نور السنة</span></div>';
   const CONTACT = "zuhair.nammous@gmail.com";
-  const mailto = (subject) => `mailto:${CONTACT}?subject=${encodeURIComponent(subject)}`;
+  const mailto = (subject, body) => `mailto:${CONTACT}?subject=${encodeURIComponent(subject)}${body ? `&body=${encodeURIComponent(body)}` : ""}`;
 
   const BOOKS = ["bukhari", "muslim", "abudawud", "tirmidhi", "nasai", "ibnmajah", "ahmad", "muwatta", "darimi"];
   const BOOK = { bukhari: "صحيح البخاري", muslim: "صحيح مسلم", abudawud: "سنن أبي داود", tirmidhi: "جامع الترمذي", nasai: "سنن النسائي", ibnmajah: "سنن ابن ماجه",
@@ -396,8 +396,12 @@
     return `<div class="panel grades"><h3>أحكام المحدثين على هذا الحديث</h3>
       <div class="verdicts">${h.grades.map(([s, v, page, num]) => {
         const [by, work, book] = src[`${s}:${h.book}`] || [s, "", 0];
+        const shamela = book ? `https://shamela.ws/book/${book}/${page}` : "";
+        // a ready message naming the hadith and the verdict, so a reader can flag a wrong one
+        const report = mailto(`نور السنة: ملاحظة على حكم في ${hkey(h.k)}`,
+          `الحديث: ${hkey(h.k)}${num ? ` (الحديث ${num})` : ""}\n${location.href}\n\nالحكم المعروض: ${by}: ${v}\nالمصدر: ${work}${shamela ? `\n${shamela}` : ""}\n\nما الخطأ؟ (مثلًا: الحكم مختلف في المطبوع، أو هو حكم حديث آخر)\n`);
         return `<blockquote><cite>${esc(by)}${num ? ` · الحديث ${esc(num)}` : ""}</cite>${esc(v)}
-          <span class="grade-src">${esc(work)}${book ? ` · <a href="https://shamela.ws/book/${book}/${page}" target="_blank" rel="noopener">المكتبة الشاملة ↗</a>` : ""}</span></blockquote>`;
+          <span class="grade-src">${esc(work)}${shamela ? ` · <a href="${shamela}" target="_blank" rel="noopener">المكتبة الشاملة ↗</a>` : ""} · <a href="${report}">أبلغ عن خطأ في هذا الحكم</a></span></blockquote>`;
       }).join("")}</div>
       <p class="muted small">تُنقل الأحكام بنصها منسوبةً إلى أصحابها، وهي اجتهاد منهم. وقد يكون الحكم على الإسناد خاصة («إسناده ضعيف») والحديث ثابت من طريق أخرى.${
         h.grades.some(([s, v]) => s.startsWith("albani") && /(^|\s)[خمق](\s|،|$)/.test(v)) ? " ورموز الألباني: خ البخاري، م مسلم، ق متفق عليه." : ""}</p></div>`;
