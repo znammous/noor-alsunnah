@@ -1811,7 +1811,7 @@
   async function viewSearch(path) {
     const pm = path.match(/^(.*?)\?((?:[a-z]=\w*&?)+)$/);
     const q = (pm ? pm[1] : path).trim();
-    const opt = { b: "", s: "all", o: "rel", g: "", ...Object.fromEntries(new URLSearchParams(pm ? pm[2] : "")) };
+    const opt = { b: "", s: "all", o: "rel", g: "", h: "", ...Object.fromEntries(new URLSearchParams(pm ? pm[2] : "")) };
     $("#q").value = q;
     if (!q) { location.hash = "#/"; return; }
     track("search", q);
@@ -1829,6 +1829,9 @@
 
     const SCOPES = [["all", "الكل"], ["matn", "المتن"], ["isnad", "الإسناد"], ["bab", "التبويب"]];
     const SORTS = [["rel", "الأكثر صلة"], ["book", "ترتيب الكتب"]];
+    // grade class per record (built from the quoted verdicts): s accepted, w weak, m the sources differ, "" none
+    const GRADE_F = [["", "الكل"], ["s", "الصحيح وما في حكمه"], ["w", "الضعيف"], ["m", "مختلف فيه"], ["n", "بلا حكم"]];
+    const gradeOf = (h) => h.rec.r[6] || "n";
     app.innerHTML = `<h1>نتائج البحث: «${esc(q)}»</h1>
       ${lookup.length ? `<div class="panel lookup"><span class="muted">انتقل إلى الحديث برقمه:</span> ${lookup.map((k) => `<a class="btn" href="#/h/${k}">${BOOK[bookOf(k)]} ${hnum(k)}</a>`).join(" ")}</div>` : ""}
       ${narrators.length ? `<div class="panel" style="margin-bottom:16px"><h2>رواة</h2><div class="chain">${narrators.map(([id, v]) => `<a class="chip cls-${v[1]}" href="#/n/${encodeURIComponent(id)}"><span class="dot"></span>${esc(v[0])}</a>`).join(" ")}</div></div>` : ""}
@@ -1837,6 +1840,7 @@
           <div class="s-row"><span class="s-lbl">البحث في</span><div class="seg" id="sScope">${SCOPES.map(([v, l]) => `<button data-v="${v}" class="${opt.s === v ? "on" : ""}">${l}</button>`).join("")}</div></div>
           <div class="s-row"><span class="s-lbl">الترتيب</span><div class="seg" id="sSort">${SORTS.map(([v, l]) => `<button data-v="${v}" class="${opt.o === v ? "on" : ""}">${l}</button>`).join("")}</div>
             <label class="s-check"><input type="checkbox" id="sGroup" ${opt.g ? "checked" : ""}> ضمّ روايات الحديث الواحد</label></div>
+          <div class="s-row"><span class="s-lbl">الحكم</span><div class="seg" id="sGrade"></div></div>
           <div class="s-books" id="sBooks"></div>
         </div>
         <details class="s-help"><summary>طريقة البحث</summary>
@@ -1846,6 +1850,7 @@
             <li>استبعاد كلمة: ضع قبلها علامة الطرح <code>الصلاة -الجمعة</code>.</li>
             <li>بداية كلمة: أضف نجمة <code>صلا*</code> لتشمل صلاة وصلاته وصلاتكم.</li>
             <li>رقم الحديث: <code>البخاري 1524</code> أو <code>مسلم 15</code>.</li>
+            <li>تصفية بالحكم: «الصحيح وما في حكمه» أحاديث الصحيحين، وما حكم عليه المحدثون المنقولة أحكامهم في صفحة كل حديث بالصحة أو الحسن (ومنه الصحيح والحسن لغيره، و«حديث صحيح وهذا إسناد ضعيف»، و«إسناده صحيح»). و«مختلف فيه» ما صحّحه بعضهم وضعّفه غيره، و«بلا حكم» أحاديث الموطأ وما لم يُنقل فيه حكم. التصنيف آلي مأخوذ من ألفاظ الأحكام، فالمرجع نص الحكم في صفحة الحديث.</li>
           </ul>
         </details>
         <div id="sOut"></div>
@@ -1858,7 +1863,11 @@
         const p = new URLSearchParams(Object.entries(opt).filter(([k, v]) => v && !(k === "s" && v === "all") && !(k === "o" && v === "rel")));
         return p.toString() ? "?" + p : "";
       })());
-      const all = hitsFor(opt.s);
+      const scoped = hitsFor(opt.s);
+      const perGrade = { "": scoped.length, s: 0, w: 0, m: 0, n: 0 };
+      for (const h of scoped) perGrade[gradeOf(h)]++;
+      $("#sGrade").innerHTML = GRADE_F.map(([v, l]) => `<button data-v="${v}" class="${opt.h === v ? "on" : ""}" ${perGrade[v] || opt.h === v ? "" : "disabled"}>${l} <small>${fmt(perGrade[v])}</small></button>`).join("");
+      const all = opt.h ? scoped.filter((h) => gradeOf(h) === opt.h) : scoped;
       const per = Object.fromEntries(BOOKS.map((b) => [b, 0]));
       for (const h of all) per[bookOf(h.rec.r[0])]++;
       $("#sBooks").innerHTML = `<button data-v="" class="fchip ${opt.b ? "" : "on"}">الكتب التسعة <b>${fmt(all.length)}</b></button>` +
@@ -1877,7 +1886,8 @@
         });
       }
       const page = list.slice(0, shown);
-      const scopeTip = opt.s !== "all" ? ` <button class="linkish" data-scope="all">ابحث في الكل</button>` : "";
+      const scopeTip = (opt.s !== "all" ? ` <button class="linkish" data-scope="all">ابحث في الكل</button>` : "") +
+        (opt.h ? ` <button class="linkish" data-grade="">اعرض كل الأحكام</button>` : "");
       $("#sOut").innerHTML = `<p class="s-count">${opt.g ? `الأحاديث: ${fmt(groups)}` : `النتائج: ${fmt(list.length)}${groups !== list.length ? ` <span class="muted">· ترجع إلى ${fmt(groups)} حديثًا</span>` : ""}`}</p>
         <ul class="list s-list">${page.map((h) => {
           const k = h.rec.r[0], more = others.get(h) || [];
@@ -1888,6 +1898,7 @@
         }).join("") || `<li class="muted">لا نتائج.${scopeTip} جرّب كلمات أقل أو صيغة أخرى، أو <a href="https://dorar.net/hadith/search?q=${encodeURIComponent(q)}&st=w" target="_blank" rel="noopener">ابحث في الموسوعة الحديثية</a>.</li>`}</ul>
         ${list.length > shown ? `<div class="pager"><button class="btn" id="sMore">عرض المزيد (${fmt(list.length - shown)} باقية)</button></div>` : ""}`;
       $("#sMore")?.addEventListener("click", () => { const y = scrollY; shown += 30; render(); scrollTo(0, y); });
+      $("#sOut [data-grade]")?.addEventListener("click", () => { opt.h = ""; shown = 30; render(); });
       $("#sOut [data-scope]")?.addEventListener("click", () => { opt.s = "all"; setSeg("#sScope", $('#sScope [data-v="all"]')); shown = 30; render(); });
     };
     const bind = (sel, key) => $(sel).addEventListener("click", (e) => {
@@ -1898,7 +1909,7 @@
       shown = 30;
       render();
     });
-    bind("#sScope", "s"); bind("#sSort", "o"); bind("#sBooks", "b");
+    bind("#sScope", "s"); bind("#sSort", "o"); bind("#sBooks", "b"); bind("#sGrade", "h");
     $("#sGroup").addEventListener("change", (e) => { opt.g = e.target.checked ? "1" : ""; shown = 30; render(); });
     render();
   }

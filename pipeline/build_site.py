@@ -45,6 +45,42 @@ TABAQA = {1: "الصحابة", 2: "كبار التابعين", 3: "الوسطى 
           9: "صغار أتباع التابعين", 10: "كبار الآخذين عن تبع الأتباع", 11: "الوسطى من الآخذين عن تبع الأتباع",
           12: "صغار الآخذين عن تبع الأتباع"}
 CHAIN_ORDER = ["thiqa", "saduq", "maqbul", "weak"]
+# the search filter «الصحيح وما في حكمه» sorts each quoted verdict as accepting (صحيح، حسن، لغيره) or
+# weakening, and on the hadith itself or only on its isnad ("حديث صحيح، وهذا إسناد ضعيف" is accepted)
+ACCEPT = r"صحيح|صحح|على شرط|صحيحان|حسن|حسنان|قوي|جيد|ثابت|متواتر|متفق عليه"
+WEAK = r"ضعيف|ضعيفان|منكر|شاذ|موضوع|باطل|منقطع|معضل|مرسل|لا أصل له|مضطرب|معلول|واه|ساقط|مدرج|تالف|مسلسل بالضعفاء|متهم|كذاب|جهالة"
+
+
+def verdict_class(v):
+    """-> (level h=hadith | i=isnad, class s=accepted | w=weak), or None when it states no verdict"""
+    t = re.sub(r"\s+", " ", strip_diacritics(v)).replace("ـ", "").strip()
+    t = re.sub(r"^في الزوائد:?\s*", "", t)
+    m = re.search(rf"(?:^|[\s،,.]|و)(?:ال)?حديث (?:بهذا اللفظ )?({ACCEPT}|{WEAK})|^({ACCEPT}|{WEAK}) ?لغيره", t)
+    if m:
+        return "h", "s" if re.fullmatch(ACCEPT, m.group(1) or m.group(2)) else "w"
+    m = re.search(rf"({ACCEPT})|({WEAK})", t)
+    if not m:
+        return None
+    return "i" if re.search(r"إسناد|رجال|سند", t[:m.end() + 12]) else "h", "s" if m.group(1) else "w"
+
+
+def hadith_class(book, rows):
+    """s (accepted) | w (weak) | m (the sources differ) | "" (no verdict); the Sahihayn are accepted"""
+    if book in ("bukhari", "muslim"):
+        return "s"
+    # al-Busiri's notes quote others at length; al-Albani grades every hadith of Ibn Majah
+    cls = [c for src, v, *_ in rows if src != "busiri" or len(rows) == 1 if (c := verdict_class(v))]
+    h = {c for lv, c in cls if lv == "h"}
+    i = {c for lv, c in cls if lv == "i"}
+    if h == {"s"}:
+        return "s"
+    if h == {"w"}:
+        return "m" if "s" in i else "w"
+    if h:
+        return "m"
+    return "s" if i == {"s"} else "w" if i == {"w"} else "m" if i else ""
+
+
 GRADES = Path(__file__).resolve().parent / "grades"
 # scholars' verdicts (make_grades.py): "source:book" -> (scholar, work, Shamela book id)
 GRADE_SOURCES = {
@@ -439,7 +475,7 @@ def main():
     for s, content in nshards.items():
         dump(content, SITE_DATA / "n" / f"{s}.json")
 
-    # ---------- search index per book: [key, group, text, bab, number label, matn ranges] ----------
+    # ---------- search index per book: [key, group, text, bab, number label, matn ranges, grade class] ----------
     # text keeps the original spelling without diacritics (the browser folds it for matching, char for char),
     # and matn ranges are flat [start, end, ...] offsets into it so results can tell isnad from matn.
     def search_text(h):
@@ -464,7 +500,7 @@ def main():
         for h in hadiths.values():
             if h["book"] == b:
                 text, ranges = search_text(h)
-                search.append([h["k"], h["g"], text, h["bab"], h["label"], ranges])
+                search.append([h["k"], h["g"], text, h["bab"], h["label"], ranges, hadith_class(b, h.get("grades", []))])
         dump(search, SITE_DATA / "search" / f"{b}.json")
 
     # ---------- dashboard indicators ----------
