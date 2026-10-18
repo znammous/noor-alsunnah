@@ -41,7 +41,6 @@ h3 { font-family: var(--font-title); font-size: 1.15rem; }
 .btn.gold { background: var(--gold); color: var(--deep); box-shadow: 0 6px 20px rgba(242,193,78,.3), 0 0 36px -6px rgba(242,193,78,.55); }
 .btn.gold:hover { background: #e0bd68; }
 .btn.ghost { border-color: rgba(242,193,78,.6); color: var(--gold); background: transparent; }
-.btn.green { background: var(--accent); color: #fff; box-shadow: 0 0 0 1px var(--panel-line), 0 0 32px -8px var(--glow); }
 .btn.sm { padding: 8px 16px; font-size: .92rem; }
 
 /* nav */
