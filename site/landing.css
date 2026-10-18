@@ -15,6 +15,7 @@
 }
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
+html, body { overflow-x: clip; }
 body { margin: 0; color: var(--text);
   background:
     radial-gradient(1.5px 1.5px at 12% 18%, #fff9 50%, transparent 51%),
