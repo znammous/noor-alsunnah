@@ -391,3 +391,10 @@ p.more { margin: 12px 0 0; }
 }
 .subnav a.on:hover { color: #1a1405; }
 .subnav { padding-top: 4px; }
+
+/* print: the page as seen, without the controls; the footer's disclaimer always ends the printout */
+@media print {
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .search, .theme, .graph-ctl, .graph-hint { display: none !important; }
+  .foot { break-inside: avoid; padding-bottom: 0; }
+}
