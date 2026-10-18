@@ -132,14 +132,14 @@
   // the top menu's sections and the pages under each, shown as tabs at the top of the page
   const NAV_OF = { home: /^\/$/, books: /^\/book/, narrators: /^\/(narrators|explore|compare|n\/)/, hadiths: /^\/(turuq|awali|h\/)/, isnads: /^\/(chains|isnads)/, about: /^\/(about|tools)/ };
   const SUBNAV = {
-    narrators: [["narrators", "فهرس الرواة"], ["explore", "ترتيب الرواة بالفلاتر"], ["compare", "مقارنة الكتب"]],
+    narrators: [["narrators", "فهرس الرواة"], ["explore", "ترتيب الرواة"], ["compare", "مقارنة الكتب"]],
     hadiths: [["turuq", "ترتيب الأحاديث"], ["awali", "الثلاثيات وعوالي الأسانيد"]],
     isnads: [["chains", "رجال الأسانيد"], ["isnads", "أشهر الأسانيد وأطوالها"]],
   };
   const subnav = (group, on) => `<nav class="subnav">${SUBNAV[group].map(([p, l]) => `<a href="#/${p}"${p === on ? ' class="on" aria-current="page"' : ""}>${l}</a>`).join("")}</nav>`;
   // what a researcher can ask of the site, one card per tool
   const TOOLS = [
-    ["#/explore", "ترتيب الرواة بالفلاتر", "من أكثر التابعين رواية؟ من أكثر رواة الكوفة؟ من رجال البخاري الذين لم يخرّج لهم مسلم؟"],
+    ["#/explore", "ترتيب الرواة", "من أكثر التابعين رواية؟ من أكثر رواة الكوفة؟ من رجال البخاري الذين لم يخرّج لهم مسلم؟"],
     ["#/compare", "مقارنة الكتب", "كيف يختلف حضور الرواة بين كتابين؟ وكم في كل كتاب من حديث بالمكرر وبدونه؟"],
     ["#/narrators", "فهرس الرواة", "ابحث عن راوٍ باسمه وصفِّ القائمة بالكتاب والرتبة"],
     ["#/turuq", "ترتيب الأحاديث", "ما أكثر الأحاديث أسانيدَ وصحابةً وانتشارًا في كتب السنة؟ وما أحاديث مدارٍ بعينه؟"],
@@ -149,7 +149,7 @@
     ["#/h/b1", "شجرة الحديث", "اكتب كلمة من المتن في البحث لترى أسانيد الحديث شجرةً ومداره ومتابعاته وشواهده"],
   ];
   const toolsHTML = () => `<div class="tools">${TOOLS.map(([href, t, q]) => `<a class="panel tool" href="${href}"><b>${t}</b><span>${q}</span></a>`).join("")}</div>`;
-  const moreLink = (href, label = "عرض الكل بالفلاتر") => `<p class="more"><a class="btn gold" href="${href}">${label} ←</a></p>`;
+  const moreLink = (href, label = "عرض الترتيب كاملًا") => `<p class="more"><a class="btn gold" href="${href}">${label} ←</a></p>`;
   const hist = (rows, height = 150) => {
     const max = Math.max(...rows.map((r) => r[1]), 1);
     return `<div class="hist" style="height:${height}px">${rows.map(([label, v, title, href]) => {
@@ -255,7 +255,7 @@
         ${kpi(T.mudallisun, "راويًا موصوفًا بالتدليس", `و${fmt(T.mukhtalitun)} ممن اختلط`)}
       </div>
 
-      <div class="panel" style="margin-top:16px"><h2>أدوات الباحث</h2><p class="muted small">كل مؤشر في هذه الصفحة له أداة كاملة بالفلاتر</p>${toolsHTML()}</div>
+      <div class="panel" style="margin-top:16px"><h2>أدوات الباحث</h2><p class="muted small">كل مؤشر في هذه الصفحة له ترتيب كامل في صفحته</p>${toolsHTML()}</div>
 
       <div class="panel" style="margin-top:16px"><h2>الكتب التسعة</h2>
         <div class="table-wrap"><table class="books-table"><thead><tr><th>الكتاب</th><th>الأحاديث</th><th>الأسانيد</th><th>الرواة</th></tr></thead>
@@ -267,7 +267,7 @@
       </div>
       <div class="panel" style="margin-top:16px"><h2>أكثر الشيوخ الذين حدّث عنهم أصحاب الكتب</h2>
         <div class="seg" id="shf">${BOOKS.map((b, i) => `<button data-v="${b}" class="${i ? "" : "on"}">${AUTHOR[b]}</button>`).join("")}</div>
-        <p class="muted small" id="shf-note"></p><div id="shf-bars"></div><p class="more"><a class="btn gold" id="shf-more" href="#/explore?b=bukhari&m=s">عرض الكل بالفلاتر ←</a></p></div>
+        <p class="muted small" id="shf-note"></p><div id="shf-bars"></div><p class="more"><a class="btn gold" id="shf-more" href="#/explore?b=bukhari&m=s">عرض الترتيب كاملًا ←</a></p></div>
 
       <div class="grid g2" style="margin-top:16px">
         <div class="panel"><h2>أشهر الأسانيد</h2><p class="muted small">أكثر السلاسل تكرارًا (الصحابي واثنان دونه)</p>
@@ -972,7 +972,7 @@
           <div class="fl"><span>طريقة العد</span><div class="seg" id="rf"><button data-v="" class="on">مع المكرر</button><button data-v="u">بدون المكرر</button></div></div>
         </div>
         <p class="muted small" id="nnote"></p>
-        <p class="small" style="margin:0"><a href="#/explore">ترتيب الرواة بفلاتر أكثر: الطبقة والبلد والتدليس والمدار وشيوخ أصحاب الكتب ←</a></p>
+        <p class="small" style="margin:0"><a href="#/explore">ترتيب الرواة بالطبقة والبلد والتدليس والمدار وشيوخ أصحاب الكتب ←</a></p>
       </div>
       <div class="panel" style="margin-top:16px"><ul class="bars" id="nl"></ul></div>`;
     let q = "", cls = "", book = "", uniq = false;
@@ -1171,7 +1171,7 @@
             ${m ? `<span>المدار: <a href="#/n/${encodeURIComponent(r[4])}" class="cls-${m[1]}">${esc(shortName(m[0]))}</a></span>` : ""}
             ${r[6] ? `<span title="في تخريج برنامج الجامع">${counted(r[6], TURUQ_SORT.w[3])} في ${counted(r[7], ["كتاب", "كتابين", "كتب", "كتابًا"])}</span>` : ""}
             <span class="books">${BOOKS.filter((b) => r[3].includes(PREFIX[b])).map((b) => AUTHOR[b]).join(" · ")}</span></div></div></li>`;
-      }).join("") || '<li class="muted" style="padding:12px 0">لا أحاديث بهذه الفلاتر</li>';
+      }).join("") || '<li class="muted" style="padding:12px 0">لا أحاديث بهذا الاختيار</li>';
       const qs = new URLSearchParams(Object.entries(st).filter(([k, v]) => v !== (TURUQ_DEFAULT[k] || ""))).toString();
       try { history.replaceState(history.state, "", `#/turuq${qs ? "?" + qs : ""}`); } catch (_) {}
     };
@@ -1321,7 +1321,7 @@
 
     app.innerHTML = `
       ${subnav("narrators", cmp ? "compare" : "explore")}
-      <div class="section-title" style="margin-top:0">${cmp ? "<h1>مقارنة الكتب</h1><p>حضور الرواة في كتابين، وأحاديث كل كتاب بالمكرر وبدونه</p>" : "<h1>ترتيب الرواة بالفلاتر</h1><p>اختر قائمة جاهزة أو خصّص الترتيب بالكتاب والطبقة والرتبة والبلد</p>"}</div>
+      <div class="section-title" style="margin-top:0">${cmp ? "<h1>مقارنة الكتب</h1><p>حضور الرواة في كتابين، وأحاديث كل كتاب بالمكرر وبدونه</p>" : "<h1>ترتيب الرواة</h1><p>اختر قائمة جاهزة أو خصّص الترتيب بالكتاب والطبقة والرتبة والبلد</p>"}</div>
       <div class="panel"${cmp ? " hidden" : ""}>
         <div class="seg xtabs" id="xtabs" role="tablist"><button role="tab" data-g="c">تخصيص</button>${PRESET_GROUPS.map(([title], g) => `<button role="tab" data-g="${g}">${title}</button>`).join("")}</div>
         <div id="xpre">${PRESET_GROUPS.map(([, re], g) => `<div class="presets" data-g="${g}" hidden>${PRESETS.map(([label], i) => (PRESET_GROUPS.find(([, r]) => r.test(label))[1] === re ? `<button class="btn" data-i="${i}">${esc(label)}</button>` : "")).join("")}</div>`).join("")}</div>
@@ -1420,7 +1420,7 @@
         return `<li data-id="${esc(id)}" class="${open === id ? "open" : ""}"><button class="row" aria-expanded="${open === id}" title="${esc(v[0])}: ${fmt(n)}">
           <span class="rk">${i + 1}</span><span class="name cls-${v[1]}"><span class="dot"></span>${esc(v[0])}</span><span class="num">${fmt(n)}</span>
           <span class="bar"><span style="width:${(100 * n) / max}%"></span></span></button>${open === id ? detail(id) : ""}</li>`;
-      }).join("") || '<li class="muted" style="padding:12px 0">لا رواة بهذه الفلاتر</li>';
+      }).join("") || '<li class="muted" style="padding:12px 0">لا رواة بهذا الاختيار</li>';
       saveState();
     };
     const saveState = () => {
