@@ -245,10 +245,10 @@
       </div>
 
       <div class="grid g2" style="margin-top:16px">
-        <div class="panel"><h2>الأكثر طرقًا في الكتب التسعة</h2><p class="small" style="margin:0 0 6px"><a href="#/turuq">الترتيب الكامل بالفلاتر ←</a></p>
+        <div class="panel"><h2>الأكثر طرقًا في الكتب التسعة</h2><p style="margin:0 0 10px"><a class="btn gold" href="#/turuq">الترتيب الكامل بالفلاتر ←</a></p>
           <ul class="list">${S.most_turuq.slice(0, 8).map((g) => `<li><div class="meta-line"><span class="tag ok">${fmt(g.n_chains)} إسنادًا</span><span>${fmt(g.n_hadiths)} رواية</span><span>${g.books.map((b) => BOOK[b]).join(" و")}</span></div>
             <a href="#/h/${g.first}" class="snip" style="color:inherit">${esc(g.snippet)}</a></li>`).join("")}</ul></div>
-        <div class="panel"><h2>الأوسع انتشارًا في كتب السنة</h2><p class="muted small">أحاديث الكتب التسعة بحسب عدد رواياتها في تخريج برنامج الجامع · <a href="#/turuq?s=w">الترتيب الكامل ←</a></p>
+        <div class="panel"><h2>الأوسع انتشارًا في كتب السنة</h2><p class="muted small">أحاديث الكتب التسعة بحسب عدد رواياتها في تخريج برنامج الجامع</p><p style="margin:0 0 10px"><a class="btn gold" href="#/turuq?s=w">الترتيب الكامل بالفلاتر ←</a></p>
           <ul class="list">${S.widest.slice(0, 8).map((g) => `<li><div class="meta-line"><span class="tag ok">${fmt(g.n_hadith)} رواية</span><span>في ${fmt(g.n_books)} كتابًا</span>${g.n_shawahid ? `<span>وله شواهد عن ${fmt(g.n_shawahid)} صحابيًا</span>` : ""}</div>
             <a href="#/h/${g.first}" class="snip" style="color:inherit">${esc(g.snippet)}</a></li>`).join("")}</ul></div>
       </div>
@@ -1109,7 +1109,7 @@
     };
 
     app.innerHTML = `
-      <div class="section-title" style="margin-top:0"><h1>الإحصاءات</h1><p>استكشف الكتب التسعة ورواتها بالفلاتر · <a href="#/turuq">ترتيب الأحاديث بعدد طرقها ←</a></p></div>
+      <div class="section-title" style="margin-top:0"><h1>الإحصاءات</h1><p>استكشف الكتب التسعة ورواتها بالفلاتر</p><a class="btn gold" href="#/turuq">ترتيب الأحاديث بعدد طرقها ←</a></div>
       <div class="panel">
         <div class="seg xtabs" id="xtabs" role="tablist"><button role="tab" data-g="c">تخصيص</button>${PRESET_GROUPS.map(([title], g) => `<button role="tab" data-g="${g}">${title}</button>`).join("")}</div>
         <div id="xpre">${PRESET_GROUPS.map(([, re], g) => `<div class="presets" data-g="${g}" hidden>${PRESETS.map(([label], i) => (PRESET_GROUPS.find(([, r]) => r.test(label))[1] === re ? `<button class="btn" data-i="${i}">${esc(label)}</button>` : "")).join("")}</div>`).join("")}</div>
