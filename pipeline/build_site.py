@@ -101,7 +101,8 @@ GRADE_PATTERNS = [
 
 def grade_of(rank, tabaka, name=""):
     """Colour class from Ibn Hajar's verdict: its first clause decides, else the whole verdict."""
-    if tabaka == 1 or COMPANION.search(strip_diacritics(name or "")) or "أحد الصحابة" in (name or ""):
+    # a name like «مولى ميمونة زوج رسول الله» is a follower's: the name decides only without a tabaqa
+    if tabaka == 1 or (not tabaka and COMPANION.search(strip_diacritics(name or ""))) or "أحد الصحابة" in (name or ""):
         return "sahabi"
     t = strip_diacritics(rank or "").strip()
     if not t:
@@ -116,9 +117,10 @@ def grade_of(rank, tabaka, name=""):
     return "unknown"
 
 
-# Ahmad began hearing hadith around 179 AH: a shaykh who died before that (Ibn Jurayj, al-Thawri ...)
-# means the source dropped a narrator, so the chain is not really a thulathi
-AHMAD_FIRST_HEARING = 179
+# roughly when each compiler began hearing hadith: a shaykh who died before that (Ibn Jurayj, al-Thawri
+# for Ahmad ...) means the source dropped a narrator, so the chain is not really as high as it looks
+FIRST_HEARING = {"bukhari": 205, "muslim": 218, "abudawud": 220, "tirmidhi": 225, "nasai": 230,
+                 "ibnmajah": 227, "ahmad": 179, "muwatta": 110, "darimi": 200}
 
 
 def last_year(date):
@@ -258,12 +260,25 @@ def main():
     chain_cls = {b: Counter() for b in BOOKS}
     # each book's chains by class: [hadith key, the narrators that set the class]
     chain_rows = {b: defaultdict(list) for b in BOOKS}
-    # chains with only three narrators between the compiler and the Prophet ﷺ (not Abdullah's zawa'id)
-    thulathiyyat, thulathiyyat_ahmad, shortest_muslim = [], [], []
+    # the highest chains of each book: two to four narrators between the compiler and the Prophet ﷺ
+    # (not Abdullah's zawa'id): {book: {length: {hadith key: [chain ids, ...]}}}
+    awali = {b: defaultdict(dict) for b in BOOKS}
 
-    def heard_by_ahmad(shaykh):
+    def heard_by(book, shaykh):
         y = last_year(narr[shaykh].get("death"))
-        return y >= AHMAD_FIRST_HEARING if y else (narr[shaykh].get("tabaka") or 0) >= 7
+        if y:
+            return y >= FIRST_HEARING[book]
+        return (narr[shaykh].get("tabaka") or 0) >= (3 if book == "muwatta" else 7)
+
+    # the later the follower's tabaqa, the later his companion must have died: al-Zuhri (4th) from Uthman
+    # (d. 35) or Yahya b. Sa'id (5th) from Umar and Aisha are mursal in the Muwatta
+    LATEST_COMPANION = {3: 40, 4: 70, 5: 80, 6: 85}
+
+    def met_companion(tabii, companion):
+        a, b = last_year(narr[companion].get("death")), last_year(narr[tabii].get("death"))
+        if not a:
+            return True
+        return a >= LATEST_COMPANION.get(narr[tabii].get("tabaka"), 0) and not (b and b - a > 100)
     for k, h in hadiths.items():
         book = h["book"]
         for c in h["chains"]:
@@ -286,16 +301,15 @@ def main():
             linked = 2 <= (narr[ids[1]].get("tabaka") or 0) <= 6 if len(ids) > 1 else False
             # Ibn Hajar's sixth tabaqa met no companion; and a thulathi is a hadith of the Prophet ﷺ
             tabii = 2 <= (narr[ids[1]].get("tabaka") or 0) <= 5 if len(ids) > 1 else False
-            marfu = h["type"] in ("مرفوع", "قدسي")
-            if book == "bukhari" and len(ids) == 3 and top_companion and linked:
-                thulathiyyat.append({"k": k, "chain": ids})
-                c["t"] = 1
-            if (book == "ahmad" and not c.get("z") and len(ids) == 3 and top_companion and tabii and marfu
-                    and heard_by_ahmad(ids[2])):
-                thulathiyyat_ahmad.append({"k": k, "chain": ids})
-                c["t"] = 1
-            if book == "muslim" and len(ids) == 4 and top_companion and linked:
-                shortest_muslim.append({"k": k, "chain": ids})
+            # the scholars count a companion's own report too (Salamah on the mosque wall, al-Bukhari 497);
+            # a follower with no tabaqa in the program is placed by his death (Abu Dawud 4749)
+            if len(ids) > 1 and not narr[ids[1]].get("tabaka"):
+                tabii = 0 < (last_year(narr[ids[1]].get("death")) or 999) < 180
+            if (2 <= len(ids) <= 4 and not c.get("z") and top_companion
+                    and (tabii if len(ids) <= 3 else linked) and met_companion(ids[1], ids[0]) and heard_by(book, ids[-1])):
+                awali[book][len(ids)].setdefault(k, []).append(ids)
+                if len(ids) <= 3:
+                    c["t"] = len(ids)
             if len(ids) >= 3:
                 sanad_freq[tuple(ids[:3])] += 1
 
@@ -462,8 +476,9 @@ def main():
             "sitta": sitta, "tisa": tisa,
             "companions": sum(1 for x in real if narr[x]["cls"] == "sahabi"),
             "muttafaq": muttafaq,
-            "thulathiyyat": len(thulathiyyat),
-            "thulathiyyat_ahmad": len({t["k"] for t in thulathiyyat_ahmad}),
+            "thulathiyyat": len(awali["bukhari"].get(3, ())),
+            "thulathiyyat_ahmad": len(awali["ahmad"].get(3, ())),
+            "thulathiyyat_all": {b: len(awali[b].get(3, ())) for b in BOOKS},
             "mudallisun": sum(1 for x in real if narr[x].get("tadlis")),
             "mukhtalitun": sum(1 for x in real if narr[x].get("ikhtilat")),
         },
@@ -482,21 +497,25 @@ def main():
         "cities": top(city, 12),
         "deaths": sorted(death_bins.items()),
         "chain_length": {b: sorted(v.items()) for b, v in chain_len.items()},
-        "thulathiyyat": [{**t, "snippet": snippet(hadiths[t["k"]]), "num": hadiths[t["k"]]["label"]} for t in thulathiyyat],
-        "thulathiyyat_ahmad": [{**t, "snippet": snippet(hadiths[t["k"]]), "num": hadiths[t["k"]]["label"]}
-                               for t in thulathiyyat_ahmad],
-        "shortest_muslim": [{**t, "snippet": snippet(hadiths[t["k"]]), "num": hadiths[t["k"]]["label"]}
-                            for t in shortest_muslim][:40],
     }
     used = {x for key in ("top_narrators", "top_companions", "top_madar") for x, _ in stats[key]}
     used |= {x for rows in stats["top_shaykhs"].values() for x, _ in rows}
     used |= {x for i, _ in stats["top_isnads"] for x in i}
-    used |= {x for s in stats["thulathiyyat"] + stats["thulathiyyat_ahmad"] + stats["shortest_muslim"]
-             for x in s["chain"]}
     stats["nar"] = {i: light(narr[i]) for i in used}
     dump(stats, SITE_DATA / "stats.json")
     for b, rows in chain_rows.items():
         dump(rows, SITE_DATA / "chains" / f"{b}.json")
+
+    # ---------- the highest chains of each book (al-'awali): thunaiyyat and thulathiyyat, and the
+    # ruba'iyyat of the books that have nothing higher (Muslim, al-Nasa'i) ----------
+    # {book: {length: [[key, number label, snippet, chains...]]}}, in the book's order
+    order = lambda k: int(hadiths[k]["num"])
+    awali_out = {b: {n: [[k, hadiths[k]["label"], snippet(hadiths[k], 110), *chains]
+                         for k, chains in sorted(by_len[n].items(), key=lambda kv: order(kv[0]))]
+                     for n in sorted(by_len) if n <= 3 or not any(m <= 3 for m in by_len)}
+                 for b, by_len in awali.items()}
+    used = {x for by_len in awali_out.values() for rows in by_len.values() for r in rows for c in r[3:] for x in c}
+    dump({"books": awali_out, "nar": {i: light(narr[i]) for i in used}}, SITE_DATA / "awali.json")
 
     # ---------- statistics explorer: per-book repeats, and narrator fields to filter the directory by ----------
     # a book's hadiths joined by the source's rel links inside that book, counted once (approximate)
@@ -541,7 +560,7 @@ def main():
     }
     dump(meta, SITE_DATA / "meta.json")
     print(f"site data: {len(hadiths)} hadiths in {len(shards)} shards, muttafaq {muttafaq}, sitta {sitta}, "
-          f"{len(directory)} narrators in {len(nshards)} shards; thulathiyyat {len(thulathiyyat)}, of Ahmad {len(thulathiyyat_ahmad)}; "
+          f"{len(directory)} narrators in {len(nshards)} shards; awali {({b: {n: len(v) for n, v in sorted(by_len.items())} for b, by_len in awali.items()})}; "
           f"grades {dict(by_cls)}")
 
 

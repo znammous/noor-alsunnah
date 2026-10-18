@@ -142,6 +142,7 @@
     [/^\/narrators$/, viewNarrators],
     [/^\/explore(?:\?(.*))?$/, viewExplore],
     [/^\/turuq(?:\?(.*))?$/, viewTuruq],
+    [/^\/awali(?:\?(.*))?$/, viewAwali],
     [/^\/chains(?:\?(.*))?$/, viewChains],
     [/^\/search\/(.*)$/, viewSearch],
     [/^\/about$/, viewAbout],
@@ -277,9 +278,10 @@
 
       <div class="grid g2" style="margin-top:16px">
         <div class="panel"><h2>الأكثر بحثًا وزيارة</h2><div id="popular"></div></div>
-        <div class="panel"><h2>الثلاثيات</h2>
-          <div class="seg" id="thf"><button data-v="bukhari" class="on">البخاري</button><button data-v="ahmad">أحمد</button></div>
-          <p class="muted small" id="thf-note"></p><div id="thf-list"></div></div>
+        <div class="panel"><h2>الثلاثيات في الكتب التسعة</h2>
+          <p class="muted small">ما بين المصنف والنبي ﷺ فيه ثلاثة رواة، وهو أعلى ما في أكثر الكتب التسعة</p>
+          <ul class="bars">${BOOKS.map((b) => `<li><span class="name"><a href="#/awali?b=${b}">${BOOK[b]}</a></span><span class="num">${T.thulathiyyat_all[b] ? fmt(T.thulathiyyat_all[b]) : "—"}</span></li>`).join("")}</ul>
+          <p style="margin:10px 0 0"><a class="btn gold" href="#/awali">الثلاثيات وعوالي الأسانيد ←</a></p></div>
       </div>`;
     renderPopular();
     const showShaykhs = (b) => {
@@ -287,17 +289,6 @@
       $("#shf-bars").innerHTML = bars(S.top_shaykhs[b].slice(0, 10));
     };
     showShaykhs("bukhari");
-    // the highest chains: three narrators between the compiler and the Prophet ﷺ
-    const showThulathiyyat = (b) => {
-      const rows = b === "ahmad" ? S.thulathiyyat_ahmad : S.thulathiyyat;
-      const hadiths = new Set(rows.map((t) => t.k)).size;
-      $("#thf-note").textContent = `ما بين ${AUTHOR[b]} والنبي ﷺ فيها ثلاثة رواة: ${fmt(hadiths)} حديثًا` +
-        (rows.length > hadiths ? ` بـ${fmt(rows.length)} إسنادًا` : "") +
-        (b === "ahmad" ? ". محسوبة آليًا مع المكرر، ولا تدخل فيها زوائد ابنه عبد الله، ولا أسانيد سقط منها راوٍ في المصدر" : "");
-      $("#thf-list").innerHTML = `<ul class="list">${rows.map((t, i) => `${i === 6 ? `</ul><details><summary class="small">عرض الكل (${fmt(rows.length)})</summary><ul class="list">` : ""}<li><div class="meta-line"><a href="#/h/${t.k}">${AUTHOR[b]} ${t.num}</a><span>${esc(clip(t.snippet, 70))}</span></div>${chainHTML(t.chain, N, AUTHOR[b])}</li>`).join("")}</ul>${rows.length > 6 ? "</details>" : ""}`;
-    };
-    showThulathiyyat("bukhari");
-    $("#thf").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; setSeg("#thf", b); showThulathiyyat(b.dataset.v); });
     $("#shf").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; setSeg("#shf", b); showShaykhs(b.dataset.v); });
   }
 
@@ -600,7 +591,7 @@
     if (label) tags.push(`<span class="tag ${cls}">${label}</span>`);
     tags.push(`<span class="tag">${c.ids.length} رواة</span>`);
     if (c.z) { tags.push(`<span class="tag">${ZAWAID}</span>`); compiler = null; }
-    if (c.t) tags.push('<span class="tag ok">ثلاثي</span>');
+    if (c.t) tags.push(`<span class="tag ok">${c.t === 2 ? "ثنائي" : "ثلاثي"}</span>`);
     return `<li data-ids="${esc(c.ids.join(" "))}"><div class="meta-line">${tags.join("")}</div>${chainHTML(c.ids, nar, compiler)}</li>`;
   }
 
@@ -1174,6 +1165,103 @@
     render();
   }
 
+  // ---------- al-'awali: the highest chains of each book (thulathiyyat, and the Muwatta's thunaiyyat) ----------
+  // data: {books: {book: {length: [[key, number label, snippet, chains...]]}}, nar}
+  const LEVEL = { 2: ["الثنائيات", "ثنائي", "ثنائيًّا"], 3: ["الثلاثيات", "ثلاثي", "ثلاثيًّا"], 4: ["الرباعيات", "رباعي", "رباعيًّا"] };
+  const AWALI_NOTE = {
+    bukhari: "اثنان وعشرون حديثًا عند أهل العلم، وهي أعلى ما في الصحيح، وأُفردت بالتصنيف والشرح. أكثرها عن مكي بن إبراهيم وأبي عاصم النبيل عن يزيد بن أبي عبيد عن سلمة بن الأكوع، وعن محمد بن عبد الله الأنصاري عن حميد عن أنس.",
+    muslim: "ليس في صحيح مسلم حديث ثلاثي، وأعلى أسانيده الرباعيات: أربعة رواة بينه وبين النبي ﷺ.",
+    abudawud: "في السنن ثلاثي واحد: حديث أبي برزة في الحوض، من رواية مسلم بن إبراهيم عن عبد السلام بن أبي حازم أبي طالوت.",
+    tirmidhi: "في الجامع ثلاثي واحد: حديث أنس «يأتي على الناس زمان الصابر فيهم على دينه كالقابض على الجمر»، وفي إسناده عمر بن شاكر، وهو ضعيف.",
+    nasai: "ليس في سنن النسائي حديث ثلاثي، وأعلى أسانيده الرباعيات.",
+    ibnmajah: "في السنن خمسة أحاديث ثلاثية، كلها من رواية جبارة بن المغلس عن كثير بن سليم عن أنس، وفي إسنادها ضعف لحال جبارة وكثير.",
+    ahmad: "المسند أكثر الكتب التسعة ثلاثيات، وقد شرحها السفاريني في «نفثات صدر المكمد». العد هنا آلي ويشمل المكرر، ولا تدخل فيه زوائد ابنه عبد الله، ولا الأسانيد التي سقط منها راوٍ في المصدر.",
+    muwatta: "الإمام مالك أقدم أصحاب الكتب التسعة طبقة، فأعلى أسانيده الثنائيات، مثل: مالك عن نافع عن ابن عمر. العد آلي، وقد يدخل فيه ما أرسله التابعي عن الصحابي.",
+    darimi: "أكثر ثلاثيات الدارمي من رواية يزيد بن هارون عن حميد الطويل عن أنس، ومنها ما يرويه عن أبي عاصم النبيل وأبي نعيم الفضل بن دكين.",
+  };
+  async function viewAwali(query) {
+    const A = await getJSON("data/awali.json");
+    const N = A.nar;
+    const st = { b: "bukhari", l: "", q: "" };
+    for (const [k, v] of new URLSearchParams(query || "")) if (k in st) st[k] = v;
+    if (!A.books[st.b]) st.b = "bukhari";
+    const levels = (b) => Object.keys(A.books[b]).map(Number).sort();
+    const top = (b) => levels(b)[0];
+    const card = (b) => {
+      const L = levels(b), n3 = (A.books[b][3] || []).length;
+      const sub = n3 ? L[0] < 3 ? `و${fmt(A.books[b][L[0]].length)} ${LEVEL[L[0]][2]}، وهي أعلى` : "" : `لا ثلاثيات · أعلاه الرباعيات (${fmt(A.books[b][4].length)})`;
+      return `<button class="panel acard" data-b="${b}"><span class="v">${n3 ? fmt(n3) : "—"}</span><span class="l">${BOOK[b]}</span><span class="s">${sub}</span></button>`;
+    };
+    app.innerHTML = `
+      <div class="section-title" style="margin-top:0"><h1>الثلاثيات وعوالي الأسانيد</h1><p>الأحاديث التي ليس بين المصنف والنبي ﷺ فيها إلا ثلاثة رواة، وهي أعلى أسانيد الكتب التسعة</p></div>
+      <div class="acards" id="acards">${BOOKS.map(card).join("")}</div>
+      <div class="panel" style="margin-top:16px">
+        <h2 id="atitle"></h2>
+        <div class="seg" id="alev"></div>
+        <p class="anote" id="anote"></p>
+        <div id="atop"></div>
+        <div class="filters" style="grid-template-columns:1fr"><label class="grow">في المتن<input id="aq" type="search" value="${esc(st.q)}" placeholder="كلمة من المتن…"></label></div>
+        <p class="muted small" id="acount"></p>
+        <ul class="list" id="alist"></ul>
+        <p id="amore-wrap" style="text-align:center"><button class="btn" id="amore">عرض المزيد</button></p>
+        <p class="muted small">العد آلي من أسانيد برنامج الجامع: يُشترط أن يكون أعلى الإسناد صحابيًّا، والذي يليه تابعيًّا أدركه، وأن يكون شيخ المصنف ممن أدرك المصنف السماع منه؛ فالأسانيد التي سقط منها راوٍ في المصدر لا تدخل. والعبرة في التحقيق بكلام أهل العلم.</p>
+      </div>`;
+
+    let shown = 0;
+    const PAGE = 60;
+    const rows = () => {
+      const nq = norm(st.q);
+      return (A.books[st.b][st.l] || []).filter((r) => !nq || norm(r[2]).includes(nq));
+    };
+    const item = (r) => {
+      const chains = r.slice(3);
+      return `<li><div class="meta-line"><a href="#/h/${r[0]}">${AUTHOR[st.b]} ${esc(r[1])}</a><span class="tag ok">${LEVEL[st.l][1]}</span>${chains.length > 1 ? `<span>${fmt(chains.length)} أسانيد</span>` : ""}<a href="#/h/${r[0]}" class="small">شجرة الإسناد ←</a></div>
+        <p class="snip" style="margin:6px 0">${esc(r[2])}</p>${chains.slice(0, 3).map((c) => chainHTML(c, N, AUTHOR[st.b])).join("")}</li>`;
+    };
+    const more = () => {
+      const R = rows();
+      $("#alist").insertAdjacentHTML("beforeend", R.slice(shown, shown + PAGE).map(item).join(""));
+      shown = Math.min(R.length, shown + PAGE);
+      $("#amore-wrap").hidden = shown >= R.length;
+      if (!R.length) $("#alist").innerHTML = '<li class="muted">لا أحاديث مطابقة</li>';
+    };
+    const renderList = () => {
+      const R = rows(), all = (A.books[st.b][st.l] || []).length;
+      $("#acount").textContent = `${fmt(all)} حديثًا ${LEVEL[st.l][2]}` + (st.q ? ` · ${fmt(R.length)} مطابقًا للبحث` : "");
+      $("#alist").innerHTML = "";
+      shown = 0;
+      more();
+      const qs = new URLSearchParams(Object.entries(st).filter(([k, v]) => v && !(k === "b" && v === "bukhari") && !(k === "l" && +v === top(st.b)))).toString();
+      try { history.replaceState(history.state, "", `#/awali${qs ? "?" + qs : ""}`); } catch (_) {}
+    };
+    const render = () => {
+      const L = levels(st.b);
+      if (!L.includes(+st.l)) st.l = String(L[0]);
+      for (const c of document.querySelectorAll("#acards .acard")) c.classList.toggle("on", c.dataset.b === st.b);
+      $("#atitle").textContent = `${LEVEL[st.l][0]} في ${BOOK[st.b]}`;
+      $("#alev").innerHTML = L.length > 1 ? L.map((l) => `<button data-l="${l}"${+st.l === l ? ' class="on"' : ""}>${LEVEL[l][0]} (${fmt(A.books[st.b][l].length)})</button>`).join("") : "";
+      $("#alev").hidden = L.length < 2;
+      $("#anote").textContent = AWALI_NOTE[st.b];
+      // the chains that carry most of them: compiler's shaykh down to the companion
+      const freq = new Map();
+      for (const r of A.books[st.b][st.l]) for (const c of new Set(r.slice(3).map((c) => c.join(" ")))) freq.set(c, (freq.get(c) || 0) + 1);
+      const common = [...freq].filter(([, n]) => n > 1).sort((a, b) => b[1] - a[1]).slice(0, 5);
+      $("#atop").innerHTML = common.length ? `<h3>أكثر هذه الأسانيد تكرارًا</h3><ul class="list">${common.map(([c, n]) => `<li><div class="meta-line"><span class="tag">${fmt(n)} حديثًا</span></div>${chainHTML(c.split(" "), N, AUTHOR[st.b])}</li>`).join("")}</ul>` : "";
+      renderList();
+    };
+    $("#acards").addEventListener("click", (e) => {
+      const c = e.target.closest(".acard");
+      if (!c) return;
+      st.b = c.dataset.b; st.l = ""; render();
+      $("#atitle").scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+    $("#alev").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; st.l = b.dataset.l; render(); });
+    let qt = 0;
+    $("#aq").addEventListener("input", (e) => { st.q = e.target.value; clearTimeout(qt); qt = setTimeout(renderList, 200); });
+    $("#amore").addEventListener("click", more);
+    render();
+  }
+
   async function viewExplore(query) {
     const X = await getJSON("data/explore.json");
     const D = META.directory;
@@ -1198,7 +1286,7 @@
     };
 
     app.innerHTML = `
-      <div class="section-title" style="margin-top:0"><h1>الإحصاءات</h1><p>استكشف الكتب التسعة ورواتها بالفلاتر</p><a class="btn gold" href="#/turuq">ترتيب الأحاديث بعدد طرقها ←</a></div>
+      <div class="section-title" style="margin-top:0"><h1>الإحصاءات</h1><p>استكشف الكتب التسعة ورواتها بالفلاتر</p><a class="btn gold" href="#/turuq">ترتيب الأحاديث بعدد طرقها ←</a> <a class="btn gold" href="#/awali">الثلاثيات وعوالي الأسانيد ←</a></div>
       <div class="panel">
         <div class="seg xtabs" id="xtabs" role="tablist"><button role="tab" data-g="c">تخصيص</button>${PRESET_GROUPS.map(([title], g) => `<button role="tab" data-g="${g}">${title}</button>`).join("")}</div>
         <div id="xpre">${PRESET_GROUPS.map(([, re], g) => `<div class="presets" data-g="${g}" hidden>${PRESETS.map(([label], i) => (PRESET_GROUPS.find(([, r]) => r.test(label))[1] === re ? `<button class="btn" data-i="${i}">${esc(label)}</button>` : "")).join("")}</div>`).join("")}</div>

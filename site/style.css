@@ -319,6 +319,15 @@ mark { background: color-mix(in srgb, var(--gold) 30%, transparent); color: inhe
 .hrank .snip { color: inherit; font-size: 1.05rem; line-height: 1.8; }
 .hrank .meta-line { grid-column: 2 / -1; }
 .hrank .books { color: var(--muted); }
+.acards { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.acard { display: flex; flex-direction: column; gap: 2px; align-items: flex-start; text-align: start; font: inherit; color: inherit; cursor: pointer; padding: 12px 14px; transition: border-color .15s, background .15s; }
+.acard:hover { border-color: var(--accent); }
+.acard.on { border-color: var(--gold); box-shadow: inset 0 0 0 1px var(--gold); }
+.acard .v { font-size: 1.6rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.acard .l { font-weight: 600; }
+.acard .s { color: var(--muted); font-size: .78rem; }
+.anote { line-height: 1.9; margin: 12px 0; }
+#alev[hidden] { display: none; }
 .xbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; }
 .xbar p { margin: 0; flex: 1 1 320px; }
 .nfilters { display: flex; flex-direction: column; gap: 14px; margin-bottom: 0; }
