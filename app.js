@@ -726,6 +726,7 @@
   const graphBox = (inner) => `<div class="graph-box">${inner}
     <div class="graph-ctl"><button data-z="in" title="تكبير" aria-label="تكبير">+</button><button data-z="out" title="تصغير" aria-label="تصغير">−</button><button data-z="reset" title="العودة إلى الشكل الأصلي" aria-label="العودة إلى الشكل الأصلي">⟲</button><button data-z="full" title="ملء الشاشة" aria-label="ملء الشاشة">⛶</button><button data-z="shot" title="لقطة: حفظ صورة الشجرة" aria-label="حفظ صورة الشجرة"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg></button><button data-z="share" title="مشاركة الصورة والرابط" aria-label="مشاركة"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path d="M8.2 10.8l7.6-4.4M8.2 13.2l7.6 4.4"/></svg></button></div>
     <p class="graph-hint">تفاعلي: اسحب للتحريك، وكبّر بالأزرار أو بالعجلة مع <bdi>Ctrl</bdi>، و⟲ يعيد الشكل الأصلي</p></div>`;
+  const NOTICE = "مشروع وقفي مفتوح لخدمة السنة النبوية · البيانات من مصادر مفتوحة (انظر عن المشروع) · الأحكام المعروضة منقولة عن أهل العلم والأداة مساعِدة للباحث لا تُغني عن النظر.";
   // the whole graph as a PNG blob, with a caption bar (site name + what it shows) under it
   // side: optional { title, groups: [{ name, items: [{ label, cls }] }] } printed as a column left of the graph
   async function graphPNG(c, caption, side) {
@@ -754,7 +755,16 @@
       }
     }
     const h = Math.max(img.height, y);
-    cv.width = Math.max(img.width + colW, 900); cv.height = h + bar;
+    cv.width = Math.max(img.width + colW, 900);
+    // the site's disclaimer under the caption, wrapped at its " · " separators to the image width
+    g.direction = "rtl"; g.font = font(400, 19);
+    const note = [];
+    for (const part of NOTICE.split(" · ")) {
+      const last = note.length - 1, joined = last < 0 ? part : note[last] + " · " + part;
+      if (last >= 0 && g.measureText(joined).width <= cv.width - 48) note[last] = joined; else note.push(part);
+    }
+    const noteH = note.length * 30 + 18;
+    cv.height = h + bar + noteH;
     g.fillStyle = bg; g.fillRect(0, 0, cv.width, cv.height);
     g.drawImage(img, colW + (cv.width - colW - img.width) / 2, (h - img.height) / 2);
     if (side) {
@@ -781,6 +791,8 @@
     g.font = "22px Tajawal, -apple-system, sans-serif"; g.fillStyle = css("--ink");
     g.textAlign = "center"; g.fillText(caption, cv.width / 2, h + bar / 2);
     g.fillStyle = css("--muted"); g.textAlign = "left"; g.direction = "ltr"; g.fillText(location.host, 24, h + bar / 2);
+    g.direction = "rtl"; g.textAlign = "center"; g.font = font(400, 19); g.fillStyle = css("--muted");
+    note.forEach((l, i) => g.fillText(l, cv.width / 2, h + bar + 15 + i * 30, cv.width - 48));
     return new Promise((ok) => cv.toBlob(ok, "image/png"));
   }
   function graphTools(el, get, reset, caption, file, side) {

@@ -172,3 +172,10 @@ h3 { font-family: var(--font-title); font-size: 1.15rem; }
 @media (prefers-reduced-motion: reduce) {
   .tree * { animation: none !important; opacity: 1 !important; stroke-dashoffset: 0 !important; }
 }
+
+/* print: the full disclaimer, as in the app's footer */
+.print-note { display: none; }
+@media print {
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .print-note { display: block; margin-top: 6px; }
+}
