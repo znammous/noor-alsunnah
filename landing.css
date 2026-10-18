@@ -188,3 +188,8 @@ h3 { font-family: var(--font-title); font-size: 1.15rem; }
 a.card { display: block; text-decoration: none; color: inherit; }
 .also { text-align: center; margin: 30px 0 0; color: var(--text-muted); }
 .also a { color: var(--gold); text-decoration: none; border-bottom: 1px dotted rgba(242,193,78,.6); }
+
+/* install button (shown by install.js only where the site can be installed) */
+.install[hidden] { display: none !important; }
+.btn.install svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+@media (max-width: 640px) { .nav .btn.install span { display: none; } .nav .btn.install { padding: 8px 10px; } .nav .btn.install:not([hidden]) + .btn { margin-inline-start: 0; } }
