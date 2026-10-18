@@ -253,6 +253,7 @@ details.jarh li { font-family: var(--font-text); font-size: 1.05rem; margin: 4px
 .s-count { margin: 14px 0 0; font-weight: 600; }
 .s-ref { font-weight: 700; }
 .s-bab { color: var(--muted); }
+.s-gr { color: var(--c); border: 1px solid var(--c); border-radius: 99px; padding: 0 8px; font-size: .78rem; line-height: 1.6; text-decoration: none; }
 .s-snip { display: block; color: var(--ink); }
 .s-snip:hover { text-decoration: none; }
 .s-snip .isn { color: var(--muted); }

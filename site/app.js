@@ -1832,6 +1832,12 @@
     // grade class per record (built from the quoted verdicts): s accepted, w weak, m the sources differ, "" none
     const GRADE_F = [["", "الكل"], ["s", "الصحيح وما في حكمه"], ["w", "الضعيف"], ["m", "مختلف فيه"], ["n", "بلا حكم"]];
     const gradeOf = (h) => h.rec.r[6] || "n";
+    // a tag on each result outside the Sahihayn (whose book already says it)
+    const GRADE_TAG = { s: ["صحيح أو حسن", "thiqa"], w: ["ضعيف", "weak"], m: ["مختلف فيه", "maqbul"] };
+    const gradeTag = (h) => {
+      const t = !SAHIHAYN.has(bookOf(h.rec.r[0])) && GRADE_TAG[h.rec.r[6]];
+      return t ? `<a class="s-gr cls-${t[1]}" href="#/h/${h.rec.r[0]}" title="تصنيف آلي لأحكام المحدثين، ونصها في صفحة الحديث">${t[0]}</a>` : "";
+    };
     app.innerHTML = `<h1>نتائج البحث: «${esc(q)}»</h1>
       ${lookup.length ? `<div class="panel lookup"><span class="muted">انتقل إلى الحديث برقمه:</span> ${lookup.map((k) => `<a class="btn" href="#/h/${k}">${BOOK[bookOf(k)]} ${hnum(k)}</a>`).join(" ")}</div>` : ""}
       ${narrators.length ? `<div class="panel" style="margin-bottom:16px"><h2>رواة</h2><div class="chain">${narrators.map(([id, v]) => `<a class="chip cls-${v[1]}" href="#/n/${encodeURIComponent(id)}"><span class="dot"></span>${esc(v[0])}</a>`).join(" ")}</div></div>` : ""}
@@ -1892,7 +1898,7 @@
         <ul class="list s-list">${page.map((h) => {
           const k = h.rec.r[0], more = others.get(h) || [];
           const bab = h.rec.bab ? `<span class="s-bab">${markText(h.rec.bab, h.babSpans)}</span>` : "";
-          return `<li><div class="meta-line"><a class="s-ref" href="#/h/${k}">${hkey(k)}</a>${bab}</div>
+          return `<li><div class="meta-line"><a class="s-ref" href="#/h/${k}">${hkey(k)}</a>${gradeTag(h)}${bab}</div>
             <a class="snip s-snip" href="#/h/${k}">${h.spans.length ? snippet(h) : markText(clip(h.rec.r[2], 260), [])}</a>
             ${more.length ? `<div class="s-more">وفي النتائج أيضًا: ${more.slice(0, 8).map((x) => `<a href="#/h/${x}">${hkey(x)}</a>`).join(" · ")}${more.length > 8 ? ` <span class="muted">و${fmt(more.length - 8)} غيرها</span>` : ""}</div>` : ""}</li>`;
         }).join("") || `<li class="muted">لا نتائج.${scopeTip} جرّب كلمات أقل أو صيغة أخرى، أو <a href="https://dorar.net/hadith/search?q=${encodeURIComponent(q)}&st=w" target="_blank" rel="noopener">ابحث في الموسوعة الحديثية</a>.</li>`}</ul>
