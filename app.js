@@ -504,7 +504,30 @@
         ${sp.shawahid.length ? `<h3 style="margin-top:14px">شواهده عن صحابة آخرين</h3><div class="chain">${sp.shawahid.map((n) => `<span class="chip cls-sahabi"><span class="dot"></span>${esc(n)}</span>`).join(" ")}</div>` : ""}</div>` : ""}`;
 
     let scope = others.length ? "all" : "one", bookFilter = "", rank = "";
-    const sideEmpty = $("#side").innerHTML;
+    // default side panel: the narrators of the drawn tree, grouped by Ibn Hajar's tabaqat
+    const overview = () => {
+      const by = new Map();
+      cy.nodes().forEach((n) => {
+        const id = n.id(), info = G.nar[id];
+        if (SPECIAL.has(id) || !info) return;
+        const t = info.tabaka || 0;
+        if (!by.has(t)) by.set(t, []);
+        by.get(t).push(n);
+      });
+      const total = [...by.values()].reduce((a, l) => a + l.length, 0);
+      return `<h3>خريطة رواة الشجرة</h3>
+        <p class="muted small">${fmt(total)} راويًا مرتبين بحسب طبقات ابن حجر · اضغط على أي راوٍ هنا أو في الشجرة لعرض ترجمته وتمييز الطرق التي تمر به.</p>
+        ${[...by.keys()].sort((a, b) => (a || 99) - (b || 99)).map((t) => `<div class="tabaqa"><h4><span>${t ? `${fmt(t)} · ${TABAQA_NAMES[t]}` : "غير محددة الطبقة"}</span><span class="muted">${fmt(by.get(t).length)}</span></h4>
+          <div class="chain">${by.get(t).sort((a, b) => b.data("n") - a.data("n")).map((n) => `<button class="chip cls-${n.data("cls")}${n.id() === G.madar ? " madar" : ""}" data-id="${esc(n.id())}" title="${fmt(n.data("n"))} طريقًا"><span class="dot"></span>${esc(n.data("label"))}</button>`).join("")}</div></div>`).join("")}`;
+    };
+    $("#side").addEventListener("click", (e) => {
+      if (e.target.closest("[data-back]")) { cy.elements().removeClass("dim hl"); applyRank(""); return; }
+      const b = e.target.closest("button[data-id]");
+      const node = b && cy && cy.getElementById(b.dataset.id);
+      if (!node || !node.length) return;
+      node.emit("tap");
+      cy.animate({ center: { eles: node } }, { duration: 300 });
+    });
     const inRank = (id, c) => (c === "madar" ? id === G.madar : (G.nar[id] || {}).cls === c);
     // highlight the narrators of one rank (or the madar) and the routes through them; filter the chain list to match
     const applyRank = (c) => {
@@ -519,7 +542,7 @@
       if (c) note.textContent = shown ? `${fmt(shown)} من ${fmt(rows.length)} أسانيد هذه الرواية فيها: ${what}` : `ليس في أسانيد هذه الرواية: ${what}، وإنما في طرقها الأخرى المبيّنة في الشجرة.`;
       if (!cy) return;
       cy.elements().removeClass("dim hl pick");
-      if (!c) { $("#side").innerHTML = sideEmpty; return; }
+      if (!c) { $("#side").innerHTML = overview(); return; }
       const hit = cy.nodes().filter((n) => inRank(n.id(), c));
       const path = hit.union(hit.predecessors()).union(hit.successors());
       cy.elements().not(path).addClass("dim");
@@ -533,7 +556,7 @@
     const draw = () => {
       drawTree(G, scope === "one" ? [key] : G.hadiths.filter((k) => !bookFilter || k[0] === bookFilter), key);
       $("#rankf").querySelectorAll("button").forEach((b) => { b.disabled = !cy.nodes().some((n) => inRank(n.id(), b.dataset.c)); });
-      cy.on("tap", (e) => { if (e.target === cy && rank) applyRank(""); });
+      cy.on("tap", (e) => { if (e.target === cy) applyRank(""); });
       // tapping a narrator switches to its own routes (selectNode); just drop the rank filter
       cy.on("tap", "node", () => {
         if (!rank) return;
@@ -766,7 +789,7 @@
       <dl class="facts">
         <dt>الرتبة</dt><dd>${esc(info.rank || CLS_LABEL[info.cls])}</dd>
         ${info.tabaka ? `<dt>الطبقة</dt><dd>${info.tabaka}</dd>` : ""}
-        ${info.death ? `<dt>الوفاة</dt><dd>${esc(info.death)} هـ</dd>` : ""}
+        ${info.death ? `<dt>الوفاة</dt><dd>${esc(info.death)}${/هـ/.test(info.death) ? "" : " هـ"}</dd>` : ""}
         ${info.tadlis ? "<dt>تنبيه</dt><dd>موصوف بالتدليس</dd>" : ""}
         ${info.ikhtilat ? "<dt>تنبيه</dt><dd>اختلط في آخر عمره</dd>" : ""}
         <dt>في هذه الشجرة</dt><dd>${fmt(node.data("n"))} إسنادًا · ${fmt(students.length)} من الرواة عنه</dd>
@@ -774,7 +797,7 @@
       ${id === G.madar ? '<p class="notice">هذا الراوي مدار الحديث: تلتقي عنده الطرق ثم تتفرع عنه.</p>' : ""}
       <p class="small"><b>روى عن:</b> ${teachers.map(nm).join("، ") || "—"}</p>
       <p class="small"><b>روى عنه هنا:</b> ${students.map(nm).join("، ") || "—"}</p>
-      <a class="btn" href="#/n/${encodeURIComponent(id)}">الترجمة الكاملة ←</a>`;
+      <a class="btn" href="#/n/${encodeURIComponent(id)}">الترجمة الكاملة ←</a> <button class="btn" data-back>خريطة الرواة</button>`;
   }
 
   // ---------- narrator page ----------
