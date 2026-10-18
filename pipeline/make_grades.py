@@ -7,13 +7,18 @@ its source (GRADE_SOURCES in build_site.py), never merged into a verdict of our 
   transfer of al-Albani's «صحيح وضعيف السنن»);
 * al-Busiri's «في الزوائد ...» as quoted by Muhammad Fu'ad Abd al-Baqi under Ibn Majah;
 * "[تعليق المحقق]" after each hadith of al-Darimi (Husayn Salim Asad).
-The editions are those whose numbering the program follows; a verdict is kept only when the
+These editions are those whose numbering the program follows; a verdict is kept only when the
 hadith under its number opens with the same words in the program (corpus.json from ifta_load.py).
+
+Al-Nasa'i's sources number the hadiths their own way (TEXT_BOOKS), so each of their hadiths is
+matched to the program's by its text, in book order:
+* al-Albani's «صحيح سنن النسائي» and «ضعيف سنن النسائي»: "(صحيح) - ..." after each hadith;
+* the Risala edition (2018): the editors' verdict opening the hadith's footnote ("إسناده صحيح، ...").
 """
 import json
 import re
+from bisect import bisect_right
 from collections import Counter
-
 from pathlib import Path
 
 from common import RAW, WORK, dump, load, norm
@@ -24,6 +29,8 @@ ARABIC_DIGITS = str.maketrans("٠١٢٣٤٥٦٧٨٩", "0123456789")
 
 # book key -> Shamela book id
 BOOKS = {"abudawud": 1726, "tirmidhi": 1435, "ibnmajah": 1198, "darimi": 21795}
+# book key -> [(Shamela book id, source key)], matched by text
+TEXT_BOOKS = {"nasai": [(1147, "albani-sahih"), (1148, "albani-daif"), (1339, "risala")]}
 
 TAG = re.compile(r"\[(حكم الألباني|تعليق محمد فؤاد عبد الباقي|شرح محمد فؤاد عبد الباقي|تعليق المحقق)\]\s*:?\s*")
 START = re.compile(r"(?:^|\n|\])\s*(\d{1,5})\s*-\s")
@@ -143,8 +150,150 @@ def same_hadith(words, text):
     return bool(words) and sum(w in text for w in words) >= 0.6 * len(words)
 
 
+FOOTNOTE = re.compile(r"(?:^|\n)\((\d{1,2})\)\s*(.*?)(?=\n\(\d{1,2}\)|\Z)", re.S)
+MARKER = re.compile(r"\((\d{1,2})\)")
+ALBANI_INLINE = re.compile(r"(?:^|\n)\s*\(((?:صحيح|حسن|ضعيف|شاذ|منكر|موضوع)[^)]*)\)")
+# the footnote that grades the hadith, not one on its manuscripts or its men
+EDITORS_VERDICT = re.compile(r"^(?:إسناد|حديث|صحيح|حسن|ضعيف|رجال|أثر|مرفوع|موقوف|مرسل|منكر|شاذ)")
+
+
+def segments(book_id):
+    """The numbered hadiths of a source, in order: {n, text, page, notes (footnotes of its markers)}."""
+    out, last = [], 0
+    for line in open(PAGES / f"{book_id}.jsonl", encoding="utf-8"):
+        p = json.loads(line)
+        if p.get("end"):
+            break
+        body = p["body"].translate(ARABIC_DIGITS)
+        notes = {m.group(1): m.group(2).strip() for m in FOOTNOTE.finditer(p["hamesh"].translate(ARABIC_DIGITS))}
+        here = starts(body, last)
+        bounds = [pos for pos, _ in here] + [len(body)]
+        pieces = [(None, body[:bounds[0]])] + [(n, body[pos:bounds[i + 1]]) for i, (pos, n) in enumerate(here)]
+        for n, text in pieces:
+            if n is not None:
+                out.append({"n": n, "text": "", "page": p["id"], "notes": []})
+                last = n
+            if out:
+                out[-1]["text"] += "\n" + text
+                out[-1]["notes"] += [notes.get(m.group(1), "") for m in MARKER.finditer(text)]
+    return out
+
+
+def first_clause(note):
+    """The verdict at the head of an editor's footnote: "إسناده صحيح، جرير: هو ..." -> "إسناده صحيح",
+    keeping a qualifying second clause ("حديث صحيح، وهذا إسناد ضعيف")."""
+    parts = re.split(r"[،.؛]", tidy(note.split("\n")[0]))
+    v = re.sub(r"\s+\S+(?:\s+\S+)?:\s*هو\b.*$", "", parts[0]).strip()   # "... أبو معاوية: هو ..." without a comma
+    if len(parts) > 1 and re.match(r"\s*(?:و?لكن|وهذا إسناد|وإسناده|وهذا الإسناد|والصواب)", parts[1]):
+        v += "، " + parts[1].strip()
+    return v
+
+
+def inline_verdict(inner):
+    """al-Albani's verdict in "(صحيح: ق)", "(شاذ - بزيادة ... - صحيح أبي داود 909)": the verdict and
+    its qualifier, without the references that follow it."""
+    parts = re.split(r"\s+-\s+", inner)
+    v = parts[0]
+    if len(parts) > 1 and re.match(r"(?:بزيادة|دون|إلا|باستثناء|بلفظ|لكن|[خمق](?:\s|،|$))", parts[1]):
+        v += " " + parts[1]
+    v = re.split(r"\s*\[", v)[0]
+    v = re.sub(r"،[^،]*\d.*$", "", v)                 # a reference after a comma: "، ضعيف أبي داود 176"
+    v = re.sub(r"\s*\(\d*$", "", v)
+    return tidy(re.sub(r"^(\S+(?: \S+)?):\s*([خمق])$", r"\1 \2", v))
+
+
+def text_verdict(src, seg):
+    """(verdict, text to match) of one hadith of a text-matched source."""
+    if src.startswith("albani"):
+        m = ALBANI_INLINE.search(seg["text"])
+        if not m:
+            return None, seg["text"]
+        return inline_verdict(m.group(1)), seg["text"][:m.start()]
+    graded = [n for n in seg["notes"] if EDITORS_VERDICT.match(n)]
+    return (first_clause(graded[-1]) if graded else None), MARKER.sub(" ", seg["text"])
+
+
+def align(segs, program, stats):
+    """Match each hadith of a source to the program's. Candidates share its rarest words; among
+    those matching about as well as the best, the one nearest after the previous match wins, as
+    both follow the book's order and al-Nasa'i repeats a text under several chapters.
+    -> [(program number, segment)]"""
+    postings = {}
+    for i, (_, words) in enumerate(program):
+        for w in words:
+            postings.setdefault(w, []).append(i)
+    out, j = [], -1
+    for seg in segs:
+        words = [w for w in dict.fromkeys(norm(seg["match"]).split()) if len(w) > 2][:50]
+        known = sorted((w for w in words if w in postings), key=lambda w: len(postings[w]))
+        if len(words) < 4 or not known:
+            stats["too short to match"] += 1
+            continue
+        scored = []
+        for i in {i for w in known[:4] for i in postings[w]}:
+            score = sum(w in program[i][1] for w in words) / len(words)
+            if score >= 0.7:
+                scored.append((score, i))
+        if not scored:
+            stats["no match in the program"] += 1
+            continue
+        top = max(sc for sc, _ in scored)
+        j = min((i for sc, i in scored if sc >= top - 0.05), key=lambda i: (i <= j, abs(i - j)))
+        out.append((j, seg))
+    # keep the longest run of matches in book order; a match out of order is a near-identical text
+    # elsewhere in the book (a repeated hadith), not this one
+    keep = in_order([i for i, _ in out])
+    stats["out of order, dropped"] += len(out) - len(keep)
+    return [(program[out[k][0]][0], out[k][1]) for k in keep]
+
+
+def in_order(seq):
+    """Positions of a longest non-decreasing subsequence of seq."""
+    tails, prev, ends = [], [None] * len(seq), []
+    for k, x in enumerate(seq):
+        lo = bisect_right(tails, x)
+        if lo == len(tails):
+            tails.append(x)
+            ends.append(k)
+        else:
+            tails[lo], ends[lo] = x, k
+        prev[k] = ends[lo - 1] if lo else None
+    out, k = [], ends[-1] if ends else None
+    while k is not None:
+        out.append(k)
+        k = prev[k]
+    return out[::-1]
+
+
+def text_book(book, sources, corpus):
+    program = [(h["num"], set(norm(" ".join(p["text"] for p in h["parts"])).split()))
+               for h in sorted((h for h in corpus if h["book"] == book), key=lambda h: int(h["num"]))]
+    grades, stats = {}, Counter()
+    for book_id, src in sources:
+        segs = segments(book_id)
+        for seg in segs:
+            seg["verdict"], seg["match"] = text_verdict(src, seg)
+        stats[f"{book_id} hadiths"] = len(segs)
+        graded = [seg for seg in segs if seg["verdict"]]
+        stats[f"{book_id} graded"] = len(graded)
+        for num, seg in align(graded, program, stats):
+            rows = grades.setdefault(num, [])
+            if [src, seg["verdict"]] not in [r[:2] for r in rows]:
+                rows.append([src, seg["verdict"], seg["page"]])
+                stats[f"{book_id} matched"] += 1
+    stats["hadiths graded"] = len(grades)
+    return grades, stats
+
+
 def main():
     corpus = load(WORK / "corpus.json")["hadiths"]
+    for book, sources in TEXT_BOOKS.items():
+        if not all((PAGES / f"{b}.jsonl").exists() for b, _ in sources):
+            print(f"{book}: no pages yet")
+            continue
+        grades, stats = text_book(book, sources, corpus)
+        dump(dict(sorted(grades.items(), key=lambda kv: int(kv[0]))), OUT / f"{book}.json")
+        print(f"{book}: {dict(stats)}")
     for book, book_id in BOOKS.items():
         if not (PAGES / f"{book_id}.jsonl").exists():
             print(f"{book}: no pages yet")
