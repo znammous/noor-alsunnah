@@ -4,8 +4,8 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 # new asset/data URLs on every publish, so browsers never mix cached and fresh files
 python3 scripts/stamp.py >/dev/null
-if ! git diff --quiet -- site/app.html site/index.html; then
-  git add site/app.html site/index.html
+if ! git diff --quiet -- site/app.html site/index.html site/sw.js; then
+  git add site/app.html site/index.html site/sw.js
   git commit -qm "رقم إصدار الموقع"
 fi
 git push origin main
