@@ -485,7 +485,7 @@ def main():
         "top_narrators": top(narr_hadiths, 20),
         "top_companions": top(companions_count, 15),
         "top_shaykhs": {b: top(shaykh_of[b], 10) for b in BOOKS},
-        "top_isnads": [[list(k), v] for k, v in sanad_freq.most_common(15)],
+        "top_isnads": [[list(k), v] for k, v in sanad_freq.most_common(50)],
         "top_madar": top(madar_count, 15),
         "most_turuq": [{"first": h["k"], "n_chains": h["set"]["n_chains"], "n_hadiths": 1 + len(h["rel"]),
                         "books": h["set"]["books"], "snippet": snippet(h)} for h in most_turuq],
