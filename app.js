@@ -770,6 +770,7 @@
 
     const compilerOf = (k) => AUTHOR[bookOf(k)];
     const others = G.hadiths.filter((k) => k !== key);
+    const bookChains = (p) => G.hadiths.reduce((n, k) => n + (k[0] === p ? G.items[k].chains.length : 0), 0);
     const companions = G.companions.map(([c]) => c).filter((c) => G.nar[c]?.cls === "sahabi");
     const ownCompanions = new Set(h.chains.map((c) => c.ids[0]));
     const madar = G.madar ? G.nar[G.madar] : null;
@@ -818,7 +819,7 @@
               <button data-v="one" class="${others.length ? "" : "on"}">هذه الرواية</button>
               ${others.length ? `<button data-v="all" class="on">كل طرقه في الكتب التسعة (${fmt(G.n_chains)})</button>` : ""}
             </div>
-            ${G.books.length > 1 ? `<div class="seg" id="bookf"><button data-v="" class="on">الكل</button>${BOOKS.filter((b) => G.books.includes(b)).map((b) => `<button data-v="${PREFIX[b]}">${AUTHOR[b]}</button>`).join("")}</div>` : ""}
+            ${G.books.length > 1 ? `<div class="seg" id="bookf"><button data-v="" class="on">الكل</button>${BOOKS.filter((b) => G.books.includes(b)).map((b) => `<button data-v="${PREFIX[b]}" title="أسانيده في ${BOOK[b]}">${AUTHOR[b]} (${fmt(bookChains(PREFIX[b]))})</button>`).join("")}</div>` : ""}
             <button class="btn" id="fit">ملاءمة العرض</button>
             <a class="btn" href="${mailto(`نور السنة: ملاحظة على ${hkey(key)}`)}">أبلغ عن خطأ</a>
           </div>
