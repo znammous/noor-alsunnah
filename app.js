@@ -482,6 +482,22 @@
     return `https://dorar.net/hadith/search?q=${encodeURIComponent(words)}&st=w`;
   }
 
+  // ---------- copy buttons ----------
+  const COPY_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+  const copyBtnHTML = (title) => `<button type="button" class="copy-btn" title="${title}" aria-label="${title}">${COPY_ICON}</button>`;
+  // copies text(); the button shows a check for a moment
+  function wireCopy(btn, text) {
+    if (!btn) return;
+    btn.addEventListener("click", async (e) => {
+      e.preventDefault(); e.stopPropagation();  // inside a <summary>, do not fold or unfold
+      const title = btn.title;
+      try { await navigator.clipboard.writeText(text()); btn.title = "نُسخ ✓"; btn.classList.add("done"); }
+      catch (_) { btn.title = "تعذّر النسخ"; }
+      btn.innerHTML = btn.classList.contains("done") ? "✓" : COPY_ICON;
+      setTimeout(() => { btn.title = title; btn.classList.remove("done"); btn.innerHTML = COPY_ICON; }, 1800);
+    });
+  }
+
   // ---------- the simplified explanation (موسوعة الأحاديث النبوية, hadeethenc.com) ----------
   const SHARH_BY = "موسوعة الأحاديث النبوية";
   const SHARH_ORG = "إعداد مركز الترجمة بالمكتب التعاوني للدعوة وتوعية الجاليات بالربوة";
@@ -524,10 +540,20 @@
       }).join("");
       // folded until the reader opens it; it stays open when the language changes
       el.innerHTML = `<details class="panel sharh"${open ? " open" : ""}>
-        <summary class="sharh-head"><h3>الشرح الميسّر</h3><span class="muted small">شرح مختصر للحديث وفوائده، بالعربية و${fmt(langs.length - 1)} لغة</span></summary>
-        <label class="sharh-lang">اللغة <select>${langs.map(([c, name, n]) => `<option value="${c}"${c === lang ? " selected" : ""}>${esc(name)}</option>`).join("")}</select></label>
+        <summary class="sharh-head"><h3>الشرح الميسّر</h3><span class="muted small">شرح مختصر للحديث وفوائده، بالعربية و${fmt(langs.length - 1)} لغة</span>${copyBtnHTML("نسخ الشرح")}</summary>
         ${blocks}
+        <label class="sharh-lang">اقرأ الشرح بلغة أخرى <select>${langs.map(([c, name, n]) => `<option value="${c}"${c === lang ? " selected" : ""}>${esc(name)}</option>`).join("")}</select></label>
         <p class="muted small">من ${SHARH_BY} (${SHARH_ORG})، شرح مختصر لعموم القرّاء، يُنقل بنصه. وقد يكون لفظ الحديث في الموسوعة مختلفًا يسيرًا عن لفظ هذه الرواية.</p></details>`;
+      wireCopy(el.querySelector(".copy-btn"), () => [
+        `الشرح الميسّر: ${BOOK[h.book]} — حديث رقم ${h.label}`,
+        ...ids.map((id, n) => {
+          const a = ar[n], t = tr && tr[n], e = t || a;
+          if (!e) return "";
+          return [t && t.h, e.x, e.f && e.f.length ? (t ? "" : "من فوائد الحديث:\n") + e.f.map((x) => "- " + x).join("\n") : "",
+            !t && a.w && a.w.length ? "معاني الكلمات:\n" + a.w.map(([w, m]) => `- ${w}: ${m}`).join("\n") : "",
+            `المصدر: ${SHARH_BY} (${SHARH_ORG})\nhttps://hadeethenc.com/${t ? lang : "ar"}/browse/hadith/${id}`].filter(Boolean).join("\n\n");
+        }),
+        location.href].filter(Boolean).join("\n\n"));
       el.querySelector("details").addEventListener("toggle", (ev) => { open = ev.target.open; });
       el.querySelector("select").addEventListener("change", (ev) => {
         try { localStorage.setItem("sharhLang", ev.target.value); } catch {}
@@ -564,7 +590,7 @@
       <h1>${BOOK[book]} — ${h.aliases.length ? "الأحاديث" : "حديث رقم"} ${esc(h.label)}</h1>
       <div class="meta-line" style="margin-bottom:10px">${h.type ? `<span class="tag">${esc(h.type)}</span>` : ""}
         <span>${NUMBERING[book]}</span>${h.parts.length > 1 ? `<span>· ${fmt(h.parts.length)} روايات تحت هذا الرقم</span>` : ""}</div>
-      <div class="panel hadith-text">${hadithTextHTML(h, G.nar)}</div>
+      <div class="panel hadith-text">${copyBtnHTML("نسخ نص الحديث")}${hadithTextHTML(h, G.nar)}</div>
       <div id="sharh"></div>
       ${SAHIHAYN.has(book) ? "" : `<p class="notice sunan-note">${book === "muwatta"
         ? "في موطأ مالك المسند والمرسل والبلاغ، ومعها آثار الصحابة والتابعين وأقوال مالك"
@@ -621,6 +647,7 @@
       <div class="panel"><div class="chain">${sp.books.map(([b, n]) => `<span class="chip">${esc(b)}<span class="muted small" style="margin-inline-start:6px">${fmt(n)}</span></span>`).join(" ")}${sp.n_books > sp.books.length ? `<span class="muted small">و${fmt(sp.n_books - sp.books.length)} كتابًا آخر</span>` : ""}</div>
         ${sp.shawahid.length ? `<h3 style="margin-top:14px">شواهده عن صحابة آخرين</h3><div class="chain">${sp.shawahid.map((n) => `<span class="chip cls-sahabi"><span class="dot"></span>${esc(n)}</span>`).join(" ")}</div>` : ""}</div>` : ""}`;
 
+    wireCopy($(".hadith-text .copy-btn"), () => `${BOOK[book]} — ${h.aliases.length ? "الأحاديث" : "حديث رقم"} ${h.label}\n\n${h.parts.map((p) => p.text.trim()).join("\n\n")}\n\n${location.href}`);
     renderSharh($("#sharh"), h);
     let scope = others.length ? "all" : "one", bookFilter = "", rank = "";
     // default side panel: the narrators of the drawn tree, grouped by Ibn Hajar's tabaqat
