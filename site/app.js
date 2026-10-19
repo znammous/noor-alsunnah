@@ -429,7 +429,7 @@
         const r = textOf.get(k);
         const bab = r && r[3] && r[3] !== lastBab ? `<h3 class="bab">${esc(r[3])}</h3>` : "";
         lastBab = r ? r[3] : lastBab;
-        return `<li>${bab}<div class="meta-line"><a href="#/h/${k}">${hkey(k)}</a>${gradeTag(r)}</div><a href="#/h/${k}" class="snip" style="color:inherit">${esc(clip(r ? r[2] : "", 220))}</a></li>`;
+        return `<li>${bab}<div class="row-link"><div class="meta-line"><a href="#/h/${k}">${hkey(k)}</a>${gradeTag(r)}</div><a href="#/h/${k}" class="snip row-main" style="color:inherit">${esc(clip(r ? r[2] : "", 220))}</a></div></li>`;
       }).join("")}</ul></div>
       ${pager(pages, page, (p) => `#/book/${book}/${no}/${p}`)}`;
   }
@@ -1356,7 +1356,7 @@
     const slice = keys.slice((page - 1) * PAGE, page * PAGE);
     box.innerHTML = `<ul class="list">${slice.map((k) => {
       const r = textOf.get(k);
-      return `<li><div class="meta-line"><a href="#/h/${k}">${hkey(k)}</a>${gradeTag(r)}${r && r[3] ? `<span>${esc(r[3])}</span>` : ""}</div><div class="snip">${esc(clip(r ? r[2] : "", 200))}</div></li>`;
+      return `<li class="row-link"><div class="meta-line"><a href="#/h/${k}">${hkey(k)}</a>${gradeTag(r)}${r && r[3] ? `<span>${esc(r[3])}</span>` : ""}</div><a href="#/h/${k}" class="snip row-main" style="color:inherit">${esc(clip(r ? r[2] : "", 200))}</a></li>`;
     }).join("")}</ul>${pages > 1 ? `<div class="pager">${page > 1 ? '<button class="btn" data-p="-1">السابق</button>' : ""}<span class="muted">${page} / ${pages}</span>${page < pages ? '<button class="btn" data-p="1">التالي</button>' : ""}</div>` : ""}`;
     box.querySelectorAll("[data-p]").forEach((b) => b.addEventListener("click", () => {
       renderNarratorHadiths(n, page + +b.dataset.p, book, only, skip);
@@ -2149,8 +2149,8 @@
         <ul class="list s-list">${page.map((h) => {
           const k = h.rec.r[0], more = others.get(h) || [];
           const bab = h.rec.bab ? `<span class="s-bab">${markText(h.rec.bab, h.babSpans)}</span>` : "";
-          return `<li><div class="meta-line"><a class="s-ref" href="#/h/${k}">${hkey(k)}</a>${gradeTag(h.rec.r)}${bab}</div>
-            <a class="snip s-snip" href="#/h/${k}">${h.spans.length ? snippet(h) : markText(clip(h.rec.r[2], 260), [])}</a>
+          return `<li class="row-link"><div class="meta-line"><a class="s-ref" href="#/h/${k}">${hkey(k)}</a>${gradeTag(h.rec.r)}${bab}</div>
+            <a class="snip s-snip row-main" href="#/h/${k}">${h.spans.length ? snippet(h) : markText(clip(h.rec.r[2], 260), [])}</a>
             ${more.length ? `<div class="s-more">وفي النتائج أيضًا: ${more.slice(0, 8).map((x) => `<a href="#/h/${x}">${hkey(x)}</a>`).join(" · ")}${more.length > 8 ? ` <span class="muted">و${fmt(more.length - 8)} غيرها</span>` : ""}</div>` : ""}</li>`;
         }).join("") || `<li class="muted">لا نتائج.${scopeTip} جرّب كلمات أقل أو صيغة أخرى، أو <a href="https://dorar.net/hadith/search?q=${encodeURIComponent(q)}&st=w" target="_blank" rel="noopener">ابحث في الموسوعة الحديثية</a>.</li>`}</ul>
         ${list.length > shown ? `<div class="pager"><button class="btn" id="sMore">عرض المزيد (${fmt(list.length - shown)} باقية)</button></div>` : ""}`;
