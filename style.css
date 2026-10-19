@@ -233,8 +233,6 @@ a.btn { display: inline-block; text-decoration: none; }
 .side .tabaqa { margin-top: 12px; }
 .side .tabaqa h4 { display: flex; justify-content: space-between; gap: 8px; margin: 0 0 6px; font-size: .85rem; color: var(--gold); font-weight: 600; }
 .side button.chip { font: inherit; font-size: .82rem; cursor: pointer; }
-.panel.takhrij > h3 { margin: 0 0 2px; }
-.panel.takhrij > p { margin: 0 0 10px; }
 #takhrij button.chip { font: inherit; cursor: pointer; }
 #takhrij button.chip.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
 .takhrij-list { margin-top: 14px; padding-top: 6px; border-top: 1px solid var(--line); }
