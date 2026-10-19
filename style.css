@@ -238,6 +238,12 @@ a.btn { display: inline-block; text-decoration: none; }
 .list { list-style: none; margin: 0; padding: 0; }
 .list > li { padding: 12px 0; border-bottom: 1px solid var(--line); }
 .list > li:last-child { border-bottom: 0; }
+/* a hadith row opens the hadith anywhere in it; its own links and tags stay on top */
+.row-link { position: relative; border-radius: 8px; }
+.row-link .row-main { text-decoration: none; }
+.row-link .row-main::after { content: ""; position: absolute; inset: 0; }
+.row-link a:not(.row-main), .row-link button { position: relative; z-index: 1; }
+.row-link:hover { background: color-mix(in srgb, var(--accent) 6%, transparent); }
 .snip { font-family: var(--font-text); font-size: 1.1rem; line-height: 1.9; }
 .meta-line { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; color: var(--muted); font-size: .85rem; margin-bottom: 4px; }
 .hnav { margin-inline-start: auto; display: flex; gap: 6px; }
