@@ -520,6 +520,7 @@
         lang === "ar" ? null : Promise.all(ids.map((i) => sharhEntry(lang, i)))]);
       if (!el.isConnected) return;
       const [, native, , rtl] = langs.find(([c]) => c === lang);
+      const picker = `<label class="sharh-lang">اقرأ الشرح بلغة أخرى <select>${langs.map(([c, name]) => `<option value="${c}"${c === lang ? " selected" : ""}>${esc(name)}</option>`).join("")}</select></label>`;
       const blocks = ids.map((id, n) => {
         const a = ar[n], t = tr && tr[n];
         if (!a && !t) return "";
@@ -535,6 +536,7 @@
             ${e.f && e.f.length ? `<details${ids.length > 1 ? "" : " open"}><summary>${t ? "Benefits · الفوائد" : "من فوائد الحديث"}</summary><ul>${e.f.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></details>` : ""}
             ${!t && a.w && a.w.length ? `<details><summary>معاني الكلمات</summary><dl class="sharh-words">${a.w.map(([w, m]) => `<dt>${esc(w)}</dt><dd>${esc(m)}</dd>`).join("")}</dl></details>` : ""}
           </div>
+          ${n === ids.length - 1 ? picker : ""}
           <span class="grade-src">${SHARH_BY} · <a href="${page}" target="_blank" rel="noopener">الحديث في الموسوعة ↗</a> · <a href="${mailto(`نور السنة: ملاحظة على الشرح الميسر في ${hkey(h.k)}`,
             `الحديث: ${hkey(h.k)}\n${location.href}\n\nالشرح المعروض: ${e.t || ""}\n${page}\n\nما الخطأ؟ (مثلًا: الشرح لحديث آخر، أو خطأ في الترجمة)\n`)}">أبلغ عن خطأ في هذا الشرح</a></span></article>`;
       }).join("");
@@ -542,7 +544,6 @@
       el.innerHTML = `<details class="panel sharh"${open ? " open" : ""}>
         <summary class="sharh-head"><h3>الشرح الميسّر</h3><span class="muted small">شرح مختصر للحديث وفوائده، بالعربية و${fmt(langs.length - 1)} لغة</span>${copyBtnHTML("نسخ الشرح")}</summary>
         ${blocks}
-        <label class="sharh-lang">اقرأ الشرح بلغة أخرى <select>${langs.map(([c, name, n]) => `<option value="${c}"${c === lang ? " selected" : ""}>${esc(name)}</option>`).join("")}</select></label>
         <p class="muted small">من ${SHARH_BY} (${SHARH_ORG})، شرح مختصر لعموم القرّاء، يُنقل بنصه. وقد يكون لفظ الحديث في الموسوعة مختلفًا يسيرًا عن لفظ هذه الرواية.</p></details>`;
       wireCopy(el.querySelector(".copy-btn"), () => [
         `الشرح الميسّر: ${BOOK[h.book]} — حديث رقم ${h.label}`,
