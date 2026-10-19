@@ -233,6 +233,12 @@ a.btn { display: inline-block; text-decoration: none; }
 .side .tabaqa { margin-top: 12px; }
 .side .tabaqa h4 { display: flex; justify-content: space-between; gap: 8px; margin: 0 0 6px; font-size: .85rem; color: var(--gold); font-weight: 600; }
 .side button.chip { font: inherit; font-size: .82rem; cursor: pointer; }
+#takhrij button.chip { font: inherit; cursor: pointer; }
+#takhrij button.chip.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.takhrij-list { margin-top: 14px; padding-top: 6px; border-top: 1px solid var(--line); }
+.takhrij-list h3 { margin: 6px 0 2px; }
+.tk-text { margin: 4px 0 0; cursor: pointer; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
+.tk-text.open { display: block; -webkit-line-clamp: none; }
 .side button.chip.madar { border: 2px solid var(--gold); }
 .facts { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: .9rem; margin: 10px 0; }
 .facts dt { color: var(--muted); } .facts dd { margin: 0; }

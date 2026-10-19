@@ -7,3 +7,4 @@ python3 ifta_load.py
 mkdir -p ../site/data
 find ../site/data -mindepth 1 -maxdepth 1 ! -name sharh -exec rm -rf {} +
 python3 build_site.py
+python3 make_takhrij.py

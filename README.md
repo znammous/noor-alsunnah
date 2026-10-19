@@ -24,6 +24,7 @@ scripts/publish.sh      # يدفع main ثم ينشر site/ إلى فرع gh-pag
 |---|---|
 | `pipeline/ifta_load.py` | الأحاديث والأسانيد والرواة والتخريج من برنامج جامع خادم الحرمين الشريفين (مع نسخة مختصرة منها في `data/work/slim/` تسرّع البناء) |
 | `pipeline/build_site.py` | إنتاج ملفات الموقع والمؤشرات (مجزأة لتقليل عدد الملفات) |
+| `pipeline/make_takhrij.py` | روايات الحديث في كل كتاب من كتب التخريج (أرقامها ونصوصها في كتب البرنامج الأخرى، مع نسخة مختصرة منها في `data/work/slim/other/`)، تُحمَّل عند الضغط على الكتاب |
 | `pipeline/toc/` | فهرس الكتب الكبرى للصحيحين (اسم الكتاب وأول حديث فيه) |
 | `pipeline/make_toc.py` + `load_bukhari.py` + `load_muslim.py` | أداة استُعملت مرة واحدة لجمع فهرس كتب الصحيحين، ولا تدخل في البناء |
 | `pipeline/fetch_shamela_pages.py` + `make_grades.py` | أداة تُشغَّل عند تحديث أحكام المحدثين: جمع صفحات الكتب من الشاملة (إلى `data/raw/shamela/pages/`) ثم استخراج الأحكام إلى `pipeline/grades/` |
