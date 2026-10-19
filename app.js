@@ -753,6 +753,51 @@
     if (a && a.href) { e.preventDefault(); location.href = a.href; }
   });
 
+  // the program's book ids of the other books of the dataset (see pipeline/make_takhrij.py)
+  const TAKHRIJ_BOOK = { 10: "صحيح ابن حبان", 11: "صحيح ابن خزيمة", 12: "المعجم الكبير للطبراني", 13: "المعجم الأوسط للطبراني",
+    14: "المعجم الصغير للطبراني", 15: "مصنف ابن أبي شيبة", 16: "مصنف عبد الرزاق", 17: "السنن الكبرى للبيهقي", 18: "سنن الدارقطني",
+    19: "مسند البزار", 20: "مسند الحميدي", 21: "مسند الطيالسي", 22: "السنن الكبرى للنسائي", 23: "مسند أبي يعلى",
+    24: "المستدرك للحاكم", 25: "الأحاديث المختارة للضياء", 26: "المطالب العالية لابن حجر", 27: "المنتقى لابن الجارود",
+    28: "شرح معاني الآثار للطحاوي", 29: "المنتخب من مسند عبد بن حميد", 30: "سنن سعيد بن منصور", 31: "شرح مشكل الآثار للطحاوي",
+    32: "المراسيل لأبي داود", 33: "الشمائل للترمذي" };
+  ["bukhari", "muslim", "abudawud", "tirmidhi", "nasai", "ibnmajah", "muwatta", "ahmad", "darimi"].forEach((b, i) => { TAKHRIJ_BOOK[i + 1] = BOOK[b]; });
+  const TX_CHUNK = 500;
+  // a book chip of the takhrij opens the hadith's narrations in that book
+  function wireTakhrij(box, key, g, G) {
+    if (!box) return;
+    const list = $("#takhrij-list");
+    const own = (k) => {
+      const o = G.items[k];
+      if (k === key) return `<li><div class="meta-line"><b>${hkey(k)}</b><span class="tag">هذه الرواية</span></div></li>`;
+      return `<li class="row-link"><div class="meta-line"><a href="#/h/${k}">${hkey(k)}</a>${o && o.bab ? `<span>${esc(o.bab)}</span>` : ""}</div>
+        ${o ? `<a href="#/h/${k}" class="snip row-main" style="color:inherit">${esc(clip(matnOf(o), 260))}</a>` : ""}</li>`;
+    };
+    const other = (t) => !t ? "" : `<li><div class="meta-line"><b>${TAKHRIJ_BOOK[t[0]] || ""}${t[1] ? ` — حديث رقم ${esc(t[1])}` : ""}</b></div>
+      <p class="snip tk-text" title="اضغط لعرض النص كاملًا">${esc(t[2])}</p></li>`;
+    box.addEventListener("click", async (e) => {
+      const b = e.target.closest("button.chip");
+      if (!b) return;
+      const open = b.classList.contains("on");
+      box.querySelectorAll("button.chip.on").forEach((x) => { x.classList.remove("on"); x.setAttribute("aria-expanded", "false"); });
+      if (open) { list.hidden = true; return; }
+      b.classList.add("on"); b.setAttribute("aria-expanded", "true");
+      list.hidden = false;
+      list.innerHTML = '<p class="muted">جارٍ التحميل…</p>';
+      try {
+        const rows = await getJSON(`data/t/${META.gshard[g]}.json`);
+        const refs = ((rows[key] || []).find(([name]) => name === b.dataset.g) || [, []])[1];
+        const chunks = [...new Set(refs.filter((r) => typeof r === "number").map((m) => Math.floor(m / TX_CHUNK)))];
+        const T = Object.assign({}, ...await Promise.all(chunks.map((c) => getJSON(`data/x/${c}.json`))));
+        if (!b.classList.contains("on")) return;
+        list.innerHTML = `<h3>${esc(b.dataset.g)}: ${refs.length === 1 ? "رواية واحدة" : refs.length === 2 ? "روايتان" : `${fmt(refs.length)} ${refs.length <= 10 ? "روايات" : "رواية"}`}</h3>
+          <ul class="list">${refs.map((r) => (typeof r === "string" ? own(r) : other(T[r]))).join("") || '<li class="muted">لا يتوفر نص هذه الروايات.</li>'}</ul>`;
+      } catch (_) {
+        if (b.classList.contains("on")) list.innerHTML = '<p class="muted">تعذّر تحميل الروايات، أعد المحاولة.</p>';
+      }
+    });
+    list.addEventListener("click", (e) => { const t = e.target.closest(".tk-text"); if (t) t.classList.toggle("open"); });
+  }
+
   async function viewHadith(key) {
     if (!META.index[key] && META.alias[key]) { location.replace("#/h/" + META.alias[key]); return; }
     const entry = META.index[key];
@@ -841,10 +886,16 @@
           ${o.chains.slice(0, 3).map((c) => chainHTML(c.ids, G.nar, c.z ? null : compilerOf(k))).join("")}${o.chains.length > 3 ? `<p class="muted small">و${fmt(o.chains.length - 3)} أسانيد أخرى</p>` : ""}</li>`;
       }).join("")}</ul></div>` : ""}
 
-      ${sp && sp.books.length ? `<div class="section-title"><h2>تخريجه في كتب السنة</h2><p>عدد رواياته في كل كتاب بحسب تخريج برنامج جامع خادم الحرمين الشريفين</p></div>
-      <div class="panel"><div class="chain">${sp.books.map(([b, n]) => `<span class="chip">${esc(b)}<span class="muted small" style="margin-inline-start:6px">${fmt(n)}</span></span>`).join(" ")}${sp.n_books > sp.books.length ? `<span class="muted small">و${fmt(sp.n_books - sp.books.length)} كتابًا آخر</span>` : ""}</div>
+      ${sp && sp.books.length ? `<div class="section-title"><h2>تخريجه في كتب السنة</h2><p>عدد رواياته في كل كتاب بحسب تخريج برنامج جامع خادم الحرمين الشريفين · اضغط على كتاب لعرض رواياته فيه</p></div>
+      <div class="panel"><div class="chain" id="takhrij">${sp.books.map(([b, n]) => {
+        const inner = `${esc(b)}<span class="muted small" style="margin-inline-start:6px">${fmt(n)}</span>`;
+        // the program names the "other books" (تحفة الأشراف ...) without their text
+        return b.startsWith("(كتب أخرى)") ? `<span class="chip">${inner}</span>` : `<button type="button" class="chip" data-g="${esc(b)}" aria-expanded="false">${inner}</button>`;
+      }).join(" ")}${sp.n_books > sp.books.length ? `<span class="muted small">و${fmt(sp.n_books - sp.books.length)} كتابًا آخر</span>` : ""}</div>
+        <div id="takhrij-list" class="takhrij-list" hidden></div>
         ${sp.shawahid.length ? `<h3 style="margin-top:14px">شواهده عن صحابة آخرين</h3><div class="chain">${sp.shawahid.map((n) => `<span class="chip cls-sahabi"><span class="dot"></span>${esc(n)}</span>`).join(" ")}</div>` : ""}</div>` : ""}`;
 
+    wireTakhrij($("#takhrij"), key, entry[1], G);
     wireCard($(".hadith-text .text-tools"), h, G.nar);
     // short text: the vertical tool column would spill out of the box, so switch it to a row
     const htBox = $(".hadith-text"), htTools = htBox.querySelector(".text-tools");
