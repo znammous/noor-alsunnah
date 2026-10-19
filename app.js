@@ -846,9 +846,16 @@
         <span class="pill">مع رواياته في الكتب التسعة: <b>${fmt(G.n_chains)}</b> إسنادًا في <b>${fmt(G.hadiths.length)}</b> رواية</span>
         <span class="pill">الصحابة في الكتب التسعة: <b>${fmt(companions.length)}</b></span>
         ${madar ? `<span class="pill">المدار: <b><a href="#/n/${encodeURIComponent(G.madar)}">${esc(shortName(madar.name))}</a></b> · <a href="#/turuq?d=${encodeURIComponent(G.madar)}">أحاديث مداره</a></span>` : ""}
-        ${sp && sp.n_hadith ? `<span class="pill">تخريجه في كتب السنة: <b>${fmt(sp.n_hadith)}</b> رواية في <b>${fmt(sp.n_books)}</b> كتابًا</span>` : ""}
-        ${sp && sp.shawahid.length ? `<span class="pill">له شواهد عن: <b>${fmt(sp.shawahid.length)}</b> صحابيًا</span>` : ""}
       </div>
+      ${sp && sp.books.length ? `<div class="panel takhrij"><h3>تخريجه في كتب السنة: ${fmt(sp.n_hadith)} رواية في ${fmt(sp.n_books)} كتابًا</h3>
+        <p class="muted small">عدد رواياته في كل كتاب بحسب تخريج برنامج جامع خادم الحرمين الشريفين · اضغط على كتاب لعرض رواياته فيه</p>
+        <div class="chain" id="takhrij">${sp.books.map(([b, n]) => {
+        const inner = `${esc(b)}<span class="muted small" style="margin-inline-start:6px">${fmt(n)}</span>`;
+        // the program names the "other books" (تحفة الأشراف ...) without their text
+        return b.startsWith("(كتب أخرى)") ? `<span class="chip">${inner}</span>` : `<button type="button" class="chip" data-g="${esc(b)}" aria-expanded="false">${inner}</button>`;
+      }).join(" ")}${sp.n_books > sp.books.length ? `<span class="muted small">و${fmt(sp.n_books - sp.books.length)} كتابًا آخر</span>` : ""}</div>
+        <div id="takhrij-list" class="takhrij-list" hidden></div>
+        ${sp.shawahid.length ? `<h3 style="margin-top:14px">شواهده عن صحابة آخرين</h3><div class="chain">${sp.shawahid.map((n) => `<span class="chip cls-sahabi"><span class="dot"></span>${esc(n)}</span>`).join(" ")}</div>` : ""}</div>` : ""}
 
       ${gradesHTML(h)}
       <div class="panel dorar">
@@ -884,16 +891,7 @@
         return `<li class="row-link"><div class="meta-line"><a href="#/h/${k}">${hkey(k)}</a><span class="tag">${shahid ? "شاهد" : "متابعة"}</span>${o.bab ? `<span>${esc(o.bab)}</span>` : ""}</div>
           <a href="#/h/${k}" class="snip row-main" style="color:inherit">${esc(clip(matnOf(o), 260))}</a>
           ${o.chains.slice(0, 3).map((c) => chainHTML(c.ids, G.nar, c.z ? null : compilerOf(k))).join("")}${o.chains.length > 3 ? `<p class="muted small">و${fmt(o.chains.length - 3)} أسانيد أخرى</p>` : ""}</li>`;
-      }).join("")}</ul></div>` : ""}
-
-      ${sp && sp.books.length ? `<div class="section-title"><h2>تخريجه في كتب السنة</h2><p>عدد رواياته في كل كتاب بحسب تخريج برنامج جامع خادم الحرمين الشريفين · اضغط على كتاب لعرض رواياته فيه</p></div>
-      <div class="panel"><div class="chain" id="takhrij">${sp.books.map(([b, n]) => {
-        const inner = `${esc(b)}<span class="muted small" style="margin-inline-start:6px">${fmt(n)}</span>`;
-        // the program names the "other books" (تحفة الأشراف ...) without their text
-        return b.startsWith("(كتب أخرى)") ? `<span class="chip">${inner}</span>` : `<button type="button" class="chip" data-g="${esc(b)}" aria-expanded="false">${inner}</button>`;
-      }).join(" ")}${sp.n_books > sp.books.length ? `<span class="muted small">و${fmt(sp.n_books - sp.books.length)} كتابًا آخر</span>` : ""}</div>
-        <div id="takhrij-list" class="takhrij-list" hidden></div>
-        ${sp.shawahid.length ? `<h3 style="margin-top:14px">شواهده عن صحابة آخرين</h3><div class="chain">${sp.shawahid.map((n) => `<span class="chip cls-sahabi"><span class="dot"></span>${esc(n)}</span>`).join(" ")}</div>` : ""}</div>` : ""}`;
+      }).join("")}</ul></div>` : ""}`;
 
     wireTakhrij($("#takhrij"), key, entry[1], G);
     wireCard($(".hadith-text .text-tools"), h, G.nar);
