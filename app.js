@@ -1814,7 +1814,9 @@
     const booksPanel = () => {
       const key = bookMode === "marfu" ? ["marfu", "marfu_uniq"] : ["hadith", "uniq"];
       const max = Math.max(...BOOKS.map((b) => X.books[b][key[0]]));
-      return `<ul class="bullets">${BOOKS.map((b) => {
+      const all = X.all[key[0]], u = X.all[key[1]];
+      return `<p class="xall">الكتب التسعة مجتمعة: <b>${fmt(u)}</b> حديثًا بدون المكرر <span class="muted">من ${fmt(all)} موضعًا، والحديث الذي في أكثر من كتاب يُعدّ مرة واحدة</span></p>
+        <ul class="bullets">${BOOKS.map((b) => {
         const all = X.books[b][key[0]], u = X.books[b][key[1]];
         return `<li title="${BOOK[b]}: ${fmt(all)} مع المكرر، ونحو ${fmt(u)} بدون المكرر">
           <a href="#/book/${b}" class="name">${BOOK[b]}</a>
@@ -1867,7 +1869,7 @@
         <div class="tree-tools"><div class="seg" id="xbm"><button data-v="all" class="on">كل الأحاديث</button><button data-v="marfu">المرفوع فقط</button></div>
           <div class="legend"><span><i class="lg-all"></i>مع المكرر</span><span><i class="lg-u"></i>بدون المكرر (تقريبي)</span></div></div>
         <div id="xbooks">${booksPanel()}</div>
-        <p class="muted small">«بدون المكرر» عدٌّ آلي يجمع الحديث الذي كرره المصنف في أكثر من موضع بحسب روابط التخريج في برنامج الجامع، فهو تقريبي: يعطي في صحيح البخاري ${fmt(X.books.bukhari.uniq)} حديثًا، وعدّها ابن حجر 2,602 حديثًا بلا تكرار. وأحاديث مسلم مرقّمة أصلًا على غير المكرر في ترقيم محمد فؤاد عبد الباقي، فالفرق فيه قليل.</p></div>`;
+        <p class="muted small">«بدون المكرر» عدٌّ آلي تقريبي: يُعدّ الموضع مكررًا إذا ربطه تخريج برنامج الجامع بموضع قبله وتقارب لفظ متنيهما، بوزن الكلمات بندرتها حتى لا تجمع العبارات العامة («نهى رسول الله ﷺ عن…») بين حديثين مختلفين. يعطي في مرفوع صحيح البخاري ${fmt(X.books.bukhari.marfu_uniq)} حديثًا، وعدّه ابن حجر 2,602 حديثًا مرفوعًا موصولًا بلا تكرار. وأحاديث مسلم مرقّمة أصلًا على غير المكرر في ترقيم محمد فؤاد عبد الباقي، فالفرق فيه قليل.</p></div>`;
 
     const bi = (b) => BOOKS.indexOf(b);
     const value = (id) => {
