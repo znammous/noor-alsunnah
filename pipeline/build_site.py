@@ -7,6 +7,7 @@ Layout (sharded to keep the file count low for static hosting):
   g/<shard>.json   hadith groups (turuq): hadiths + chains + madar + spread in other books
   n/<shard>.json   narrator details: profile, teachers, students, hadiths
 """
+import math
 import re
 from collections import Counter, defaultdict
 from pathlib import Path
@@ -606,15 +607,35 @@ def main():
     dump({"books": awali_out, "nar": {i: light(narr[i]) for i in used}}, SITE_DATA / "awali.json")
 
     # ---------- statistics explorer: per-book repeats, and narrator fields to filter the directory by ----------
-    # a book's hadiths joined by the source's rel links inside that book, counted once (approximate)
-    def book_uniq(b, keep=lambda h: True):
-        keys = [k for k, h in hadiths.items() if h["book"] == b and keep(h)]
-        return len(set(repeat_sets(keys).values()))
+    # a hadith is a repeat when a rel link joins it to an earlier one (in book order) whose matn shares enough
+    # of its words, weighted by rarity so the formulas (نهى رسول الله ﷺ عن…) don't join different hadiths;
+    # a matn too short to compare (مثله، بنحوه) follows its link. 0.3 gives al-Bukhari's marfu' 2,603 (Ibn Hajar 2,602)
+    matn_norm = lambda t: re.sub("[إأآ]", "ا", strip_diacritics(t)).replace("ة", "ه").replace("ى", "ي")
+    matn_words = {k: set(re.findall(r"[\u0621-\u064A]{2,}", matn_norm(" ".join(p["text"][p["matn"][0]:p["matn"][1]]
+                                                                         for p in h["parts"] if p.get("matn")))))
+                  for k, h in hadiths.items()}
+    df = Counter(w for ws in matn_words.values() for w in ws)
+    rarity = {w: math.log(len(hadiths) / c) for w, c in df.items()}
+    weight = lambda ws: sum(rarity[w] for w in ws)
+    whole = {k: weight(ws) for k, ws in matn_words.items()}
+    seq = {k: i for i, k in enumerate(sorted(hadiths, key=lambda k: (BOOK_ORDER[hadiths[k]["book"]], int(hadiths[k]["num"]), k)))}
+
+    def same_matn(a, b):
+        A, B = matn_words[a], matn_words[b]
+        return not A or not B or weight(A & B) >= 0.3 * min(whole[a], whole[b])
+
+    def count_uniq(keep):
+        return sum(1 for k, h in hadiths.items() if keep(h) and not any(
+            r in hadiths and seq[r] < seq[k] and keep(hadiths[r]) and same_matn(k, r) for r in h["rel"]))
+    book_uniq = lambda b, keep=lambda h: True: count_uniq(lambda h: h["book"] == b and keep(h))
     marfu = lambda h: h["type"] in ("مرفوع", "قدسي")
     explore = {
         "books": {b: {"hadith": stats["totals"]["books"][b]["hadith"], "uniq": book_uniq(b),
                       "marfu": sum(1 for h in hadiths.values() if h["book"] == b and marfu(h)),
                       "marfu_uniq": book_uniq(b, marfu)} for b in BOOKS},
+        # the nine books together: a hadith in several books counted once
+        "all": {"hadith": len(hadiths), "uniq": count_uniq(lambda h: True),
+                "marfu": sum(1 for h in hadiths.values() if marfu(h)), "marfu_uniq": count_uniq(marfu)},
         # id -> [tabaqa, death year, cities, tadlis | ikhtilat << 1 | woman << 2, chains each compiler heard from him, madar]
         "nar": {nid: [narr[nid].get("tabaka") or 0, narr[nid].get("death_year") or 0,
                       [c.strip() for c in re.split(r"\s*[،,]\s*", narr[nid].get("iqama") or "") if c.strip()],
