@@ -543,9 +543,8 @@
     return w.join(" ");
   }
   async function hadithCardPNG(h, nar) {
-    const W = 1080, pad = 64, inner = W - 2 * pad, ui = (w, px) => `${w} ${px}px Tajawal, -apple-system, sans-serif`;
-    const amiri = (w, px) => `${w} ${px}px Amiri, "Traditional Arabic", serif`;
-    await Promise.all([document.fonts.load(amiri(400, 30)), document.fonts.load(amiri(700, 30)), document.fonts.load(ui(700, 24))]).catch(() => {});
+    const W = 1080, pad = 64, inner = W - 2 * pad, ui = (w, px) => `${w} ${px}px -apple-system, BlinkMacSystemFont, "SF Arabic", Tajawal, sans-serif`;
+    await Promise.all([document.fonts.load(ui(400, 24)), document.fonts.load(ui(700, 24))]).catch(() => {});
     const cv = document.createElement("canvas"), g = cv.getContext("2d");
     const ops = [];  // drawn after the height is known
     let y = 150;
@@ -563,7 +562,7 @@
     const matn = h.parts.map((p) => (p.matn ? p.text.slice(p.matn[0], p.matn[1]) : p.text).trim()).join("\n");
     const companion = h.chains.map((c) => nar[c.ids[0]]).find((n) => n && n.cls === "sahabi");
     if (companion) block(ui(500, 24), "--muted", "راوي الحديث: " + companionName(companion.name), 38, { gapAfter: 4 });
-    block(amiri(700, 36), "--ink", matn, 64, { max: 16, gapAfter: 12 });
+    block(ui(500, 34), "--ink", matn, 62, { max: 16, gapAfter: 12 });
 
     // its verdict: the Sahihayn, al-Tirmidhi's own words, and the scholars' grades as the page shows them
     const verdicts = [];
@@ -585,7 +584,7 @@
       if (e) {
         const tr = e !== null && lang !== "ar" && row && e.h, dir = tr && !row[3] ? "ltr" : "rtl";
         rule(); heading("الشرح الميسّر");
-        block(dir === "ltr" ? ui(400, 25) : amiri(400, 29), "--ink", e.x, dir === "ltr" ? 40 : 50, { dir, max: 14, gapAfter: 6 });
+        block(ui(400, dir === "ltr" ? 25 : 27), "--ink", e.x, dir === "ltr" ? 40 : 46, { dir, max: 14, gapAfter: 6 });
         block(ui(400, 20), "--muted", `من ${SHARH_BY}`, 32);
       }
     }
