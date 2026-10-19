@@ -1180,6 +1180,24 @@
       fb.title = fb.ariaLabel = on ? "الخروج من ملء الشاشة" : "ملء الشاشة";
       if (c) { c.resize(); reset(); }
     });
+    // touch screens: the graph sits behind a veil so a swipe scrolls the page; a tap wakes it for panning/pinching,
+    // and touching outside it (or scrolling it out of view) puts the veil back
+    if (matchMedia("(pointer: coarse)").matches) {
+      const veil = document.createElement("div");
+      veil.className = "graph-veil";
+      veil.innerHTML = "<span>المس الشجرة لتحريكها وتكبيرها</span>";
+      box.append(veil);
+      hint.textContent = "إصبع للتحريك، وإصبعان للتكبير · المس خارجها لتعود للتمرير";
+      const live = (on) => box.classList.toggle("live", on);
+      veil.addEventListener("click", () => live(true));
+      const out = (e) => {
+        if (!box.isConnected) return document.removeEventListener("touchstart", out);
+        if (!box.contains(e.target) && !document.fullscreenElement) live(false);
+      };
+      document.addEventListener("touchstart", out, { passive: true });
+      new IntersectionObserver(([e]) => { if (!e.isIntersecting && !document.fullscreenElement) live(false); }).observe(box);
+      box.addEventListener("fullscreenchange", () => live(document.fullscreenElement === box));
+    }
     box.addEventListener("wheel", (e) => {
       if (e.ctrlKey || e.metaKey) return;
       e.stopPropagation();
