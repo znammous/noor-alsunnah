@@ -472,8 +472,8 @@ p.more { margin: 12px 0 0; }
 .terms blockquote { margin: 0 0 4px; font-family: var(--font-text); font-size: 1.1rem; line-height: 1.8; background: var(--panel-2);
   border-inline-start: 4px solid var(--gold); border-radius: 10px; padding: 6px 12px; }
 .terms p { margin: 0; }
-.terms-dl dd { line-height: 1.9; }
-@media (max-width: 600px) { .terms-dl { display: block; } .terms-dl dt { font-weight: 700; margin-top: 10px; } .terms-dl dd { margin: 0; } }
+.terms h2 { margin-top: 26px; }
+.terms > p + p { margin-top: 8px; }
 @media (max-width: 600px) { .hadith-text { padding-inline-end: 46px; } .hadith-text > .text-tools { top: 8px; inset-inline-end: 8px; } }
 /* short hadith: the vertical tool column would overflow the box, so lay the tools in a row floated beside the first line */
 .hadith-text.short { padding-inline-end: 18px; display: flow-root; }
