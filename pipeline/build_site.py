@@ -254,6 +254,7 @@ def main():
     # ---------- hadiths ----------
     grades = {f.stem: load(f) for f in sorted(GRADES.glob("*.json"))}
     sharh = load(SHARH / "links.json") if (SHARH / "links.json").exists() else {}
+    similar = load(SHARH / "similar.json") if (SHARH / "similar.json").exists() else {}
     hadiths, kitabs = {}, {b: {} for b in BOOKS}
     for h in C["hadiths"]:
         book = h["book"]
@@ -275,6 +276,7 @@ def main():
                                       for n in [h["num"], *h.get("aliases", [])]
                                       for src, v, page in grades.get(book, {}).get(str(n), [])]) else {}),
             **({"sx": sharh[h["key"]]} if h["key"] in sharh else {}),
+            **({"sy": similar[h["key"]][0]} if h["key"] in similar else {}),
             "rel": h["rel"], "spread": {**h["spread"], "n_books": len(h["spread"]["books"]),
                                          "books": h["spread"]["books"][:30], "shawahid": h["spread"]["shawahid"][:30]},
         }

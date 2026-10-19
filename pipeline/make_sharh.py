@@ -9,6 +9,7 @@ It also writes the explanations the site shows, in Arabic and in every fetched t
 site/data/sharh/<lang>/<bucket>.json, and the languages to pipeline/sharh/langs.json.
 Run after fetch_hadeethenc.py and before build_site.py (which keeps site/data/sharh).
 """
+import math
 import re
 import sys
 from collections import Counter, defaultdict
@@ -48,6 +49,10 @@ MIN_WORDS = 4      # shorter quotes match too many hadiths
 MIN_SHARE = 0.75   # share of the quote's words the matn must carry
 MIN_SHARE_SHORT = 0.9  # ... when the quote is short, since a few common words match anywhere
 SHORT = 15
+# a hadith with no explanation of its own gets that of the most similar encyclopedia hadith, shown
+# as such, when the words they share in order carry this share of the encyclopedia text's weight
+# (rare words weigh more, so formulas like "أن رسول الله ﷺ نهى عن" do not make two hadiths alike)
+SIMILAR_MIN = 0.65
 
 
 def books_of(attribution):
@@ -174,18 +179,59 @@ def main():
         for row in unmatched:
             f.write("\t".join(re.sub(r"\s+", " ", str(x)) for x in row) + "\n")
     stats["hadiths with an explanation"] = len(links)
+    similar = similar_links(enc, words_of, pos_of, links)
+    dump(dict(sorted(similar.items())), OUT / "similar.json")
+    stats["hadiths with a similar hadith's explanation"] = len(similar)
     print(dict(stats), file=sys.stderr)
-    write_site({e for es in links.values() for e in es})
+    write_site({e for es in links.values() for e in es} | {e for e, _ in similar.values()})
+
+
+def weighted_share(words, positions, weight):
+    """Like in_order_share, but each word counts by its rarity."""
+    span = int(len(words) * 1.5) + 6
+    total = sum(weight(w) for w in words)
+    best = 0
+    for start in {i for w in words[:8] for i in positions.get(w, ())}:
+        pos, hit, end = start, 0, start + span
+        for w in words:
+            nxt = next((i for i in positions.get(w, ()) if pos <= i < end), None)
+            if nxt is not None:
+                hit, pos = hit + weight(w), nxt + 1
+        best = max(best, hit)
+    return best / total
+
+
+def similar_links(enc, words_of, pos_of, links):
+    """{hadith key: [encyclopedia id, score]} for the hadiths with no explanation of their own."""
+    index = defaultdict(set)
+    for k, ws in words_of.items():
+        for w in set(ws):
+            index[w].add(k)
+    n = len(words_of)
+    weight = lambda w: math.log(n / len(index[w])) if w in index else math.log(n)
+    best = {}
+    for eid, h in sorted(enc.items(), key=lambda kv: int(kv[0])):
+        for reading in quote_words(h):
+            words = [w for w in reading if len(w) > 1]
+            if len(words) < MIN_WORDS + 1:
+                continue
+            rare = sorted(set(words), key=lambda w: (len(index.get(w, ())), w))[:4]
+            for k in set().union(*(index.get(w, set()) for w in rare)):
+                if k in links:
+                    continue
+                score = weighted_share(words, pos_of[k], weight)
+                if score >= SIMILAR_MIN and score > best.get(k, [0, 0])[1]:
+                    best[k] = [int(eid), round(score, 2)]
+    return best
 
 
 def compact(h, lang):
-    """The fields the site shows. Translations carry their own rendering of the hadith's words."""
+    """The fields the site shows, with the encyclopedia's text of the hadith (in its own language)."""
     out = {"t": h["title"], "x": h["explanation"], "f": h.get("hints") or []}
+    out["h"] = h["hadeeth"]
     if lang == "ar":
         out["w"] = [[(m["word"] or "").strip(), (m["meaning"] or "").strip()] for m in h.get("words_meanings") or []
                     if m.get("word") and m.get("meaning")]
-    else:
-        out["h"] = h["hadeeth"]
     out["g"] = h.get("grade") or ""
     return {k: v for k, v in out.items() if v}
 

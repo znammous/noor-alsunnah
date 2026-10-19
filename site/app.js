@@ -632,7 +632,8 @@
 
   async function renderSharh(el, h) {
     if (!el || !META.sharh) return;
-    const ids = h.sx || [];
+    // a hadith with no explanation of its own may have that of a similar one, shown as such
+    const similar = !h.sx && !!h.sy, ids = h.sx || (h.sy ? [h.sy] : []);
     if (!ids.length) {
       el.innerHTML = `<p class="notice sharh-none">لا يوجد شرح ميسّر لهذا الحديث في ${SHARH_BY}. <a href="${dorarURL(h)}" target="_blank" rel="noopener">ابحث عن شرحه في الدرر السنية ↗</a></p>`;
       return;
@@ -657,7 +658,7 @@
         return `<article class="sharh-item">${missing}
           <div dir="${dir}" lang="${t ? lang : "ar"}" class="${t && !rtl ? "ltr" : ""}">
             ${ids.length > 1 ? `<h4>${esc(e.t)}</h4>` : ""}
-            ${t && t.h ? `<p class="sharh-hadith">${esc(t.h)}</p>` : ""}
+            ${t && t.h || similar ? `<p class="sharh-hadith">${esc(e.h || "")}</p>` : ""}
             <p class="sharh-text">${esc(e.x)}</p>
             ${e.f && e.f.length ? `<details${ids.length > 1 ? "" : " open"}><summary>${t ? "Benefits · الفوائد" : "من فوائد الحديث"}</summary><ul>${e.f.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></details>` : ""}
             ${!t && a.w && a.w.length ? `<details><summary>معاني الكلمات</summary><dl class="sharh-words">${a.w.map(([w, m]) => `<dt>${esc(w)}</dt><dd>${esc(m)}</dd>`).join("")}</dl></details>` : ""}
@@ -668,15 +669,17 @@
       }).join("");
       // folded until the reader opens it; it stays open when the language changes
       el.innerHTML = `<details class="panel sharh"${open ? " open" : ""}>
-        <summary class="sharh-head"><h3>الشرح الميسّر</h3><span class="muted small">شرح مختصر للحديث وفوائده، بالعربية و${fmt(langs.length - 1)} لغة</span>${copyBtnHTML("نسخ الشرح")}</summary>
+        <summary class="sharh-head"><h3>${similar ? "شرح حديث مشابه" : "الشرح الميسّر"}</h3><span class="muted small">${similar
+          ? "لا شرح لهذا الحديث بعينه، وهذا شرح حديث قريب منه في لفظه" : `شرح مختصر للحديث وفوائده، بالعربية و${fmt(langs.length - 1)} لغة`}</span>${copyBtnHTML("نسخ الشرح")}</summary>
+        ${similar ? `<p class="notice">هذا نص الحديث المشروح في ${SHARH_BY}، وهو قريب من لفظ هذه الرواية وقد يختلفان في بعض المعنى، فقارن بين النصين.</p>` : ""}
         ${blocks}
         <p class="muted small">من ${SHARH_BY} (${SHARH_ORG})، شرح مختصر لعموم القرّاء، يُنقل بنصه. وقد يكون لفظ الحديث في الموسوعة مختلفًا يسيرًا عن لفظ هذه الرواية.</p></details>`;
       wireCopy(el.querySelector(".copy-btn"), () => [
-        `الشرح الميسّر: ${BOOK[h.book]} — حديث رقم ${h.label}`,
+        `${similar ? "شرح حديث مشابه" : "الشرح الميسّر"}: ${BOOK[h.book]} — حديث رقم ${h.label}`,
         ...ids.map((id, n) => {  // the page's link names the source, so only the text is copied
           const a = ar[n], t = tr && tr[n], e = t || a;
           if (!e) return "";
-          return [t && t.h, e.x, e.f && e.f.length ? (t ? "" : "من فوائد الحديث:\n") + e.f.map((x) => "- " + x).join("\n") : "",
+          return [(t || similar) && e.h, e.x, e.f && e.f.length ? (t ? "" : "من فوائد الحديث:\n") + e.f.map((x) => "- " + x).join("\n") : "",
             !t && a.w && a.w.length ? "معاني الكلمات:\n" + a.w.map(([w, m]) => `- ${w}: ${m}`).join("\n") : ""].filter(Boolean).join("\n\n");
         }),
         location.href].filter(Boolean).join("\n\n"));
@@ -2179,7 +2182,7 @@
         <li>جمع روايات الحديث الواحد في الكتب التسعة قائم على تخريج برنامج جامع خادم الحرمين الشريفين.</li>
         <li>أحاديث السنن فيها الصحيح والحسن والضعيف، ويُعرض حكم الترمذي بلفظه حيث ورد، وتُربط كل الأحاديث بأحكام المحدثين في الدرر السنية.</li>
         <li>أحكام المحدثين المعروضة في صفحة الحديث تُنقل بنصها منسوبةً إلى أصحابها ولا نرجّح بينها: حكم الألباني على أحاديث سنن أبي داود والترمذي وابن ماجه (من كتبه «صحيح وضعيف السنن» كما نقلتها المكتبة الشاملة) وسنن النسائي (من «صحيح سنن النسائي» و«ضعيف سنن النسائي»)، وحكم محققي طبعة الرسالة العالمية لسنن النسائي، وحكم شعيب الأرناؤوط ومحققي طبعة مؤسسة الرسالة لمسند أحمد، وكلام البوصيري في «مصباح الزجاجة» على زوائد ابن ماجه بنقل محمد فؤاد عبد الباقي، وحكم حسين سليم أسد في تحقيقه لمسند الدارمي.</li>
-        <li>الشرح الميسّر في صفحة الحديث منقول بنصه من «موسوعة الأحاديث النبوية»، وهو شرح مختصر لعموم القرّاء مع فوائد الحديث ومعاني كلماته وترجماته إلى لغات المسلمين. ويُربط شرح الموسوعة بكل رواية في الكتب التسعة يوافق لفظها لفظ الحديث في الموسوعة، فقد يختلف اللفظان يسيرًا.</li>
+        <li>الشرح الميسّر في صفحة الحديث منقول بنصه من «موسوعة الأحاديث النبوية»، وهو شرح مختصر لعموم القرّاء مع فوائد الحديث ومعاني كلماته وترجماته إلى لغات المسلمين. ويُربط شرح الموسوعة بكل رواية في الكتب التسعة يوافق لفظها لفظ الحديث في الموسوعة، فقد يختلف اللفظان يسيرًا. فإن لم يكن للرواية شرح، وكان في الموسوعة حديث قريب من لفظها، عُرض شرحه بعنوان «شرح حديث مشابه» مع نصه للمقارنة.</li>
         <li>الترقيم: البخاري على «فتح الباري»، ومسلم وابن ماجه على ترقيم محمد فؤاد عبد الباقي، وأبو داود على ترقيم محمد محيي الدين عبد الحميد، والترمذي على ترقيم أحمد شاكر، والنسائي على ترقيم برنامج الجامع.</li>
         <li>فهرس الكتب الكبرى للسنن الأربع من <a href="https://shamela.ws/" target="_blank" rel="noopener">المكتبة الشاملة</a>.</li>
       </ul>
