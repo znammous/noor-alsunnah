@@ -818,6 +818,10 @@
     const bookChains = (p) => G.hadiths.reduce((n, k) => n + (k[0] === p ? G.items[k].chains.length : 0), 0);
     const companions = G.companions.map(([c]) => c).filter((c) => G.nar[c]?.cls === "sahabi");
     const ownCompanions = new Set(h.chains.map((c) => c.ids[0]));
+    const isShahid = (k) => !G.items[k].chains.some((c) => ownCompanions.has(c.ids[0]));
+    const otherBooks = BOOKS.filter((b) => others.some((k) => k[0] === PREFIX[b]));
+    const nShahid = others.filter(isShahid).length;
+    const otherKinds = [["m", "متابعة", others.length - nShahid], ["s", "شاهد", nShahid]].filter((x) => x[2]);
     const madar = G.madar ? G.nar[G.madar] : null;
     const sp = G.spread;
 
@@ -885,15 +889,23 @@
         ${sp.shawahid.length ? `<h3 style="margin-top:14px">شواهده عن صحابة آخرين</h3><div class="chain">${sp.shawahid.map((n) => `<span class="chip cls-sahabi"><span class="dot"></span>${esc(n)}</span>`).join(" ")}</div>` : ""}</div>` : ""}
 
       ${others.length ? `<div class="section-title"><h2>رواياته الأخرى في الكتب التسعة</h2><p>كما في تخريج البرنامج · «متابعة»: عن الصحابي نفسه · «شاهد»: عن صحابي آخر</p></div>
-      <div class="panel"><ul class="list">${others.map((k) => {
+      ${otherBooks.length > 1 || otherKinds.length > 1 ? `<div class="tree-tools others-tools">${otherBooks.length > 1 ? `<div class="seg" id="obf"><button data-v="" class="on">الكل (${fmt(others.length)})</button>${otherBooks.map((b) => `<button data-v="${PREFIX[b]}">${AUTHOR[b]} (${fmt(others.filter((k) => k[0] === PREFIX[b]).length)})</button>`).join("")}</div>` : ""}
+        ${otherKinds.length > 1 ? `<div class="seg" id="otf"><button data-v="" class="on">الكل</button>${otherKinds.map(([v, l, n]) => `<button data-v="${v}">${l} (${fmt(n)})</button>`).join("")}</div>` : ""}</div>` : ""}
+      <div class="panel"><ul class="list" id="others">${others.map((k) => {
         const o = G.items[k];
-        const shahid = !o.chains.some((c) => ownCompanions.has(c.ids[0]));
-        return `<li class="row-link"><div class="meta-line"><a href="#/h/${k}">${hkey(k)}</a><span class="tag">${shahid ? "شاهد" : "متابعة"}</span>${o.bab ? `<span>${esc(o.bab)}</span>` : ""}</div>
+        const shahid = isShahid(k);
+        return `<li class="row-link" data-b="${k[0]}" data-t="${shahid ? "s" : "m"}"><div class="meta-line"><a href="#/h/${k}">${hkey(k)}</a><span class="tag">${shahid ? "شاهد" : "متابعة"}</span>${o.bab ? `<span>${esc(o.bab)}</span>` : ""}</div>
           <a href="#/h/${k}" class="snip row-main" style="color:inherit">${esc(clip(matnOf(o), 260))}</a>
           ${o.chains.slice(0, 3).map((c) => chainHTML(c.ids, G.nar, c.z ? null : compilerOf(k))).join("")}${o.chains.length > 3 ? `<p class="muted small">و${fmt(o.chains.length - 3)} أسانيد أخرى</p>` : ""}</li>`;
       }).join("")}</ul></div>` : ""}`;
 
     wireTakhrij($("#takhrij"), key, entry[1], G);
+    if ($("#others")) {
+      let ob = "", ot = "";
+      const filt = () => { for (const li of $("#others").children) li.hidden = (ob && li.dataset.b !== ob) || (ot && li.dataset.t !== ot); };
+      $("#obf")?.addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; ob = b.dataset.v; setSeg("#obf", b); filt(); });
+      $("#otf")?.addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; ot = b.dataset.v; setSeg("#otf", b); filt(); });
+    }
     wireCard($(".hadith-text .text-tools"), h, G.nar);
     // short text: the vertical tool column would spill out of the box, so switch it to a row
     const htBox = $(".hadith-text"), htTools = htBox.querySelector(".text-tools");
