@@ -139,12 +139,15 @@ a.col:hover b { filter: brightness(1.2); }
 .sharh-head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; cursor: pointer; list-style: none; }
 .sharh-head::-webkit-details-marker { display: none; }
 .sharh-head h3 { margin: 0; }
-.sharh-head h3 { display: flex; align-items: center; }
-.sharh-head h3::before { content: "◀"; display: inline-grid; place-items: center; flex: none; width: 30px; height: 30px; margin-inline-end: 10px;
+.sharh-head h3 { display: flex; align-items: center; position: relative; }
+/* the arrow is drawn, not a ◀ glyph: phone fonts place the glyph off-centre in the circle */
+.sharh-head h3::after { content: ""; position: absolute; right: 12px; top: 50%; margin-top: -5px; width: 0; height: 0;
+  border-block: 5px solid transparent; border-right: 8px solid var(--gold); transition: transform .2s; }
+.sharh-head h3::before { content: ""; box-sizing: border-box; display: inline-block; flex: none; width: 30px; height: 30px; margin-inline-end: 10px;
   border: 1.5px solid var(--gold); border-radius: 50%; background: color-mix(in srgb, var(--gold) 14%, transparent);
   color: var(--gold); font-family: var(--font-ui); font-size: .8rem; line-height: 1; transition: transform .2s, background .2s; }
 .sharh-head:hover h3::before { background: color-mix(in srgb, var(--gold) 28%, transparent); }
-.sharh[open] > .sharh-head h3::before { transform: rotate(-90deg); }
+.sharh[open] > .sharh-head h3::after { transform: rotate(-90deg); }
 .sharh[open] > .sharh-head { margin-bottom: 10px; }
 .sharh-lang { margin: 4px 0 10px; flex-wrap: wrap; }
 .sharh-lang { font-size: .88rem; color: var(--muted); display: flex; align-items: center; gap: 6px; }
