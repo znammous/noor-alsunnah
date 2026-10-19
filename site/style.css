@@ -142,7 +142,7 @@ a.col:hover b { filter: brightness(1.2); }
 .sharh-head h3::before { content: "◂"; display: inline-block; margin-inline-end: 8px; color: var(--gold); transition: transform .2s; }
 .sharh[open] > .sharh-head h3::before { transform: rotate(-90deg); }
 .sharh[open] > .sharh-head { margin-bottom: 10px; }
-.sharh-lang { margin-bottom: 4px; }
+.sharh-lang { margin: 4px 0 10px; flex-wrap: wrap; }
 .sharh-lang { font-size: .88rem; color: var(--muted); display: flex; align-items: center; gap: 6px; }
 .sharh-lang select { padding: 5px 8px; border: 1px solid var(--line); border-radius: 9px; background: var(--bg); color: var(--ink); font: inherit; max-width: 60vw; }
 .sharh-item { border-top: 1px solid var(--line); padding: 10px 0; }
@@ -188,6 +188,13 @@ a.col:hover b { filter: brightness(1.2); }
 
 /* hadith */
 .hadith-text { font-family: var(--font-text); font-size: 1.35rem; line-height: 2.1; }
+.hadith-text { position: relative; padding-inline-end: 54px; }
+.hadith-text > .copy-btn { position: absolute; top: 12px; inset-inline-end: 12px; }
+.copy-btn { flex: none; width: 32px; height: 32px; display: inline-grid; place-items: center; border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line)); border-radius: 8px;
+  background: var(--panel-2); color: var(--ink); font: 600 1rem var(--font-ui); line-height: 1; cursor: pointer; }
+.copy-btn:hover { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.copy-btn.done { border-color: var(--gold); color: var(--gold); background: var(--panel-2); }
+.sharh-head .copy-btn { margin-inline-start: auto; align-self: center; }
 .hadith-text .matn { color: var(--ink); font-weight: 700; }
 .hadith-text { color: color-mix(in srgb, var(--ink) 78%, var(--bg)); }
 .hadith-text a.nm { color: inherit; border-bottom: 2px solid var(--c); text-decoration: none; }
@@ -450,3 +457,4 @@ p.more { margin: 12px 0 0; }
 .terms p { margin: 0; }
 .terms-dl dd { line-height: 1.9; }
 @media (max-width: 600px) { .terms-dl { display: block; } .terms-dl dt { font-weight: 700; margin-top: 10px; } .terms-dl dd { margin: 0; } }
+@media (max-width: 600px) { .hadith-text { padding-inline-end: 46px; } .hadith-text > .copy-btn { top: 8px; inset-inline-end: 8px; } }
