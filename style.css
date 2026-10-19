@@ -240,6 +240,10 @@ a.btn { display: inline-block; text-decoration: none; }
 .list > li:last-child { border-bottom: 0; }
 .snip { font-family: var(--font-text); font-size: 1.1rem; line-height: 1.9; }
 .meta-line { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; color: var(--muted); font-size: .85rem; margin-bottom: 4px; }
+.hnav { margin-inline-start: auto; display: flex; gap: 6px; }
+.hnav .btn { padding: 4px 12px; font-variant-numeric: tabular-nums; }
+.hnav span.btn { opacity: .35; cursor: default; }
+.hnav span.btn:hover { background: var(--panel-2); color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
 
 details.jarh { border-top: 1px solid var(--line); padding: 8px 0; }
 details.jarh summary { cursor: pointer; font-weight: 600; }

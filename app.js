@@ -692,6 +692,20 @@
     draw();
   }
 
+  // previous/next hadith in the same book, by number (aliases fold into their main key)
+  let bookKeys = {};
+  const neighbors = (key) => {
+    const prefix = key[0];
+    const keys = bookKeys[prefix] ||= Object.keys(META.index).filter((k) => k[0] === prefix).sort((a, b) => +a.slice(1) - +b.slice(1));
+    const i = keys.indexOf(key);
+    return [keys[i - 1], keys[i + 1]];
+  };
+  document.addEventListener("keydown", (e) => {
+    if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey || /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) || e.target.isContentEditable) return;
+    const a = e.key === "ArrowRight" ? $(".hnav [data-dir=prev]") : e.key === "ArrowLeft" ? $(".hnav [data-dir=next]") : null;
+    if (a && a.href) { e.preventDefault(); location.href = a.href; }
+  });
+
   async function viewHadith(key) {
     if (!META.index[key] && META.alias[key]) { location.replace("#/h/" + META.alias[key]); return; }
     const entry = META.index[key];
@@ -718,7 +732,12 @@
       <div class="crumbs"><a href="#/book/${book}">${BOOK[book]}</a> ‹ <a href="#/book/${book}/${h.kitab}">${esc(kitab?.title || "")}</a>${h.bab ? ` ‹ ${esc(h.bab)}` : ""}</div>
       <h1>${BOOK[book]} — ${h.aliases.length ? "الأحاديث" : "حديث رقم"} ${esc(h.label)}</h1>
       <div class="meta-line" style="margin-bottom:10px">${h.type ? `<span class="tag">${esc(h.type)}</span>` : ""}
-        <span>${NUMBERING[book]}</span>${h.parts.length > 1 ? `<span>· ${fmt(h.parts.length)} روايات تحت هذا الرقم</span>` : ""}</div>
+        <span>${NUMBERING[book]}</span>${h.parts.length > 1 ? `<span>· ${fmt(h.parts.length)} روايات تحت هذا الرقم</span>` : ""}
+        <nav class="hnav" aria-label="التنقل بين الأحاديث">${neighbors(key).map((k, i) => {
+          const dir = i ? "next" : "prev", label = i ? "الحديث التالي" : "الحديث السابق", arrow = i ? "‹" : "›";
+          return k ? `<a class="btn" data-dir="${dir}" href="#/h/${k}" title="${label}: ${hkey(k)} (${i ? "←" : "→"})" aria-label="${label}">${i ? `${esc(hnum(k))} ${arrow}` : `${arrow} ${esc(hnum(k))}`}</a>`
+            : `<span class="btn" aria-disabled="true">${arrow}</span>`;
+        }).join("")}</nav></div>
       <div class="panel hadith-text"><div class="text-tools">${copyBtnHTML("نسخ نص الحديث")}<button type="button" class="copy-btn" data-card="shot" title="حفظ صورة الحديث مع حكمه وشرحه" aria-label="حفظ صورة الحديث">${SHOT_ICON}</button><button type="button" class="copy-btn" data-card="share" title="مشاركة صورة الحديث والرابط" aria-label="مشاركة صورة الحديث">${SHARE_ICON}</button></div>${hadithTextHTML(h, G.nar)}</div>
       <div id="sharh"></div>
       ${SAHIHAYN.has(book) ? "" : `<p class="notice sunan-note">${book === "muwatta"
