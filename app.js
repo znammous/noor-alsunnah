@@ -82,6 +82,17 @@
     tadlis: ["التدليس", "أن يروي الراوي عمن لقيه ما لم يسمعه منه بلفظ يوهم السماع، كـ«عن» و«قال». فلا يُقبل من المدلس إلا ما صرّح فيه بالسماع («حدثنا»، «سمعت»)، وما في الصحيحين من عنعنة المدلسين محمول على ثبوت السماع من طريق أخرى."],
     ikhtilat: ["الاختلاط", "أن يسوء حفظ الراوي في آخر عمره لكبر أو مرض أو ذهاب كتب. فيُقبل منه ما رواه قبل الاختلاط ويُردّ ما بعده، وأهل العلم يميّزون من سمع منه قديمًا ممن سمع منه بعد اختلاطه."],
   };
+  // Ibn Hajar's five levels of the mudallisun, from the opening of «تعريف أهل التقديس» (Shamela 1186, pp. 13-14)
+  const MUDALLIS_BOOK = 1186;
+  const MUDALLIS_LEVELS = [
+    ["من لم يوصف بذلك إلا نادرًا، كيحيى بن سعيد الأنصاري.", "تُحمل عنعنته على السماع."],
+    ["من احتمل الأئمة تدليسه، وأخرجوا له في الصحيح؛ لإمامته وقلة تدليسه في جنب ما روى، كالثوري، أو كان لا يدلس إلا عن ثقة، كابن عيينة.", "تُقبل عنعنته غالبًا."],
+    ["من أكثر من التدليس، فلم يحتج الأئمة من أحاديثهم إلا بما صرحوا فيه بالسماع، ومنهم من رد حديثهم مطلقًا، ومنهم من قبلهم، كأبي الزبير المكي.", "يُتوقف في عنعنته حتى يصرّح بالسماع أو يُتابع."],
+    ["من اتفق على أنه لا يحتج بشيء من حديثهم إلا بما صرحوا فيه بالسماع؛ لكثرة تدليسهم على الضعفاء والمجاهيل، كبقية بن الوليد.", "لا يُقبل منه إلا ما صرّح فيه بالسماع."],
+    ["من ضُعِّف بأمر آخر سوى التدليس، فحديثهم مردود ولو صرحوا بالسماع، إلا أن يوثق من كان ضعفه يسيرًا، كابن لهيعة.", "ضعفه من غير جهة التدليس، فلا ينفعه التصريح بالسماع."],
+  ];
+  const LEVEL_ORD = ["الأولى", "الثانية", "الثالثة", "الرابعة", "الخامسة", "السادسة", "السابعة", "الثامنة", "التاسعة", "العاشرة", "الحادية عشرة", "الثانية عشرة"];
+
   // what each hadith is attributed to (the program's type field)
   const HTERMS = {
     marfu: ["المرفوع", "ما أُضيف إلى النبي ﷺ من قول أو فعل أو تقرير أو صفة. والرفع وصف لنسبة الحديث لا حكم بصحته، ففي المرفوع الصحيح والحسن والضعيف."],
@@ -544,7 +555,9 @@
   }
   async function hadithCardPNG(h, nar) {
     const W = 1080, pad = 64, inner = W - 2 * pad, ui = (w, px) => `${w} ${px}px -apple-system, BlinkMacSystemFont, "SF Arabic", Tajawal, sans-serif`;
-    await Promise.all([document.fonts.load(ui(400, 24)), document.fonts.load(ui(700, 24))]).catch(() => {});
+    // the hadith in Apple's Naskh (Geeza Pro) on Apple devices, Amiri elsewhere
+    const naskh = (w, px) => `${w} ${px}px "Geeza Pro", Amiri, "Traditional Arabic", serif`;
+    await Promise.all([document.fonts.load(ui(400, 24)), document.fonts.load(ui(700, 24)), document.fonts.load(naskh(400, 30))]).catch(() => {});
     const cv = document.createElement("canvas"), g = cv.getContext("2d");
     const ops = [];  // drawn after the height is known
     let y = 150;
@@ -562,7 +575,7 @@
     const matn = h.parts.map((p) => (p.matn ? p.text.slice(p.matn[0], p.matn[1]) : p.text).trim()).join("\n");
     const companion = h.chains.map((c) => nar[c.ids[0]]).find((n) => n && n.cls === "sahabi");
     if (companion) block(ui(500, 24), "--muted", "راوي الحديث: " + companionName(companion.name), 38, { gapAfter: 4 });
-    block(ui(500, 34), "--ink", matn, 62, { max: 16, gapAfter: 12 });
+    block(naskh(400, 33), "--ink", matn, 62, { max: 16, gapAfter: 12 });
 
     // its verdict: the Sahihayn, al-Tirmidhi's own words, and the scholars' grades as the page shows them
     const verdicts = [];
@@ -1301,8 +1314,12 @@
   // what Ibn Hajar's word means: his rank among the twelve, and the notes on tadlis and ikhtilat
   function rankNote(n) {
     const lv = rankLevel(n.rank, n.cls);
-    const parts = lv ? [`<b>المرتبة ${["الأولى", "الثانية", "الثالثة", "الرابعة", "الخامسة", "السادسة", "السابعة", "الثامنة", "التاسعة", "العاشرة", "الحادية عشرة", "الثانية عشرة"][lv - 1]} من مراتب «التقريب» (${RANKS[lv - 1][0]}):</b> ${esc(RANKS[lv - 1][2])}`] : [];
-    if (n.tadlis) parts.push(`<b>${TERMS.tadlis[0]}:</b> ${esc(TERMS.tadlis[1])}`);
+    const parts = lv ? [`<b>المرتبة ${LEVEL_ORD[lv - 1]} من مراتب «التقريب» (${RANKS[lv - 1][0]}):</b> ${esc(RANKS[lv - 1][2])}`] : [];
+    if (n.tadlis_level) {
+      const [tl, page, pid] = n.tadlis_level;
+      parts.push(`<b>ذكره ابن حجر في المرتبة ${LEVEL_ORD[tl - 1]} من «طبقات المدلسين»:</b> «${esc(MUDALLIS_LEVELS[tl - 1][0])}» ${esc(MUDALLIS_LEVELS[tl - 1][1])}
+        <span class="muted small">(«تعريف أهل التقديس» ص ${fmt(page)} — <a href="https://shamela.ws/book/${MUDALLIS_BOOK}/${pid}" target="_blank" rel="noopener">المكتبة الشاملة</a>)</span>`);
+    } else if (n.tadlis) parts.push(`<b>${TERMS.tadlis[0]}:</b> ${esc(TERMS.tadlis[1])}`);
     if (n.ikhtilat) parts.push(`<b>${TERMS.ikhtilat[0]}:</b> ${esc(TERMS.ikhtilat[1])}`);
     return parts.length ? `<div class="rank-note">${parts.map((p) => `<p>${p}</p>`).join("")}<a href="#/terms">مراتب الرواة ومصطلحاتها ←</a></div>` : "";
   }
@@ -1345,6 +1362,10 @@
       <p>رتب الرواة المعروضة في الموقع هي ألفاظ الحافظ ابن حجر في «تقريب التهذيب». وقد قسّم الرواة في مقدمته اثنتي عشرة مرتبة، هذا نصه فيها مع بيان مختصر:</p>
       <ol class="ranks">${RANKS.map(([t, def, note]) => `<li><h3>${t}</h3><blockquote>${esc(def)}</blockquote><p>${esc(note)}</p></li>`).join("")}</ol>
       <p class="muted small">ألوان الرواة في الشجرات: الثقة للمرتبتين الثانية والثالثة، والصدوق للرابعة والخامسة، و«مقبول / مجهول الحال» للسادسة والسابعة، و«تُكلِّم فيه» لما بعدها.</p>
+      <h2>مراتب المدلسين</h2>
+      <p>وصنّف ابن حجر الموصوفين بالتدليس في كتابه «تعريف أهل التقديس بمراتب الموصوفين بالتدليس» (المعروف بطبقات المدلسين) مئة واثنين وخمسين راويًا على خمس مراتب، قال في مقدمته:</p>
+      <ol class="ranks">${MUDALLIS_LEVELS.map(([def, note], i) => `<li><h3>المرتبة ${LEVEL_ORD[i]}</h3><blockquote>${esc(def)}</blockquote><p>${esc(note)}</p></li>`).join("")}</ol>
+      <p class="muted small">النص من طبعة عاصم القريوتي (ص 13–14) في <a href="https://shamela.ws/book/${MUDALLIS_BOOK}/9" target="_blank" rel="noopener">المكتبة الشاملة</a>. وفي صفحة كل راوٍ ذكره ابن حجر فيه مرتبته منه، وقد رُبط رواته برواة الموقع بمراجعة يدوية.</p>
       <h2>مصطلحات الأسانيد</h2>
       <dl class="facts terms-dl">${Object.values(TERMS).map(([t, d]) => `<dt>${t}</dt><dd>${esc(d)}</dd>`).join("")}</dl>
       <h2>لماذا يروي الشيخان عمن دون الثقة؟</h2>
