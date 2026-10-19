@@ -565,6 +565,7 @@
       <div class="meta-line" style="margin-bottom:10px">${h.type ? `<span class="tag">${esc(h.type)}</span>` : ""}
         <span>${NUMBERING[book]}</span>${h.parts.length > 1 ? `<span>· ${fmt(h.parts.length)} روايات تحت هذا الرقم</span>` : ""}</div>
       <div class="panel hadith-text">${hadithTextHTML(h, G.nar)}</div>
+      <div id="sharh"></div>
       ${SAHIHAYN.has(book) ? "" : `<p class="notice sunan-note">${book === "muwatta"
         ? "في موطأ مالك المسند والمرسل والبلاغ، ومعها آثار الصحابة والتابعين وأقوال مالك"
         : `أحاديث ${BOOK[book]} فيها الصحيح والحسن والضعيف`}، فراجع أحكام المحدثين قبل الاستدلال بهذا الحديث.</p>`}
@@ -586,7 +587,6 @@
           <p class="muted small">من الموسوعة الحديثية في موقع الدرر السنية: نتائج البحث عن طرف الحديث، وقد تشمل رواياتٍ أخرى مشابهة.</p></div>
         <a class="btn on" href="${dorarURL(h)}" target="_blank" rel="noopener">اعرض الأحكام في الدرر السنية ↗</a>
       </div>
-      <div id="sharh"></div>
 
       <div class="hadith-layout">
         <div class="tree-wrap">
