@@ -558,6 +558,8 @@
     while (w.length > 1 && /^(بن|ابن|بنت|أبي|أبو|أم)$/.test(w[w.length - 1])) w.pop();
     return w.join(" ");
   }
+  // a sentence closed with a full stop, unless it already ends in punctuation
+  const fullStop = (t) => (/[.!?؟…:]\s*$/.test(t) || !t.trim() ? t : t.replace(/\s*$/, "."));
   async function hadithCardPNG(h, nar) {
     const W = 1080, pad = 64, inner = W - 2 * pad, ui = (w, px) => `${w} ${px}px -apple-system, BlinkMacSystemFont, "SF Arabic", Tajawal, sans-serif`;
     // the hadith in Apple's Naskh (Geeza Pro) on Apple devices, Amiri elsewhere
@@ -577,7 +579,7 @@
     const heading = (text) => { block(ui(700, 26), "--gold", text, 40, { gapAfter: 6 }); };
 
     // the hadith: the Prophet's words (the matn) with the companion who reports it
-    const matn = h.parts.map((p) => (p.matn ? p.text.slice(p.matn[0], p.matn[1]) : p.text).trim()).join("\n");
+    const matn = h.parts.map((p) => fullStop((p.matn ? p.text.slice(p.matn[0], p.matn[1]) : p.text).trim())).join("\n");
     const companion = h.chains.map((c) => nar[c.ids[0]]).find((n) => n && n.cls === "sahabi");
     if (companion) block(ui(500, 24), "--muted", "راوي الحديث: " + companionName(companion.name), 38, { gapAfter: 4 });
     block(naskh(400, 33), "--ink", matn, 62, { max: 16, gapAfter: 12 });
@@ -590,7 +592,7 @@
     for (const [s, v] of h.grades || []) verdicts.push(`${(src[`${s}:${h.book}`] || [s])[0]}: ${v}`);
     if (verdicts.length) {
       rule(); heading("الحكم");
-      for (const v of verdicts.slice(0, 4)) block(ui(500, 26), "--ink", v, 42, { max: 4 });
+      for (const v of verdicts.slice(0, 4)) block(ui(500, 26), "--ink", fullStop(v), 42, { max: 4 });
       y += 8;
     }
 
@@ -602,7 +604,7 @@
       if (e) {
         const tr = e !== null && lang !== "ar" && row && e.h, dir = tr && !row[3] ? "ltr" : "rtl";
         rule(); heading("الشرح الميسّر");
-        block(ui(400, dir === "ltr" ? 25 : 27), "--ink", e.x, dir === "ltr" ? 40 : 46, { dir, max: 14, gapAfter: 6 });
+        block(ui(400, dir === "ltr" ? 25 : 27), "--ink", fullStop(e.x), dir === "ltr" ? 40 : 46, { dir, max: 14, gapAfter: 6 });
         block(ui(400, 20), "--muted", `من ${SHARH_BY}`, 32);
       }
     }
