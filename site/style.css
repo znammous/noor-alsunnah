@@ -136,8 +136,13 @@ a.col:hover b { filter: brightness(1.2); }
 .dorar h3 { margin: 0 0 4px; }
 .dorar p { margin: 0; }
 .sharh { margin: 16px 0; }
-.sharh-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+.sharh-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; cursor: pointer; list-style: none; }
+.sharh-head::-webkit-details-marker { display: none; }
 .sharh-head h3 { margin: 0; }
+.sharh-head h3::before { content: "◂"; display: inline-block; margin-inline-end: 8px; color: var(--gold); transition: transform .2s; }
+.sharh[open] > .sharh-head h3::before { transform: rotate(-90deg); }
+.sharh[open] > .sharh-head { margin-bottom: 10px; }
+.sharh-lang { margin-bottom: 4px; }
 .sharh-lang { font-size: .88rem; color: var(--muted); display: flex; align-items: center; gap: 6px; }
 .sharh-lang select { padding: 5px 8px; border: 1px solid var(--line); border-radius: 9px; background: var(--bg); color: var(--ink); font: inherit; max-width: 60vw; }
 .sharh-item { border-top: 1px solid var(--line); padding: 10px 0; }

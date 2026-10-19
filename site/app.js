@@ -496,6 +496,7 @@
       return;
     }
     const langs = META.sharh.langs;
+    let open = false;
     const draw = async () => {
       let lang = sharhLang();
       if (!langs.some(([c]) => c === lang)) lang = "ar";
@@ -521,11 +522,13 @@
           <span class="grade-src">${SHARH_BY} · <a href="${page}" target="_blank" rel="noopener">الحديث في الموسوعة ↗</a> · <a href="${mailto(`نور السنة: ملاحظة على الشرح الميسر في ${hkey(h.k)}`,
             `الحديث: ${hkey(h.k)}\n${location.href}\n\nالشرح المعروض: ${e.t || ""}\n${page}\n\nما الخطأ؟ (مثلًا: الشرح لحديث آخر، أو خطأ في الترجمة)\n`)}">أبلغ عن خطأ في هذا الشرح</a></span></article>`;
       }).join("");
-      el.innerHTML = `<div class="panel sharh">
-        <div class="sharh-head"><h3>الشرح الميسّر</h3>
-          <label class="sharh-lang">اللغة <select>${langs.map(([c, name, n]) => `<option value="${c}"${c === lang ? " selected" : ""}>${esc(name)}</option>`).join("")}</select></label></div>
+      // folded until the reader opens it; it stays open when the language changes
+      el.innerHTML = `<details class="panel sharh"${open ? " open" : ""}>
+        <summary class="sharh-head"><h3>الشرح الميسّر</h3><span class="muted small">شرح مختصر للحديث وفوائده، بالعربية و${fmt(langs.length - 1)} لغة</span></summary>
+        <label class="sharh-lang">اللغة <select>${langs.map(([c, name, n]) => `<option value="${c}"${c === lang ? " selected" : ""}>${esc(name)}</option>`).join("")}</select></label>
         ${blocks}
-        <p class="muted small">من ${SHARH_BY} (${SHARH_ORG})، شرح مختصر لعموم القرّاء، يُنقل بنصه. وقد يكون لفظ الحديث في الموسوعة مختلفًا يسيرًا عن لفظ هذه الرواية.</p></div>`;
+        <p class="muted small">من ${SHARH_BY} (${SHARH_ORG})، شرح مختصر لعموم القرّاء، يُنقل بنصه. وقد يكون لفظ الحديث في الموسوعة مختلفًا يسيرًا عن لفظ هذه الرواية.</p></details>`;
+      el.querySelector("details").addEventListener("toggle", (ev) => { open = ev.target.open; });
       el.querySelector("select").addEventListener("change", (ev) => {
         try { localStorage.setItem("sharhLang", ev.target.value); } catch {}
         draw();
