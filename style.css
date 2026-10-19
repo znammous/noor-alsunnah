@@ -468,7 +468,7 @@ p.more { margin: 12px 0 0; }
 .fw-t, .fw-q { border-color: var(--c-thiqa); } .fw-s, .fw-h { border-color: var(--c-saduq); } .fw-f { border-color: var(--c-weak); }
 .terms .ranks { padding-inline-start: 22px; }
 .terms .ranks li { margin-bottom: 14px; }
-.terms .ranks h3 { margin: 0 0 4px; }
+.terms .ranks h3 { margin: 0 0 4px; font-family: var(--font-text); font-size: 1.35rem; line-height: 1.9; }
 .terms blockquote { margin: 0 0 4px; font-family: var(--font-text); font-size: 1.1rem; line-height: 1.8; background: var(--panel-2);
   border-inline-start: 4px solid var(--gold); border-radius: 10px; padding: 6px 12px; }
 .terms p { margin: 0; }
