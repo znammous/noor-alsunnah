@@ -475,3 +475,6 @@ p.more { margin: 12px 0 0; }
 .terms-dl dd { line-height: 1.9; }
 @media (max-width: 600px) { .terms-dl { display: block; } .terms-dl dt { font-weight: 700; margin-top: 10px; } .terms-dl dd { margin: 0; } }
 @media (max-width: 600px) { .hadith-text { padding-inline-end: 46px; } .hadith-text > .text-tools { top: 8px; inset-inline-end: 8px; } }
+/* short hadith: the vertical tool column would overflow the box, so lay the tools in a row floated beside the first line */
+.hadith-text.short { padding-inline-end: 18px; display: flow-root; }
+.hadith-text.short > .text-tools { position: static; float: inline-end; flex-direction: row; margin: 6px 0 0; margin-inline-start: 12px; }

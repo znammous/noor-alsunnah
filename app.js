@@ -822,6 +822,10 @@
         ${sp.shawahid.length ? `<h3 style="margin-top:14px">شواهده عن صحابة آخرين</h3><div class="chain">${sp.shawahid.map((n) => `<span class="chip cls-sahabi"><span class="dot"></span>${esc(n)}</span>`).join(" ")}</div>` : ""}</div>` : ""}`;
 
     wireCard($(".hadith-text .text-tools"), h, G.nar);
+    // short text: the vertical tool column would spill out of the box, so switch it to a row
+    const htBox = $(".hadith-text"), htTools = htBox.querySelector(".text-tools");
+    const fitTools = () => { htBox.classList.remove("short"); htBox.classList.toggle("short", htBox.clientHeight < htTools.offsetHeight + 2 * htTools.offsetTop); };
+    fitTools(); new ResizeObserver(fitTools).observe(htBox);
     wireCopy($('.hadith-text .copy-btn:not([data-card])'), () => `${BOOK[book]} — ${h.aliases.length ? "الأحاديث" : "حديث رقم"} ${h.label}\n\n${h.parts.map((p) => p.text.trim()).join("\n\n")}\n\n${location.href}`);
     renderSharh($("#sharh"), h);
     let scope = others.length ? "all" : "one", bookFilter = "", rank = "";
