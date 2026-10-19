@@ -189,7 +189,7 @@ a.col:hover b { filter: brightness(1.2); }
 /* hadith */
 .hadith-text { font-family: var(--font-text); font-size: 1.35rem; line-height: 2.1; }
 .hadith-text { position: relative; padding-inline-end: 54px; }
-.hadith-text > .copy-btn { position: absolute; top: 12px; inset-inline-end: 12px; }
+.hadith-text > .text-tools { position: absolute; top: 12px; inset-inline-end: 12px; display: flex; flex-direction: column; gap: 6px; }
 .copy-btn { flex: none; width: 32px; height: 32px; display: inline-grid; place-items: center; border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line)); border-radius: 8px;
   background: var(--panel-2); color: var(--ink); font: 600 1rem var(--font-ui); line-height: 1; cursor: pointer; }
 .copy-btn:hover { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
@@ -432,7 +432,7 @@ p.more { margin: 12px 0 0; }
 /* print: the page as seen, without the controls; the footer's disclaimer always ends the printout */
 @media print {
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .search, .theme, .graph-ctl, .graph-hint { display: none !important; }
+  .search, .theme, .graph-ctl, .graph-hint, .text-tools, .copy-btn { display: none !important; }
   .foot { break-inside: avoid; padding-bottom: 0; }
 }
 
@@ -457,4 +457,4 @@ p.more { margin: 12px 0 0; }
 .terms p { margin: 0; }
 .terms-dl dd { line-height: 1.9; }
 @media (max-width: 600px) { .terms-dl { display: block; } .terms-dl dt { font-weight: 700; margin-top: 10px; } .terms-dl dd { margin: 0; } }
-@media (max-width: 600px) { .hadith-text { padding-inline-end: 46px; } .hadith-text > .copy-btn { top: 8px; inset-inline-end: 8px; } }
+@media (max-width: 600px) { .hadith-text { padding-inline-end: 46px; } .hadith-text > .text-tools { top: 8px; inset-inline-end: 8px; } }

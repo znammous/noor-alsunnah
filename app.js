@@ -498,6 +498,132 @@
     });
   }
 
+  // ---------- the hadith as a shareable image: text, scholars' verdicts, simplified explanation ----------
+  const SHOT_ICON = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>';
+  const SHARE_ICON = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path d="M8.2 10.8l7.6-4.4M8.2 13.2l7.6 4.4"/></svg>';
+  // words of text in lines no wider than width (in the canvas's current font)
+  function wrapLines(g, text, width) {
+    const lines = [];
+    for (const para of String(text).split(/\n+/)) {
+      let line = "";
+      for (const w of para.split(/\s+/).filter(Boolean)) {
+        const joined = line ? line + " " + w : w;
+        if (line && g.measureText(joined).width > width) { lines.push(line); line = w; } else line = joined;
+      }
+      if (line) lines.push(line);
+    }
+    return lines;
+  }
+  // a companion's name to its first few words, never ending on "بن" or "أبي"
+  function companionName(name) {
+    const w = String(name || "").replace(/[\u200e\u200f]/g, "").trim().split(/\s+/).slice(0, 5);
+    while (w.length > 1 && /^(بن|ابن|بنت|أبي|أبو|أم)$/.test(w[w.length - 1])) w.pop();
+    return w.join(" ");
+  }
+  async function hadithCardPNG(h, nar) {
+    const W = 1080, pad = 64, inner = W - 2 * pad, ui = (w, px) => `${w} ${px}px Tajawal, -apple-system, sans-serif`;
+    const amiri = (w, px) => `${w} ${px}px Amiri, "Traditional Arabic", serif`;
+    await Promise.all([document.fonts.load(amiri(400, 30)), document.fonts.load(amiri(700, 30)), document.fonts.load(ui(700, 24))]).catch(() => {});
+    const cv = document.createElement("canvas"), g = cv.getContext("2d");
+    const ops = [];  // drawn after the height is known
+    let y = 150;
+    const block = (font, color, text, lineH, { dir = "rtl", max = 0, gapAfter = 0 } = {}) => {
+      g.font = font; g.direction = dir;
+      let lines = wrapLines(g, text, inner);
+      if (max && lines.length > max) { lines = lines.slice(0, max); lines[max - 1] += " …"; }
+      for (const l of lines) { ops.push({ font, color, text: l, y: y + lineH / 2, dir }); y += lineH; }
+      y += gapAfter;
+    };
+    const rule = () => { ops.push({ rule: true, y: y }); y += 34; };
+    const heading = (text) => { block(ui(700, 26), "--gold", text, 40, { gapAfter: 6 }); };
+
+    // the hadith: the Prophet's words (the matn) with the companion who reports it
+    const matn = h.parts.map((p) => (p.matn ? p.text.slice(p.matn[0], p.matn[1]) : p.text).trim()).join("\n");
+    const companion = h.chains.map((c) => nar[c.ids[0]]).find((n) => n && n.cls === "sahabi");
+    if (companion) block(ui(500, 24), "--muted", "راوي الحديث: " + companionName(companion.name), 38, { gapAfter: 4 });
+    block(amiri(700, 36), "--ink", matn, 64, { max: 16, gapAfter: 12 });
+
+    // its verdict: the Sahihayn, al-Tirmidhi's own words, and the scholars' grades as the page shows them
+    const verdicts = [];
+    if (SAHIHAYN.has(h.book)) verdicts.push(`${h.type === "مرفوع" ? "صحيح: " : ""}أخرجه ${h.book === "bukhari" ? "البخاري" : "مسلم"} في صحيحه`);
+    for (const v of h.verdicts || []) verdicts.push("قال الترمذي: " + v);
+    const src = META.grade_sources || {};
+    for (const [s, v] of h.grades || []) verdicts.push(`${(src[`${s}:${h.book}`] || [s])[0]}: ${v}`);
+    if (verdicts.length) {
+      rule(); heading("الحكم");
+      for (const v of verdicts.slice(0, 4)) block(ui(500, 26), "--ink", v, 42, { max: 4 });
+      y += 8;
+    }
+
+    // the simplified explanation, in the language the reader chose
+    if (META.sharh && h.sx && h.sx.length) {
+      const lang = sharhLang(), id = h.sx[0];
+      const row = META.sharh.langs.find(([c]) => c === lang);
+      const e = (lang !== "ar" && row && (await sharhEntry(lang, id))) || (await sharhEntry("ar", id));
+      if (e) {
+        const tr = e !== null && lang !== "ar" && row && e.h, dir = tr && !row[3] ? "ltr" : "rtl";
+        rule(); heading("الشرح الميسّر");
+        block(dir === "ltr" ? ui(400, 25) : amiri(400, 29), "--ink", e.x, dir === "ltr" ? 40 : 50, { dir, max: 14, gapAfter: 6 });
+        block(ui(400, 20), "--muted", `من ${SHARH_BY}`, 32);
+      }
+    }
+    y += 24;
+    // footer: the site, the hadith's link and the project's notice
+    const footTop = y;
+    g.font = ui(400, 19); g.direction = "rtl";
+    const note = wrapLines(g, NOTICE.split(" · ").slice(1).join(" · "), inner);
+    cv.width = W; cv.height = footTop + 96 + note.length * 30 + 28;
+
+    const bg = getComputedStyle(document.body).backgroundColor;
+    g.fillStyle = bg; g.fillRect(0, 0, cv.width, cv.height);
+    // header: the site's mark and name, the hadith's reference
+    const icon = new Image(); icon.src = "icons/icon-192.png";
+    await icon.decode().catch(() => {});
+    if (icon.complete && icon.naturalWidth) g.drawImage(icon, W - pad - 64, 40, 64, 64);
+    g.textBaseline = "middle"; g.direction = "rtl"; g.textAlign = "right";
+    g.font = ui(700, 34); g.fillStyle = css("--gold"); g.fillText("نور السنة", W - pad - 80, 72);
+    g.direction = "rtl"; g.textAlign = "left"; g.font = ui(700, 28); g.fillStyle = css("--ink");
+    g.fillText(`${BOOK[h.book]} · ${h.aliases.length ? "الأحاديث" : "حديث"} ${h.label}`, pad, 72);
+    g.fillStyle = css("--line"); g.fillRect(pad, 124, inner, 2);
+    for (const o of ops) {
+      if (o.rule) { g.fillStyle = css("--line"); g.fillRect(pad + inner / 3, o.y + 6, inner / 3, 1); continue; }
+      g.font = o.font; g.fillStyle = css(o.color); g.direction = o.dir; g.textAlign = o.dir === "rtl" ? "right" : "left";
+      g.fillText(o.text, o.dir === "rtl" ? W - pad : pad, o.y);
+    }
+    g.fillStyle = css("--panel-2") || bg; g.fillRect(0, footTop, W, cv.height - footTop);
+    g.fillStyle = css("--gold"); g.fillRect(0, footTop, W, 3);
+    g.direction = "rtl"; g.textAlign = "right"; g.font = ui(700, 26); g.fillStyle = css("--gold");
+    g.fillText("نور السنة", W - pad, footTop + 48);
+    const nameW = g.measureText("نور السنة").width;
+    g.font = ui(500, 21); g.fillStyle = css("--ink"); g.fillText("· مشروع وقفي لخدمة السنة النبوية", W - pad - nameW - 12, footTop + 49);
+    g.direction = "ltr"; g.textAlign = "left"; g.font = ui(500, 22); g.fillStyle = css("--ink");
+    g.fillText(location.host + location.pathname.replace(/[^/]*$/, ""), pad, footTop + 48);
+    g.direction = "rtl"; g.textAlign = "center"; g.font = ui(400, 19); g.fillStyle = css("--muted");
+    note.forEach((l, i) => g.fillText(l, W / 2, footTop + 96 + i * 30));
+    return new Promise((ok) => cv.toBlob(ok, "image/png"));
+  }
+  // save the card, or share it with the link (on phones: the share sheet, e.g. WhatsApp)
+  function wireCard(box, h, nar) {
+    const name = `${BOOK[h.book]} ${h.label}`;
+    box.addEventListener("click", async (ev) => {
+      const b = ev.target.closest("[data-card]");
+      if (!b) return;
+      const share = b.dataset.card === "share", title = b.title;
+      const flash = (t) => { b.title = t; b.classList.add("done"); setTimeout(() => { b.title = title; b.classList.remove("done"); }, 1800); };
+      const blob = await hadithCardPNG(h, nar), f = new File([blob], `نور السنة - ${name}.png`, { type: "image/png" });
+      const data = { files: [f], title: "نور السنة: " + name, text: "نور السنة: " + name + "\n" + location.href };
+      if (share && navigator.canShare && navigator.canShare(data)) {
+        try { await navigator.share(data); } catch (_) { /* cancelled */ }
+        return;
+      }
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob); a.download = f.name; a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+      if (!share) return flash("حُفظت الصورة ✓");
+      try { await navigator.clipboard.writeText(location.href); flash("حُفظت الصورة ونُسخ الرابط ✓"); } catch (_) { flash("حُفظت الصورة"); }
+    });
+  }
+
   // ---------- the simplified explanation (موسوعة الأحاديث النبوية, hadeethenc.com) ----------
   const SHARH_BY = "موسوعة الأحاديث النبوية";
   const SHARH_ORG = "إعداد مركز الترجمة بالمكتب التعاوني للدعوة وتوعية الجاليات بالربوة";
@@ -590,7 +716,7 @@
       <h1>${BOOK[book]} — ${h.aliases.length ? "الأحاديث" : "حديث رقم"} ${esc(h.label)}</h1>
       <div class="meta-line" style="margin-bottom:10px">${h.type ? `<span class="tag">${esc(h.type)}</span>` : ""}
         <span>${NUMBERING[book]}</span>${h.parts.length > 1 ? `<span>· ${fmt(h.parts.length)} روايات تحت هذا الرقم</span>` : ""}</div>
-      <div class="panel hadith-text">${copyBtnHTML("نسخ نص الحديث")}${hadithTextHTML(h, G.nar)}</div>
+      <div class="panel hadith-text"><div class="text-tools">${copyBtnHTML("نسخ نص الحديث")}<button type="button" class="copy-btn" data-card="shot" title="حفظ صورة الحديث مع حكمه وشرحه" aria-label="حفظ صورة الحديث">${SHOT_ICON}</button><button type="button" class="copy-btn" data-card="share" title="مشاركة صورة الحديث والرابط" aria-label="مشاركة صورة الحديث">${SHARE_ICON}</button></div>${hadithTextHTML(h, G.nar)}</div>
       <div id="sharh"></div>
       ${SAHIHAYN.has(book) ? "" : `<p class="notice sunan-note">${book === "muwatta"
         ? "في موطأ مالك المسند والمرسل والبلاغ، ومعها آثار الصحابة والتابعين وأقوال مالك"
@@ -647,7 +773,8 @@
       <div class="panel"><div class="chain">${sp.books.map(([b, n]) => `<span class="chip">${esc(b)}<span class="muted small" style="margin-inline-start:6px">${fmt(n)}</span></span>`).join(" ")}${sp.n_books > sp.books.length ? `<span class="muted small">و${fmt(sp.n_books - sp.books.length)} كتابًا آخر</span>` : ""}</div>
         ${sp.shawahid.length ? `<h3 style="margin-top:14px">شواهده عن صحابة آخرين</h3><div class="chain">${sp.shawahid.map((n) => `<span class="chip cls-sahabi"><span class="dot"></span>${esc(n)}</span>`).join(" ")}</div>` : ""}</div>` : ""}`;
 
-    wireCopy($(".hadith-text .copy-btn"), () => `${BOOK[book]} — ${h.aliases.length ? "الأحاديث" : "حديث رقم"} ${h.label}\n\n${h.parts.map((p) => p.text.trim()).join("\n\n")}\n\n${location.href}`);
+    wireCard($(".hadith-text .text-tools"), h, G.nar);
+    wireCopy($('.hadith-text .copy-btn:not([data-card])'), () => `${BOOK[book]} — ${h.aliases.length ? "الأحاديث" : "حديث رقم"} ${h.label}\n\n${h.parts.map((p) => p.text.trim()).join("\n\n")}\n\n${location.href}`);
     renderSharh($("#sharh"), h);
     let scope = others.length ? "all" : "one", bookFilter = "", rank = "";
     // default side panel: the narrators of the drawn tree, grouped by Ibn Hajar's tabaqat
