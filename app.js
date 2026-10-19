@@ -546,12 +546,11 @@
         <p class="muted small">من ${SHARH_BY} (${SHARH_ORG})، شرح مختصر لعموم القرّاء، يُنقل بنصه. وقد يكون لفظ الحديث في الموسوعة مختلفًا يسيرًا عن لفظ هذه الرواية.</p></details>`;
       wireCopy(el.querySelector(".copy-btn"), () => [
         `الشرح الميسّر: ${BOOK[h.book]} — حديث رقم ${h.label}`,
-        ...ids.map((id, n) => {
+        ...ids.map((id, n) => {  // the page's link names the source, so only the text is copied
           const a = ar[n], t = tr && tr[n], e = t || a;
           if (!e) return "";
           return [t && t.h, e.x, e.f && e.f.length ? (t ? "" : "من فوائد الحديث:\n") + e.f.map((x) => "- " + x).join("\n") : "",
-            !t && a.w && a.w.length ? "معاني الكلمات:\n" + a.w.map(([w, m]) => `- ${w}: ${m}`).join("\n") : "",
-            `المصدر: ${SHARH_BY} (${SHARH_ORG})\nhttps://hadeethenc.com/${t ? lang : "ar"}/browse/hadith/${id}`].filter(Boolean).join("\n\n");
+            !t && a.w && a.w.length ? "معاني الكلمات:\n" + a.w.map(([w, m]) => `- ${w}: ${m}`).join("\n") : ""].filter(Boolean).join("\n\n");
         }),
         location.href].filter(Boolean).join("\n\n"));
       el.querySelector("details").addEventListener("toggle", (ev) => { open = ev.target.open; });
