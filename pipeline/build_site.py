@@ -86,6 +86,8 @@ GRADES = Path(__file__).resolve().parent / "grades"
 SHARH = Path(__file__).resolve().parent / "sharh"
 # Ibn Hajar on al-Bukhari's narrators below صدوق, quoted from «هدي الساري» (make_rijal.py)
 HADY = Path(__file__).resolve().parent / "rijal" / "hady.json"
+# Ibn Hajar's five levels of the mudallisun, «تعريف أهل التقديس» (Shamela 1186), matched by hand to narrator ids
+MUDALLISIN = Path(__file__).resolve().parent / "rijal" / "mudallisin.json"
 # scholars' verdicts (make_grades.py): "source:book" -> (scholar, work, Shamela book id)
 GRADE_SOURCES = {
     "albani:abudawud": ("الألباني", "صحيح وضعيف سنن أبي داود", 1726),
@@ -453,6 +455,8 @@ def main():
         return list(best) if best else ["f", "", ""]
 
     hady = load(HADY) if HADY.exists() else {}
+    # id -> [level, printed page, Shamela page id]
+    mudallis = {e["id"]: [e["level"], e["page"], e["page_id"]] for e in load(MUDALLISIN)["entries"] if e["id"]} if MUDALLISIN.exists() else {}
     for nid, n in narr.items():
         per_book = in_book[nid]
         if not any(per_book.values()) or n.get("unlinked"):
@@ -461,6 +465,8 @@ def main():
             n["follow"] = {k: follow_up(nid, k) for b in BOOKS for k in per_book[b]}
         if nid in hady:
             n["hady"] = hady[nid]
+        if nid in mudallis:
+            n["tadlis_level"] = mudallis[nid]
         # a compiler's own book is his page's business, not a measure of how much he narrates
         counted = [b for b in BOOKS if own_book.get(nid) != b]
         uniq, dup = [], []
