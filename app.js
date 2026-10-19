@@ -74,6 +74,10 @@
 
   // terms the narrator pages and the follow-up notes use
   const TERMS = {
+    marfu: ["المرفوع", "ما أُضيف إلى النبي ﷺ من قول أو فعل أو تقرير أو صفة. والرفع وصف لنسبة الحديث لا حكم بصحته، ففي المرفوع الصحيح والحسن والضعيف."],
+    qudsi: ["الحديث القدسي", "ما رواه النبي ﷺ عن ربه عز وجل بغير لفظ القرآن، كقوله: «قال الله تعالى…». ولا يُتعبَّد بتلاوته كالقرآن، وفيه الصحيح والضعيف كسائر الأحاديث."],
+    mawquf: ["الموقوف", "ما أُضيف إلى الصحابي من قول أو فعل ولم يُرفع إلى النبي ﷺ. وبعضه له حكم الرفع، كقول الصحابي فيما لا مجال للرأي فيه، أو قوله: «من السنة كذا»."],
+    maqtu: ["المقطوع", "ما أُضيف إلى التابعي فمن دونه من قول أو فعل. وهو غير «المنقطع»: فالمقطوع وصفٌ لمن يُنسب إليه الكلام، والمنقطع وصفٌ للإسناد إذا سقط منه راوٍ."],
     mutabaa: ["المتابعة", "أن يوافق راوٍ غيرَه في رواية الحديث نفسه. فإن رواه غيره عن شيخه نفسه فهي «متابعة تامة»، وإن رواه غيره عن شيخ أعلى منه في الإسناد (كشيخ شيخه أو الصحابي) فهي «متابعة قاصرة». والمتابعة تدل على أن الراوي لم ينفرد بالحديث ولم يخطئ فيه، ولذلك قال ابن حجر في المقبول: «حيث يُتابَع»."],
     shahid: ["الشاهد", "أن يُروى معنى الحديث عن صحابي آخر. فالمتابعة تكون في الرواة دون الصحابي، والشاهد يكون بتعدد الصحابي."],
     maqrun: ["المقرون", "أن يذكر المصنف الراوي مع غيره في موضع واحد من الإسناد: «حدثنا فلان وفلان قالا…». فلا يكون الحديث معتمدًا عليه وحده، والشيخان يفعلان ذلك كثيرًا مع من دون الثقة."],
@@ -81,6 +85,14 @@
     fard: ["التفرد", "أن ينفرد الراوي بالحديث فلا يرويه غيره. وتفرد من دون الثقة موضع نظر، وإخراج الشيخين له قد يكون لأنهما عرفا من حاله أو من الحديث ما لم يذكره غيرهما."],
     tadlis: ["التدليس", "أن يروي الراوي عمن لقيه ما لم يسمعه منه بلفظ يوهم السماع، كـ«عن» و«قال». فلا يُقبل من المدلس إلا ما صرّح فيه بالسماع («حدثنا»، «سمعت»)، وما في الصحيحين من عنعنة المدلسين محمول على ثبوت السماع من طريق أخرى."],
     ikhtilat: ["الاختلاط", "أن يسوء حفظ الراوي في آخر عمره لكبر أو مرض أو ذهاب كتب. فيُقبل منه ما رواه قبل الاختلاط ويُردّ ما بعده، وأهل العلم يميّزون من سمع منه قديمًا ممن سمع منه بعد اختلاطه."],
+  };
+  const TYPE_TERM = { "مرفوع": "marfu", "قدسي": "qudsi", "موقوف": "mawquf", "مقطوع": "maqtu" };
+  // the hadith's type as a tag that opens its definition
+  const typeTag = (type) => {
+    const k = TYPE_TERM[type];
+    if (!k) return type ? `<span class="tag">${esc(type)}</span>` : "";
+    return `<details class="type-tip"><summary class="tag" title="ما معنى «${esc(type)}»؟">${esc(type)}</summary>
+      <div class="tip-body"><b>${TERMS[k][0]}:</b> ${esc(TERMS[k][1])}<a href="#/terms">مصطلحات الحديث ←</a></div></details>`;
   };
   const termLink = (k) => `<a href="#/terms" title="${esc(TERMS[k][1])}">${TERMS[k][0]}</a>`;
   // chains are described by the weakest Ibn Hajar grade among their narrators (not a verdict on the hadith)
@@ -706,6 +718,9 @@
     const i = keys.indexOf(key);
     return [keys[i - 1], keys[i + 1]];
   };
+  document.addEventListener("click", (e) => {
+    document.querySelectorAll(".type-tip[open]").forEach((d) => { if (!d.contains(e.target)) d.open = false; });
+  });
   document.addEventListener("keydown", (e) => {
     if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey || /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) || e.target.isContentEditable) return;
     const a = e.key === "ArrowRight" ? $(".hnav [data-dir=prev]") : e.key === "ArrowLeft" ? $(".hnav [data-dir=next]") : null;
@@ -737,11 +752,13 @@
     app.innerHTML = `
       <div class="crumbs"><a href="#/book/${book}">${BOOK[book]}</a> ‹ <a href="#/book/${book}/${h.kitab}">${esc(kitab?.title || "")}</a>${h.bab ? ` ‹ ${esc(h.bab)}` : ""}</div>
       <h1>${BOOK[book]} — ${h.aliases.length ? "الأحاديث" : "حديث رقم"} ${esc(h.label)}</h1>
-      <div class="meta-line" style="margin-bottom:10px">${h.type ? `<span class="tag">${esc(h.type)}</span>` : ""}
+      <div class="meta-line" style="margin-bottom:10px">${typeTag(h.type)}
         <span>${NUMBERING[book]}</span>${h.parts.length > 1 ? `<span>· ${fmt(h.parts.length)} روايات تحت هذا الرقم</span>` : ""}
         <nav class="hnav" aria-label="التنقل بين الأحاديث">${neighbors(key).map((k, i) => {
-          const dir = i ? "next" : "prev", label = i ? "الحديث التالي" : "الحديث السابق", arrow = i ? "‹" : "›";
-          return k ? `<a class="btn" data-dir="${dir}" href="#/h/${k}" title="${label}: ${hkey(k)} (${i ? "←" : "→"})" aria-label="${label}">${i ? `${esc(hnum(k))} ${arrow}` : `${arrow} ${esc(hnum(k))}`}</a>`
+          // drawn chevrons: text arrows get mirrored in RTL
+          const dir = i ? "next" : "prev", label = i ? "الحديث التالي" : "الحديث السابق";
+          const arrow = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${i ? "M15 6l-6 6 6 6" : "M9 6l6 6-6 6"}"/></svg>`;
+          return k ? `<a class="btn" data-dir="${dir}" href="#/h/${k}" title="${label}: ${hkey(k)}" aria-label="${label}">${arrow}</a>`
             : `<span class="btn" aria-disabled="true">${arrow}</span>`;
         }).join("")}</nav></div>
       <div class="panel hadith-text"><div class="text-tools">${copyBtnHTML("نسخ نص الحديث")}<button type="button" class="copy-btn" data-card="shot" title="حفظ صورة الحديث مع حكمه وشرحه" aria-label="حفظ صورة الحديث">${SHOT_ICON}</button><button type="button" class="copy-btn" data-card="share" title="مشاركة صورة الحديث والرابط" aria-label="مشاركة صورة الحديث">${SHARE_ICON}</button></div>${hadithTextHTML(h, G.nar)}</div>
@@ -1321,7 +1338,7 @@
       <p>رتب الرواة المعروضة في الموقع هي ألفاظ الحافظ ابن حجر في «تقريب التهذيب». وقد قسّم الرواة في مقدمته اثنتي عشرة مرتبة، هذا نصه فيها مع بيان مختصر:</p>
       <ol class="ranks">${RANKS.map(([t, def, note]) => `<li><h3>${t}</h3><blockquote>${esc(def)}</blockquote><p>${esc(note)}</p></li>`).join("")}</ol>
       <p class="muted small">ألوان الرواة في الشجرات: الثقة للمرتبتين الثانية والثالثة، والصدوق للرابعة والخامسة، و«مقبول / مجهول الحال» للسادسة والسابعة، و«تُكلِّم فيه» لما بعدها.</p>
-      <h2>مصطلحات الأسانيد</h2>
+      <h2>مصطلحات الحديث والأسانيد</h2>
       <dl class="facts terms-dl">${Object.values(TERMS).map(([t, d]) => `<dt>${t}</dt><dd>${esc(d)}</dd>`).join("")}</dl>
       <h2>لماذا يروي الشيخان عمن دون الثقة؟</h2>
       <p>أحاديث الصحيحين صحيحة بحكم الشيخين وتلقي الأمة لهما بالقبول. ورواية الشيخين عمن قيل فيه «مقبول» أو تُكلِّم فيه تكون غالبًا في المتابعات والشواهد، أو مقرونًا بغيره، أو مما انتقياه من صحيح حديثه. وقد عقد ابن حجر في «هدي الساري» مقدمة «فتح الباري» فصلًا لمن تُكلِّم فيه من رجال البخاري، يذكر فيه وجه إخراجه له. وفي صفحة كل راوٍ من هؤلاء بيانٌ آلي لموقع كل حديث له: هل تُوبع عليه أو له شاهد أو انفرد به.</p>
