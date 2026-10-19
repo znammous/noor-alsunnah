@@ -322,6 +322,12 @@ mark { background: color-mix(in srgb, var(--gold) 30%, transparent); color: inhe
 .graph-box:fullscreen { background: var(--bg); padding: 12px; }
 .graph-box:fullscreen > :first-child { height: 100% !important; }
 .graph-hint { position: absolute; bottom: 8px; inset-inline-start: 10px; margin: 0; padding: 3px 9px; border-radius: 7px; font-size: .75rem; color: var(--muted); background: color-mix(in srgb, var(--panel) 88%, transparent); pointer-events: none; transition: background .2s, color .2s; }
+.graph-veil { position: absolute; inset: 0; z-index: 1; display: flex; align-items: flex-end; padding-bottom: 14px; justify-content: center; border-radius: var(--radius); cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.graph-veil span { padding: 6px 14px; border-radius: 999px; font-size: .85rem; color: var(--ink); background: color-mix(in srgb, var(--panel-2) 90%, transparent); border: 1px solid var(--line); }
+.graph-box:has(.graph-veil) .graph-hint { display: none; }
+.graph-box.live .graph-veil { display: none; }
+.graph-box.live .graph-hint { display: block; }
+.graph-box.live > :first-child { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
 .graph-hint.flash { background: var(--accent); color: var(--accent-ink); }
 
 @media (max-width: 960px) {
