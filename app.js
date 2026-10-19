@@ -25,6 +25,12 @@
     tirmidhi: "ترقيم أحمد شاكر", nasai: "ترقيم برنامج الجامع", ibnmajah: "ترقيم محمد فؤاد عبد الباقي",
     ahmad: "ترقيم برنامج الجامع", muwatta: "رواية يحيى الليثي، ترقيم محمد مصطفى الأعظمي", darimi: "ترقيم حسين سليم أسد" };
   const SAHIHAYN = new Set(["bukhari", "muslim"]);
+  // a tag on a listed hadith outside the Sahihayn (whose book already says it), from a search-index record's grade class
+  const GRADE_TAG = { s: ["صحيح أو حسن", "thiqa"], w: ["ضعيف", "weak"], m: ["مختلف فيه", "maqbul"] };
+  const gradeTag = (r) => {
+    const t = r && !SAHIHAYN.has(BOOK_OF[r[0][0]]) && GRADE_TAG[r[6]];
+    return t ? `<a class="s-gr cls-${t[1]}" href="#/h/${r[0]}" title="تصنيف آلي لأحكام المحدثين، ونصها في صفحة الحديث">${t[0]}</a>` : "";
+  };
   // Abdullah son of Ahmad transmits the Musnad; his own additions (zawa'id) end with him
   const ZAWAID = "من زوائد عبد الله بن أحمد";
   // where a book's chains end: the compiler's node (Malik, Ahmad and al-Darimi are narrators too)
@@ -411,7 +417,7 @@
         const r = textOf.get(k);
         const bab = r && r[3] && r[3] !== lastBab ? `<h3 class="bab">${esc(r[3])}</h3>` : "";
         lastBab = r ? r[3] : lastBab;
-        return `<li>${bab}<div class="meta-line"><a href="#/h/${k}">${hkey(k)}</a></div><a href="#/h/${k}" class="snip" style="color:inherit">${esc(clip(r ? r[2] : "", 220))}</a></li>`;
+        return `<li>${bab}<div class="meta-line"><a href="#/h/${k}">${hkey(k)}</a>${gradeTag(r)}</div><a href="#/h/${k}" class="snip" style="color:inherit">${esc(clip(r ? r[2] : "", 220))}</a></li>`;
       }).join("")}</ul></div>
       ${pager(pages, page, (p) => `#/book/${book}/${no}/${p}`)}`;
   }
@@ -1333,7 +1339,7 @@
     const slice = keys.slice((page - 1) * PAGE, page * PAGE);
     box.innerHTML = `<ul class="list">${slice.map((k) => {
       const r = textOf.get(k);
-      return `<li><div class="meta-line"><a href="#/h/${k}">${hkey(k)}</a>${r && r[3] ? `<span>${esc(r[3])}</span>` : ""}</div><div class="snip">${esc(clip(r ? r[2] : "", 200))}</div></li>`;
+      return `<li><div class="meta-line"><a href="#/h/${k}">${hkey(k)}</a>${gradeTag(r)}${r && r[3] ? `<span>${esc(r[3])}</span>` : ""}</div><div class="snip">${esc(clip(r ? r[2] : "", 200))}</div></li>`;
     }).join("")}</ul>${pages > 1 ? `<div class="pager">${page > 1 ? '<button class="btn" data-p="-1">السابق</button>' : ""}<span class="muted">${page} / ${pages}</span>${page < pages ? '<button class="btn" data-p="1">التالي</button>' : ""}</div>` : ""}`;
     box.querySelectorAll("[data-p]").forEach((b) => b.addEventListener("click", () => {
       renderNarratorHadiths(n, page + +b.dataset.p, book, only, skip);
@@ -2066,12 +2072,6 @@
     // grade class per record (built from the quoted verdicts): s accepted, w weak, m the sources differ, "" none
     const GRADE_F = [["", "الكل"], ["s", "الصحيح وما في حكمه"], ["w", "الضعيف"], ["m", "مختلف فيه"], ["n", "بلا حكم"]];
     const gradeOf = (h) => h.rec.r[6] || "n";
-    // a tag on each result outside the Sahihayn (whose book already says it)
-    const GRADE_TAG = { s: ["صحيح أو حسن", "thiqa"], w: ["ضعيف", "weak"], m: ["مختلف فيه", "maqbul"] };
-    const gradeTag = (h) => {
-      const t = !SAHIHAYN.has(bookOf(h.rec.r[0])) && GRADE_TAG[h.rec.r[6]];
-      return t ? `<a class="s-gr cls-${t[1]}" href="#/h/${h.rec.r[0]}" title="تصنيف آلي لأحكام المحدثين، ونصها في صفحة الحديث">${t[0]}</a>` : "";
-    };
     app.innerHTML = `<h1>نتائج البحث: «${esc(q)}»</h1>
       ${lookup.length ? `<div class="panel lookup"><span class="muted">انتقل إلى الحديث برقمه:</span> ${lookup.map((k) => `<a class="btn" href="#/h/${k}">${BOOK[bookOf(k)]} ${hnum(k)}</a>`).join(" ")}</div>` : ""}
       ${narrators.length ? `<div class="panel" style="margin-bottom:16px"><h2>رواة</h2><div class="chain">${narrators.map(([id, v]) => `<a class="chip cls-${v[1]}" href="#/n/${encodeURIComponent(id)}"><span class="dot"></span>${esc(v[0])}</a>`).join(" ")}</div></div>` : ""}
@@ -2132,7 +2132,7 @@
         <ul class="list s-list">${page.map((h) => {
           const k = h.rec.r[0], more = others.get(h) || [];
           const bab = h.rec.bab ? `<span class="s-bab">${markText(h.rec.bab, h.babSpans)}</span>` : "";
-          return `<li><div class="meta-line"><a class="s-ref" href="#/h/${k}">${hkey(k)}</a>${gradeTag(h)}${bab}</div>
+          return `<li><div class="meta-line"><a class="s-ref" href="#/h/${k}">${hkey(k)}</a>${gradeTag(h.rec.r)}${bab}</div>
             <a class="snip s-snip" href="#/h/${k}">${h.spans.length ? snippet(h) : markText(clip(h.rec.r[2], 260), [])}</a>
             ${more.length ? `<div class="s-more">وفي النتائج أيضًا: ${more.slice(0, 8).map((x) => `<a href="#/h/${x}">${hkey(x)}</a>`).join(" · ")}${more.length > 8 ? ` <span class="muted">و${fmt(more.length - 8)} غيرها</span>` : ""}</div>` : ""}</li>`;
         }).join("") || `<li class="muted">لا نتائج.${scopeTip} جرّب كلمات أقل أو صيغة أخرى، أو <a href="https://dorar.net/hadith/search?q=${encodeURIComponent(q)}&st=w" target="_blank" rel="noopener">ابحث في الموسوعة الحديثية</a>.</li>`}</ul>
