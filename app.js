@@ -609,9 +609,12 @@
     y += 24;
     // footer: the site, the hadith's link and the project's notice
     const footTop = y;
-    g.font = ui(400, 19); g.direction = "rtl";
-    const note = wrapLines(g, NOTICE.split(" · ").slice(1).join(" · "), inner);
-    cv.width = W; cv.height = footTop + 96 + note.length * 30 + 28;
+    // the notice on a single line: its font shrinks until it fits the card's width
+    const note = NOTICE.split(" · ").slice(1).join(" · ");
+    let notePx = 19;
+    g.direction = "rtl";
+    for (; notePx > 12; notePx--) { g.font = ui(400, notePx); if (g.measureText(note).width <= W - 64) break; }
+    cv.width = W; cv.height = footTop + 96 + 26;
 
     const bg = getComputedStyle(document.body).backgroundColor;
     g.fillStyle = bg; g.fillRect(0, 0, cv.width, cv.height);
@@ -637,8 +640,8 @@
     g.font = ui(500, 21); g.fillStyle = css("--ink"); g.fillText("· مشروع وقفي لخدمة السنة النبوية", W - pad - nameW - 12, footTop + 49);
     g.direction = "ltr"; g.textAlign = "left"; g.font = ui(500, 22); g.fillStyle = css("--ink");
     g.fillText(location.host + location.pathname.replace(/[^/]*$/, ""), pad, footTop + 48);
-    g.direction = "rtl"; g.textAlign = "center"; g.font = ui(400, 19); g.fillStyle = css("--muted");
-    note.forEach((l, i) => g.fillText(l, W / 2, footTop + 96 + i * 30));
+    g.direction = "rtl"; g.textAlign = "center"; g.font = ui(400, notePx); g.fillStyle = css("--muted");
+    g.fillText(note, W / 2, footTop + 92);
     return new Promise((ok) => cv.toBlob(ok, "image/png"));
   }
   // save the card, or share it with the link (on phones: the share sheet, e.g. WhatsApp)
