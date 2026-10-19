@@ -1032,68 +1032,18 @@
   // soft S-shaped edges like the home page tree: each edge leaves and enters its nodes horizontally.
   // Two control points (mid-x, source-y) and (mid-x, target-y), expressed relative to the source→target line.
   const CURVE = { "curve-style": "unbundled-bezier", "edge-distances": "node-position", "control-point-distances": "0 0", "control-point-weights": "0.25 0.75" };
-  // An edge that skips ranks follows its route (the gaps dagre keeps for it between the nodes) as a chain of S-curves:
-  // between each two waypoints a and b, control points (mid-x, a.y) and (mid-x, b.y).
   function curve(e) {
     const s = e.source().position(), t = e.target().position();
     const dx = t.x - s.x, dy = t.y - s.y, L2 = dx * dx + dy * dy;
-    // the curve starts and ends at the facing sides of the nodes, so no control point falls inside a node
-    // (at the edge's own port when ports() gave it one)
-    const sg = Math.sign(dx) || 1, sy = e.scratch("sy") || 0, ty = e.scratch("ty") || 0;
-    const s1 = { x: s.x + (sg * e.source().outerWidth()) / 2, y: s.y + sy }, t1 = { x: t.x - (sg * e.target().outerWidth()) / 2, y: t.y + ty };
-    e.style({ "source-endpoint": `${sg * 50}% ${sy}px`, "target-endpoint": `${-sg * 50}% ${ty}px` });
-    const way = [s1, ...(e.scratch("route") || []), t1].filter((p, i, a) => i === 0 || i === a.length - 1 || Math.abs(p.y - a[i - 1].y) > 1 || Math.abs(p.y - a[i + 1].y) > 1);
-    if (L2 < 1 || way.every((p) => Math.abs(p.y - s1.y) < 1)) return e.style("curve-style", "straight");
-    const L = Math.sqrt(L2), ds = [], ws = [];
-    for (let i = 0; i < way.length - 1; i++) {
-      const mx = (way[i].x + way[i + 1].x) / 2;
-      for (const y of [way[i].y, way[i + 1].y]) {
-        const vx = mx - s.x, vy = y - s.y;
-        ds.push((vy * dx - vx * dy) / L);
-        ws.push((vx * dx + vy * dy) / L2);
-      }
-    }
-    e.style({ "curve-style": "unbundled-bezier", "control-point-distances": ds.join(" "), "control-point-weights": ws.join(" ") });
+    if (L2 < 1 || Math.abs(dy) < 1) return e.style("curve-style", "straight");
+    const w = Math.min(Math.max((dx * dx) / (2 * L2), 0.02), 0.48), d = -(dx * dy) / (2 * Math.sqrt(L2));
+    e.style({ "curve-style": "unbundled-bezier", "control-point-distances": `${d} ${-d}`, "control-point-weights": `${w} ${1 - w}` });
   }
   function curves(c) {
     const all = () => c.edges().forEach(curve);
     c.on("layoutstop", all);
-    // a dragged node's edges lose their routes
-    c.on("drag", "node", (ev) => ev.target.connectedEdges().forEach((e) => { e.removeScratch("route"); curve(e); }));
+    c.on("position", "node", (ev) => ev.target.connectedEdges().forEach(curve));
     all();
-  }
-  // dagre places the nodes, and gives every edge that spans several ranks a path through the gaps between the nodes of
-  // those ranks; cytoscape-dagre keeps only the node positions, so run dagre here and keep the paths for curve()
-  function routedLayout(c, { rankDir, nodeSep, rankSep, edgeSep }) {
-    // a narrator with many routes gets a box tall enough to give each line its own port
-    c.nodes().forEach((n) => {
-      const k = Math.max(n.incomers("edge").length, n.outgoers("edge").length);
-      if (k * PORT > n.height()) n.style({ "height": k * PORT, "width": Math.max(n.width(), 64) });
-    });
-    const g = new dagre.graphlib.Graph({ multigraph: true });
-    g.setGraph({ rankdir: rankDir, nodesep: nodeSep, ranksep: rankSep, edgesep: edgeSep });
-    c.nodes().forEach((n) => g.setNode(n.id(), { width: n.outerWidth(), height: n.outerHeight() }));
-    c.edges().forEach((e) => g.setEdge(e.source().id(), e.target().id(), { minlen: 1, weight: e.data("w") || 1 }, e.id()));
-    dagre.layout(g);
-    c.nodes().positions((n) => ({ x: g.node(n.id()).x, y: g.node(n.id()).y }));
-    c.edges().forEach((e) => e.scratch("route", g.edge(e.source().id(), e.target().id(), e.id()).points.slice(1, -1)));
-    ports(c);
-  }
-  // Ports: the lines leaving (or entering) a node are spread along its side, ordered by the height at which each line
-  // heads off (its first waypoint, or the node at its other end), so they fan out without crossing at the node.
-  const PORT = 8;
-  function ports(c) {
-    const toward = (e, out) => {
-      const r = e.scratch("route") || [];
-      return r.length ? r[out ? 0 : r.length - 1].y : (out ? e.target() : e.source()).position().y;
-    };
-    c.nodes().forEach((n) => {
-      for (const out of [true, false]) {
-        const es = (out ? n.outgoers("edge") : n.incomers("edge")).sort((a, b) => toward(a, out) - toward(b, out));
-        const step = es.length > 1 ? Math.min(PORT, n.height() / (es.length - 1)) : 0;
-        es.forEach((e, i) => e.scratch(out ? "sy" : "ty", (i - (es.length - 1) / 2) * step));
-      }
-    });
   }
 
   function drawTree(G, keys, focusKey) {
@@ -1136,7 +1086,7 @@
       wheelSensitivity: 0.25,
       minZoom: 0.1,
       maxZoom: 2.5,
-      layout: { name: "preset" },
+      layout: { name: "dagre", rankDir: "RL", nodeSep: 8, rankSep: 36, edgeSep: 4, padding: 16 },
       style: [
         { selector: "node", style: {
           "shape": "round-rectangle", "width": "label", "height": "label", "padding": "7px",
@@ -1156,19 +1106,9 @@
         { selector: ".dim", style: { "opacity": 0.15 } },
         { selector: "edge.hl", style: { "line-color": css("--gold"), "target-arrow-color": css("--gold"), "line-opacity": 1, "z-index": 9 } },
         { selector: "node.pick", style: { "border-width": 4, "font-weight": 700 } },
-        { selector: ".hov-dim", style: { "opacity": 0.12 } },
-        { selector: "edge.hov", style: { "line-color": css("--accent"), "target-arrow-color": css("--accent"), "line-opacity": 1, "z-index": 10 } },
       ],
     });
-    routedLayout(cy, { rankDir: "RL", nodeSep: 8, rankSep: 36, edgeSep: 6 });
     curves(cy);
-    // hovering a narrator traces the routes through it, so one line can be followed in a dense tree
-    cy.on("mouseover", "node", (e) => {
-      const n = e.target, path = n.predecessors().union(n.successors()).union(n);
-      cy.elements().not(path).addClass("hov-dim");
-      path.edges().addClass("hov");
-    });
-    cy.on("mouseout", "node", () => cy.elements().removeClass("hov-dim hov"));
     readable(cy, "nabi");
     cy.on("tap", "node", (e) => selectNode(e.target, G));
     cy.on("tap", (e) => { if (e.target === cy) cy.elements().removeClass("dim hl"); });
