@@ -836,8 +836,8 @@
       <div class="panel"><ul class="list">${others.map((k) => {
         const o = G.items[k];
         const shahid = !o.chains.some((c) => ownCompanions.has(c.ids[0]));
-        return `<li><div class="meta-line"><a href="#/h/${k}">${hkey(k)}</a><span class="tag">${shahid ? "شاهد" : "متابعة"}</span>${o.bab ? `<span>${esc(o.bab)}</span>` : ""}</div>
-          <div class="snip">${esc(clip(matnOf(o), 260))}</div>
+        return `<li class="row-link"><div class="meta-line"><a href="#/h/${k}">${hkey(k)}</a><span class="tag">${shahid ? "شاهد" : "متابعة"}</span>${o.bab ? `<span>${esc(o.bab)}</span>` : ""}</div>
+          <a href="#/h/${k}" class="snip row-main" style="color:inherit">${esc(clip(matnOf(o), 260))}</a>
           ${o.chains.slice(0, 3).map((c) => chainHTML(c.ids, G.nar, c.z ? null : compilerOf(k))).join("")}${o.chains.length > 3 ? `<p class="muted small">و${fmt(o.chains.length - 3)} أسانيد أخرى</p>` : ""}</li>`;
       }).join("")}</ul></div>` : ""}
 
