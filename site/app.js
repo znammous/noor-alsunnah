@@ -835,6 +835,13 @@
         }).join("")}</nav></div>
       <div class="panel hadith-text"><div class="text-tools">${copyBtnHTML("نسخ نص الحديث")}<button type="button" class="copy-btn" data-card="shot" title="حفظ صورة الحديث مع حكمه وشرحه" aria-label="حفظ صورة الحديث">${SHOT_ICON}</button><button type="button" class="copy-btn" data-card="share" title="مشاركة صورة الحديث والرابط" aria-label="مشاركة صورة الحديث">${SHARE_ICON}</button></div>${hadithTextHTML(h, G.nar)}</div>
       <div id="sharh"></div>
+      ${gradesHTML(h)}
+      <div class="panel dorar">
+        <div><h3>${h.grades && h.grades.length ? "أحكام أخرى في الدرر السنية" : "أحكام المحدثين على هذا الحديث"}</h3>
+          <p class="muted small">من الموسوعة الحديثية في موقع الدرر السنية: نتائج البحث عن طرف الحديث، وقد تشمل رواياتٍ أخرى مشابهة.</p></div>
+        <a class="btn on" href="${dorarURL(h)}" target="_blank" rel="noopener">اعرض الأحكام في الدرر السنية ↗</a>
+      </div>
+
       ${SAHIHAYN.has(book) ? "" : `<p class="notice sunan-note">${book === "muwatta"
         ? "في موطأ مالك المسند والمرسل والبلاغ، ومعها آثار الصحابة والتابعين وأقوال مالك"
         : `أحاديث ${BOOK[book]} فيها الصحيح والحسن والضعيف`}، فراجع أحكام المحدثين قبل الاستدلال بهذا الحديث.</p>`}
@@ -846,22 +853,6 @@
         <span class="pill">مع رواياته في الكتب التسعة: <b>${fmt(G.n_chains)}</b> إسنادًا في <b>${fmt(G.hadiths.length)}</b> رواية</span>
         <span class="pill">الصحابة في الكتب التسعة: <b>${fmt(companions.length)}</b></span>
         ${madar ? `<span class="pill">المدار: <b><a href="#/n/${encodeURIComponent(G.madar)}">${esc(shortName(madar.name))}</a></b> · <a href="#/turuq?d=${encodeURIComponent(G.madar)}">أحاديث مداره</a></span>` : ""}
-      </div>
-      ${sp && sp.books.length ? `<div class="panel takhrij"><h3>تخريجه في كتب السنة: ${fmt(sp.n_hadith)} رواية في ${fmt(sp.n_books)} كتابًا</h3>
-        <p class="muted small">عدد رواياته في كل كتاب بحسب تخريج برنامج جامع خادم الحرمين الشريفين · اضغط على كتاب لعرض رواياته فيه</p>
-        <div class="chain" id="takhrij">${sp.books.map(([b, n]) => {
-        const inner = `${esc(b)}<span class="muted small" style="margin-inline-start:6px">${fmt(n)}</span>`;
-        // the program names the "other books" (تحفة الأشراف ...) without their text
-        return b.startsWith("(كتب أخرى)") ? `<span class="chip">${inner}</span>` : `<button type="button" class="chip" data-g="${esc(b)}" aria-expanded="false">${inner}</button>`;
-      }).join(" ")}${sp.n_books > sp.books.length ? `<span class="muted small">و${fmt(sp.n_books - sp.books.length)} كتابًا آخر</span>` : ""}</div>
-        <div id="takhrij-list" class="takhrij-list" hidden></div>
-        ${sp.shawahid.length ? `<h3 style="margin-top:14px">شواهده عن صحابة آخرين</h3><div class="chain">${sp.shawahid.map((n) => `<span class="chip cls-sahabi"><span class="dot"></span>${esc(n)}</span>`).join(" ")}</div>` : ""}</div>` : ""}
-
-      ${gradesHTML(h)}
-      <div class="panel dorar">
-        <div><h3>${h.grades && h.grades.length ? "أحكام أخرى في الدرر السنية" : "أحكام المحدثين على هذا الحديث"}</h3>
-          <p class="muted small">من الموسوعة الحديثية في موقع الدرر السنية: نتائج البحث عن طرف الحديث، وقد تشمل رواياتٍ أخرى مشابهة.</p></div>
-        <a class="btn on" href="${dorarURL(h)}" target="_blank" rel="noopener">اعرض الأحكام في الدرر السنية ↗</a>
       </div>
 
       <div class="hadith-layout">
@@ -883,6 +874,15 @@
 
       <div class="section-title"><h2>أسانيده</h2><p>وصف رجال كل إسناد بحسب رتبهم عند ابن حجر، وليس حكمًا على الحديث</p></div>
       <div class="panel"><p class="notice" id="chainf" hidden></p><ul class="list" id="chains">${h.chains.map((c) => chainRow(c, G.nar, compilerOf(key))).join("") || '<li class="muted">لا يوجد إسناد مستخرج لهذه الرواية.</li>'}</ul></div>
+
+      ${sp && sp.books.length ? `<div class="section-title"><h2>تخريجه في كتب السنة</h2><p>${fmt(sp.n_hadith)} رواية في ${fmt(sp.n_books)} كتابًا بحسب تخريج برنامج جامع خادم الحرمين الشريفين · اضغط على كتاب لعرض رواياته فيه</p></div>
+      <div class="panel takhrij"><div class="chain" id="takhrij">${sp.books.map(([b, n]) => {
+        const inner = `${esc(b)}<span class="muted small" style="margin-inline-start:6px">${fmt(n)}</span>`;
+        // the program names the "other books" (تحفة الأشراف ...) without their text
+        return b.startsWith("(كتب أخرى)") ? `<span class="chip">${inner}</span>` : `<button type="button" class="chip" data-g="${esc(b)}" aria-expanded="false">${inner}</button>`;
+      }).join(" ")}${sp.n_books > sp.books.length ? `<span class="muted small">و${fmt(sp.n_books - sp.books.length)} كتابًا آخر</span>` : ""}</div>
+        <div id="takhrij-list" class="takhrij-list" hidden></div>
+        ${sp.shawahid.length ? `<h3 style="margin-top:14px">شواهده عن صحابة آخرين</h3><div class="chain">${sp.shawahid.map((n) => `<span class="chip cls-sahabi"><span class="dot"></span>${esc(n)}</span>`).join(" ")}</div>` : ""}</div>` : ""}
 
       ${others.length ? `<div class="section-title"><h2>رواياته الأخرى في الكتب التسعة</h2><p>كما في تخريج البرنامج · «متابعة»: عن الصحابي نفسه · «شاهد»: عن صحابي آخر</p></div>
       <div class="panel"><ul class="list">${others.map((k) => {
