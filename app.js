@@ -108,6 +108,11 @@
     return `<details class="type-tip"><summary class="tag" title="ما معنى «${esc(type)}»؟">${esc(type)}</summary>
       <div class="tip-body"><b>${HTERMS[k][0]}:</b> ${esc(HTERMS[k][1])}<a href="#/hterms">مصطلحات الحديث ←</a></div></details>`;
   };
+  // a glossary in the layout of the ranks: the term, its definition (first sentence) boxed, the rest under it
+  const termsList = (terms) => `<ol class="ranks">${Object.values(terms).map(([t, d]) => {
+    const [, def, rest] = d.match(/^(.+?[.؟])(?:\s+(.*))?$/) || [, d, ""];
+    return `<li><h3>${t}</h3><blockquote>${esc(def)}</blockquote>${rest ? `<p>${esc(rest)}</p>` : ""}</li>`;
+  }).join("")}</ol>`;
   const termLink = (k) => `<a href="#/terms" title="${esc(TERMS[k][1])}">${TERMS[k][0]}</a>`;
   // chains are described by the weakest Ibn Hajar grade among their narrators (not a verdict on the hadith)
   const CHAIN_LABEL = { thiqat: ["رجاله ثقات", "ok"], saduq: ["فيه من قيل فيه: صدوق", "mid"], mutakallam: ["فيه من تُكلِّم فيه", "low"], unknown: ["فيه من لم تُذكر رتبته", ""] };
@@ -1367,7 +1372,7 @@
       <ol class="ranks">${MUDALLIS_LEVELS.map(([def, note], i) => `<li><h3>المرتبة ${LEVEL_ORD[i]}</h3><blockquote>${esc(def)}</blockquote><p>${esc(note)}</p></li>`).join("")}</ol>
       <p class="muted small">النص من طبعة عاصم القريوتي (ص 13–14) في <a href="https://shamela.ws/book/${MUDALLIS_BOOK}/9" target="_blank" rel="noopener">المكتبة الشاملة</a>. وفي صفحة كل راوٍ ذكره ابن حجر فيه مرتبته منه، وقد رُبط رواته برواة الموقع بمراجعة يدوية.</p>
       <h2>مصطلحات الأسانيد</h2>
-      <dl class="facts terms-dl">${Object.values(TERMS).map(([t, d]) => `<dt>${t}</dt><dd>${esc(d)}</dd>`).join("")}</dl>
+      ${termsList(TERMS)}
       <h2>لماذا يروي الشيخان عمن دون الثقة؟</h2>
       <p>أحاديث الصحيحين صحيحة بحكم الشيخين وتلقي الأمة لهما بالقبول. ورواية الشيخين عمن قيل فيه «مقبول» أو تُكلِّم فيه تكون غالبًا في المتابعات والشواهد، أو مقرونًا بغيره، أو مما انتقياه من صحيح حديثه. وقد عقد ابن حجر في «هدي الساري» مقدمة «فتح الباري» فصلًا لمن تُكلِّم فيه من رجال البخاري، يذكر فيه وجه إخراجه له. وفي صفحة كل راوٍ من هؤلاء بيانٌ آلي لموقع كل حديث له: هل تُوبع عليه أو له شاهد أو انفرد به.</p>
     </div>`;
@@ -1377,7 +1382,7 @@
     app.innerHTML = `${subnav("hadiths", "hterms")}<div class="panel terms" style="max-width:860px">
       <h1>مصطلحات الحديث</h1>
       <p>يُوصف كل حديث في الموقع بمن يُنسب إليه كلامه، كما في برنامج جامع خادم الحرمين الشريفين، ويظهر الوصف أعلى صفحة الحديث. وهو وصفٌ لنسبة المتن لا حكمٌ على الحديث بالصحة أو الضعف.</p>
-      <dl class="facts terms-dl">${Object.values(HTERMS).map(([t, d]) => `<dt>${t}</dt><dd>${esc(d)}</dd>`).join("")}</dl>
+      ${termsList(HTERMS)}
       <p class="muted small">ولمصطلحات الأسانيد (المتابعة والشاهد والتدليس وغيرها) ومراتب الرواة عند ابن حجر: <a href="#/terms">مراتب الرواة ومصطلحاتها</a>.</p>
     </div>`;
   }
