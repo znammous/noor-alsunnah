@@ -600,8 +600,7 @@
     // its verdict: the Sahihayn, al-Tirmidhi's own words, and the scholars' grades as the page shows them
     // each with a bar in its degree's color, as on the page
     const verdicts = [];
-    const book = h.book === "bukhari" ? "البخاري" : "مسلم";
-    if (SAHIHAYN.has(h.book)) verdicts.push(h.type === "مرفوع" ? [`أخرجه ${book} في صحيحه:`, "صحيح", "sahih"] : ["", `أخرجه ${book} في صحيحه`, ""]);
+    // (none for the Sahihayn: the card's header already names the book, which is the verdict)
     for (const v of h.verdicts || []) verdicts.push(["قال الترمذي:", v, gradeClass(v)]);
     const src = META.grade_sources || {};
     for (const [s, v] of h.grades || []) verdicts.push([`${(src[`${s}:${h.book}`] || [s])[0]}:`, v, gradeClass(v)]);
@@ -666,7 +665,7 @@
       if (o.rule) { g.fillStyle = css("--line"); g.fillRect(pad + inner / 3, o.y + 6, inner / 3, 1); continue; }
       if (o.pill) {
         g.font = o.font; g.direction = "rtl"; g.textAlign = "right"; g.fillStyle = css("--ink");
-        const right = W - pad, byW = o.by ? g.measureText(o.by + " ").width : 0, px = 16;
+        const right = W - pad, byW = o.by ? g.measureText(o.by).width + 14 : 0, px = 16;
         if (o.by) g.fillText(o.by, right, o.y);
         // the word centered in its frame by its drawn ink, not its advance box (Arabic sits off-center otherwise)
         g.textBaseline = "alphabetic";
