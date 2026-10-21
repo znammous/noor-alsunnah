@@ -8,6 +8,7 @@
   --accent: #1d4a8f;
   --accent-ink: #ffffff;
   --gold: #b0892f;
+  --matn: #9a5300;
 
   --c-nabi: #1d4a8f;
   --c-sahabi: #b0892f;
@@ -24,14 +25,14 @@
   --shadow: 0 1px 2px rgba(0,0,0,.04), 0 4px 16px rgba(0,0,0,.05);
   --radius: 12px;
   --font-ui: -apple-system, BlinkMacSystemFont, "SF Arabic", "Tajawal", sans-serif;
-  --font-text: "Amiri", "Traditional Arabic", serif;
+  --font-text: "Noto Naskh Arabic", "Geeza Pro", "Amiri", serif;
   --font-brand: "Aref Ruqaa", "Amiri", serif;
   --font-title: "Tajawal", sans-serif;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #04173a; --panel: #0a2250; --panel-2: #0f2c62; --ink: #eaf2ff; --muted: #9fb4d6;
-    --line: #1c3a70; --accent: #6fa3ef; --accent-ink: #04173a; --gold: #f2c14e;
+    --line: #1c3a70; --accent: #6fa3ef; --accent-ink: #04173a; --gold: #f2c14e; --matn: #f7b267;
     --c-nabi: #6fa3ef; --c-sahabi: #f2c14e; --c-thiqa: #4fb36b; --c-saduq: #a8cf55;
     --c-maqbul: #e8ac3c; --c-weak: #e06a5c; --c-unknown: #7f8ba3; --c-imam: #b39ae6;
     --c-taliq: #4b5f86; --c-mubham: #4b5f86; --edge: #2c4a7c;
@@ -40,7 +41,7 @@
 }
 :root[data-theme="dark"] {
   --bg: #04173a; --panel: #0a2250; --panel-2: #0f2c62; --ink: #eaf2ff; --muted: #9fb4d6;
-  --line: #1c3a70; --accent: #6fa3ef; --accent-ink: #04173a; --gold: #f2c14e;
+  --line: #1c3a70; --accent: #6fa3ef; --accent-ink: #04173a; --gold: #f2c14e; --matn: #f7b267;
   --c-nabi: #6fa3ef; --c-sahabi: #f2c14e; --c-thiqa: #4fb36b; --c-saduq: #a8cf55;
   --c-maqbul: #e8ac3c; --c-weak: #e06a5c; --c-unknown: #7f8ba3; --c-imam: #b39ae6;
   --c-taliq: #4b5f86; --c-mubham: #4b5f86; --edge: #2c4a7c;
@@ -202,7 +203,7 @@ a.col:hover b { filter: brightness(1.2); }
 .copy-btn:hover { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 .copy-btn.done { border-color: var(--gold); color: var(--gold); background: var(--panel-2); }
 .sharh-head .copy-btn { margin-inline-start: auto; align-self: center; }
-.hadith-text .matn { color: var(--ink); font-weight: 700; }
+.hadith-text .matn { color: var(--matn); font-weight: 600; }
 .hadith-text { color: color-mix(in srgb, var(--ink) 78%, var(--bg)); }
 .hadith-text a.nm { color: inherit; border-bottom: 2px solid var(--c); text-decoration: none; }
 .hadith-text a.nm:hover { background: color-mix(in srgb, var(--c) 18%, transparent); }
@@ -314,7 +315,7 @@ details.jarh li { font-family: var(--font-text); font-size: 1.05rem; margin: 4px
 .s-ref { font-weight: 700; }
 .s-bab { color: var(--muted); }
 .s-gr { color: var(--c); border: 1px solid var(--c); border-radius: 99px; padding: 0 8px; font-size: .78rem; line-height: 1.6; text-decoration: none; }
-.s-snip { display: block; color: var(--ink); }
+.s-snip { display: block; color: var(--matn); }
 .s-snip:hover { text-decoration: none; }
 .s-snip .isn { color: var(--muted); }
 .s-more { font-size: .85rem; color: var(--muted); margin-top: 4px; }
