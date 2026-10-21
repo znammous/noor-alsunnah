@@ -666,11 +666,15 @@
       if (o.rule) { g.fillStyle = css("--line"); g.fillRect(pad + inner / 3, o.y + 6, inner / 3, 1); continue; }
       if (o.pill) {
         g.font = o.font; g.direction = "rtl"; g.textAlign = "right"; g.fillStyle = css("--ink");
-        const right = W - pad, byW = o.by ? g.measureText(o.by + " ").width : 0, vw = g.measureText(o.v).width, px = 16;
+        const right = W - pad, byW = o.by ? g.measureText(o.by + " ").width : 0, px = 16;
         if (o.by) g.fillText(o.by, right, o.y);
-        const c = css(GRADE_VAR[o.cls]), x1 = right - byW - 4;
-        g.strokeStyle = c; g.lineWidth = 2; g.beginPath(); g.roundRect(x1 - vw - 2 * px, o.y - 21, vw + 2 * px, 42, 21); g.stroke();
-        g.fillStyle = c; g.fillText(o.v, x1 - px, o.y + 1);
+        // the word centered in its frame by its drawn ink, not its advance box (Arabic sits off-center otherwise)
+        g.textBaseline = "alphabetic";
+        const m = g.measureText(o.v), inkW = m.actualBoundingBoxLeft + m.actualBoundingBoxRight;
+        const c = css(GRADE_VAR[o.cls]), x1 = right - byW - 4, x0 = x1 - inkW - 2 * px;
+        g.strokeStyle = c; g.lineWidth = 2; g.beginPath(); g.roundRect(x0, o.y - 21, inkW + 2 * px, 42, 21); g.stroke();
+        g.fillStyle = c; g.fillText(o.v, x0 + px + m.actualBoundingBoxLeft, o.y + (m.actualBoundingBoxAscent - m.actualBoundingBoxDescent) / 2);
+        g.textBaseline = "middle";
         continue;
       }
       if (o.mark) { g.fillStyle = css(GRADE_VAR[o.mark]); g.fillRect(o.dir === "rtl" ? W - pad + 16 : pad - 22, o.y - o.lineH / 2 + 8, 6, o.lineH - 16); }
