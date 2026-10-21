@@ -733,12 +733,15 @@
     // allowing a leading conjunction, preposition or article ("فَفَزِعَ" is in a text that says "فزع")
     // and the alif of tanween ("تبرًا" is "التبر")
     const stem = (w) => w.replace(/^(وال|فال|بال|كال|لل|ال|و|ف|ب|ل|ك)(?=..)/, "");
-    const forms = (x) => [x, stem(x), stem(stem(x))].flatMap((y) => y.length > 3 && y.endsWith("ا") ? [y, y.slice(0, -1)] : [y]);
+    const forms = (x) => [x, stem(x)].flatMap((y) => y.length > 3 && y.endsWith("ا") ? [y, y.slice(0, -1)] : [y]);
     const text = new Set(norm(h.parts.map((p) => p.matn ? p.text.slice(p.matn[0], p.matn[1]) : p.text).join(" "))
       .split(" ").flatMap(forms));
+    // a phrase of three words or more need only be mostly there (the encyclopedia adds "تعالى" or a typo),
+    // with its first word, the one it explains, so "تخلف عن رسول الله ﷺ" does not pass on the common words
     const ownWords = (a) => (a && a.w || []).filter(([w]) => {
-      const ws = norm(w).split(" ").filter((x) => x.length > 1);
-      return ws.length && ws.every((x) => forms(x).some((y) => text.has(y)));
+      const ws = norm(w).split(" ").filter((x) => x.length > 1 && x !== "الخ" && x !== "تعالي");
+      const has = (x) => forms(x).some((y) => text.has(y)), found = ws.filter(has).length;
+      return ws.length && (ws.length < 3 ? found === ws.length : found >= ws.length * 0.6 && has(ws[0]));
     });
     let open = false;
     const draw = async () => {
