@@ -547,7 +547,7 @@
     });
   }
 
-  // ---------- the hadith as a shareable image: text, scholars' verdicts, simplified explanation ----------
+  // ---------- the hadith as a shareable image: text, the meanings of its words, scholars' verdicts ----------
   const SHOT_ICON = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>';
   const SHARE_ICON = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path d="M8.2 10.8l7.6-4.4M8.2 13.2l7.6 4.4"/></svg>';
   // words of text in lines no wider than width (in the canvas's current font)
@@ -598,29 +598,37 @@
     block(naskh(400, 32), "--matn", matn, 62, { max: 16, gapAfter: 12 });
 
     // the meanings of its words, run on in lines as in print: each word in the matn's color, its meaning after it;
+    // an entry starts a new line rather than break from its word (unless it is longer than a line);
     // as many whole entries as fit in 8 lines
     if (h.words && h.words.length) {
       const font = naskh(400, 28), lineH = 50, MAXL = 8, space = () => g.measureText(" ").width;
       g.font = font; g.direction = "rtl";
-      const tokens = (list) => list.flatMap(([w, m], i) => [
+      const entry = ([w, m], i) => [
         ...(i ? [{ t: "·", c: "--muted" }] : []),
         ...w.trim().split(/\s+/).map((t, j, a) => ({ t: j === a.length - 1 ? t + ":" : t, c: "--matn" })),
-        ...fullStop(m.trim()).split(/\s+/).map((t) => ({ t, c: "--ink" }))]);
+        ...fullStop(m.trim()).split(/\s+/).map((t) => ({ t, c: "--ink" }))];
+      const widthOf = (tks) => tks.reduce((n, tk) => n + g.measureText(tk.t).width, 0) + space() * (tks.length - 1);
       const layout = (list) => {
         const lines = [[]]; let width = 0;
-        for (const tk of tokens(list)) {
-          const tw = g.measureText(tk.t).width;
-          if (lines.at(-1).length && width + space() + tw > inner) { lines.push([]); width = 0; }
-          width += (lines.at(-1).length ? space() : 0) + tw; lines.at(-1).push(tk);
-        }
+        list.forEach((e, i) => {
+          let tks = entry(e, i);
+          if (lines.at(-1).length && width + space() + widthOf(tks) > inner && widthOf(tks.slice(1)) <= inner) {
+            lines.push([]); width = 0; tks = tks.slice(1);  // no separator at a line's start
+          }
+          for (const tk of tks) {
+            const tw = g.measureText(tk.t).width;
+            if (lines.at(-1).length && width + space() + tw > inner) { lines.push([]); width = 0; }
+            width += (lines.at(-1).length ? space() : 0) + tw; lines.at(-1).push(tk);
+          }
+        });
         return lines;
       };
-      let n = h.words.length;
-      while (n > 1 && layout(h.words.slice(0, n)).length > MAXL) n--;
-      rule(); heading("معاني الكلمات");
-      for (const line of layout(h.words.slice(0, n)).slice(0, MAXL)) { ops.push({ runs: line, font, y: y + lineH / 2 }); y += lineH; }
+      let n = h.words.length, lines;
+      while ((lines = layout(h.words.slice(0, n))).length > MAXL && n > 1) n--;
+      rule(); heading("معاني الكلمات");  // (after the layout: it sets its own font)
+      for (const line of lines.slice(0, MAXL)) { ops.push({ runs: line, font, y: y + lineH / 2 }); y += lineH; }
       if (n < h.words.length) block(ui(500, 21), "--gold", "تتمة المعاني في الموقع", 34);
-      y += 6;
+      block(ui(400, 20), "--muted", `من ${SHARH_BY}`, 32);
     }
 
     // its verdict: the Sahihayn, al-Tirmidhi's own words, and the scholars' grades as the page shows them
@@ -642,35 +650,6 @@
       y += 8;
     }
 
-    // the simplified explanation, in the language the reader chose
-    if (META.sharh && h.sx && h.sx.length) {
-      const lang = sharhLang(), id = h.sx[0];
-      const row = META.sharh.langs.find(([c]) => c === lang);
-      const e = (lang !== "ar" && row && (await sharhEntry(lang, id))) || (await sharhEntry("ar", id));
-      if (e) {
-        const tr = e !== null && lang !== "ar" && row && e.h, dir = tr && !row[3] ? "ltr" : "rtl";
-        rule(); heading("الشرح الميسّر");
-        // a long explanation grows the card up to 30 lines, then stops at the end of a sentence
-        const font = dir === "ltr" ? ui(400, 25) : naskh(400, 28), MAX = 30;
-        g.font = font; g.direction = dir;
-        const count = (t) => t.split(/\n+/).reduce((n, p) => n + wrapLines(g, p, inner).length, 0);
-        let x = fullStop(e.x).trim(), cut = false;
-        // cut at the last full stop that fits; failing that, at the last comma (closed with an ellipsis)
-        for (const marks of [[".", "؟", "!", "۔"], ["،", "؛", ",", ";"]]) {
-          let t = x;
-          while (count(t) > MAX) {
-            const end = Math.max(...marks.map((c) => t.lastIndexOf(c, t.length - 2)));
-            if (end < 1) break;
-            t = t.slice(0, end + 1).trim();
-          }
-          if (count(t) <= MAX) { if (t !== x) { x = marks[0] === "." ? t : t.slice(0, -1) + " …"; cut = true; } break; }
-        }
-        if (count(x) > MAX) cut = true;
-        block(font, "--ink", x, dir === "ltr" ? 40 : 50, { dir, max: MAX, gapAfter: 6 });
-        if (cut) block(ui(500, 21), "--gold", dir === "ltr" ? "The rest of the explanation is on the site." : "تتمة الشرح في الموقع", 34, { dir });
-        block(ui(400, 20), "--muted", `من ${SHARH_BY}`, 32);
-      }
-    }
     y += 24;
     // footer: the site and its link
     const footTop = y;
@@ -754,6 +733,17 @@
   const SHARH_ORG = "إعداد مركز الترجمة بالمكتب التعاوني للدعوة وتوعية الجاليات بالربوة";
   const sharhLang = () => { try { return localStorage.getItem("sharhLang") || "ar"; } catch { return "ar"; } };
   const sharhEntry = (lang, id) => getJSON(`data/sharh/${lang}/${id % META.sharh.buckets}.json`).then((b) => b[id]).catch(() => null);
+
+  // the words' meanings are printed even when folded on the page
+  let printing = false;
+  addEventListener("beforeprint", () => {
+    printing = true;
+    for (const d of document.querySelectorAll(".sharh-words-box:not([open])")) { d.open = true; d.dataset.printOpened = "1"; }
+  });
+  addEventListener("afterprint", () => {
+    for (const d of document.querySelectorAll(".sharh-words-box[data-print-opened]")) { d.open = false; delete d.dataset.printOpened; }
+    setTimeout(() => { printing = false; });
+  });
 
   // one floating box for a marked word's meaning: on hover, focus or tap, kept inside the screen
   function wireGloss(box) {
@@ -850,7 +840,7 @@
       }
       wireGloss(box);
     };
-    let open = false;
+    let open = false, wordsOpen = false;
     const draw = async () => {
       let lang = sharhLang();
       if (!langs.some(([c]) => c === lang)) lang = "ar";
@@ -881,11 +871,13 @@
       const seen = new Set(), words = ar.flatMap(ownWords).filter(([w]) => !seen.has(norm(w)) && seen.add(norm(w)));
       h.words = words;  // copied with the hadith's text
       glossMatn(words);
-      const wordsBox = words.length ? `<section class="panel sharh-words-box"><div class="sharh-words-head"><h3>معاني الكلمات</h3>${copyBtnHTML("نسخ معاني الكلمات")}</div>
-        <dl class="sharh-words">${words.map(([w, m]) => `<dt>${esc(w)}</dt><dd>${esc(m)}</dd>`).join("")}</dl>
-        <p class="muted small">من ${SHARH_BY}${similar ? "، من شرح حديث قريب من هذا في لفظه" : ""}.</p></section>` : "";
+      // folded like the explanation, now that the words are marked in the text (printed open)
+      const wordsBox = words.length ? `<details class="panel sharh sharh-words-box"${wordsOpen ? " open" : ""}>
+        <summary class="sharh-head"><h3>معاني الكلمات</h3><span class="muted small">${[, "كلمة واحدة", "كلمتان"][words.length] || fmt(words.length) + (words.length < 11 ? " كلمات" : " كلمة")}، مظلّلة في نص الحديث: مرّر عليها أو المسها لترى معناها</span>${copyBtnHTML("نسخ معاني الكلمات")}</summary>
+        <dl class="sharh-words">${words.map(([w, m]) => `<div><dt>${esc(w)}</dt><dd>${esc(m)}</dd></div>`).join("")}</dl>
+        <p class="muted small">من ${SHARH_BY}${similar ? "، من شرح حديث قريب من هذا في لفظه" : ""}.</p></details>` : "";
       // folded until the reader opens it; it stays open when the language changes
-      el.innerHTML = wordsBox + `<details class="panel sharh"${open ? " open" : ""}>
+      el.innerHTML = wordsBox + `<details class="panel sharh sharh-main"${open ? " open" : ""}>
         <summary class="sharh-head"><h3>${similar ? "شرح حديث مشابه" : "الشرح الميسّر"}</h3><span class="muted small">${similar
           ? "لا شرح لهذا الحديث بعينه، وهذا شرح حديث قريب منه في لفظه" : `شرح مختصر للحديث وفوائده، بالعربية و${fmt(langs.length - 1)} لغة`}</span>${copyBtnHTML("نسخ الشرح")}</summary>
         ${similar ? `<p class="notice">هذا نص الحديث المشروح في ${SHARH_BY}، وهو قريب من لفظ هذه الرواية وقد يختلفان في بعض المعنى، فقارن بين النصين.</p>` : ""}
@@ -893,7 +885,7 @@
         <p class="muted small">من ${SHARH_BY} (${SHARH_ORG})، شرح مختصر لعموم القرّاء، يُنقل بنصه. وقد يكون لفظ الحديث في الموسوعة مختلفًا يسيرًا عن لفظ هذه الرواية.</p></details>`;
       if (words.length) wireCopy(el.querySelector(".sharh-words-box .copy-btn"), () => [
         `${BOOK[h.book]} — حديث رقم ${h.label}`, h.parts.map((p) => p.text.trim()).join("\n\n"), "معاني الكلمات:\n" + words.map(([w, m]) => `- ${w}: ${m}`).join("\n"), location.href].join("\n\n"));
-      wireCopy(el.querySelector(".sharh .copy-btn"), () => [
+      wireCopy(el.querySelector(".sharh-main .copy-btn"), () => [
         `${similar ? "شرح حديث مشابه" : "الشرح الميسّر"}: ${BOOK[h.book]} — حديث رقم ${h.label}`,
         h.parts.map((p) => p.text.trim()).join("\n\n"),
         ...ids.map((id, n) => {  // the page's link names the source, so only the text is copied
@@ -902,7 +894,8 @@
           return [(t || similar) && e.h, e.x, e.f && e.f.length ? (t ? "" : "من فوائد الحديث:\n") + e.f.map((x) => "- " + x).join("\n") : ""].filter(Boolean).join("\n\n");
         }),
         location.href].filter(Boolean).join("\n\n"));
-      el.querySelector("details.sharh").addEventListener("toggle", (ev) => { open = ev.target.open; });
+      el.querySelector(".sharh-main").addEventListener("toggle", (ev) => { open = ev.target.open; });
+      el.querySelector(".sharh-words-box")?.addEventListener("toggle", (ev) => { if (!printing) wordsOpen = ev.target.open; });
       el.querySelector("select").addEventListener("change", (ev) => {
         try { localStorage.setItem("sharhLang", ev.target.value); } catch {}
         draw();
@@ -1012,7 +1005,7 @@
           return k ? `<a class="btn" data-dir="${dir}" href="#/h/${k}" title="${label}: ${hkey(k)}" aria-label="${label}">${arrow}</a>`
             : `<span class="btn" aria-disabled="true">${arrow}</span>`;
         }).join("")}</nav></div>
-      <div class="panel hadith-text"><div class="text-tools">${copyBtnHTML("نسخ نص الحديث")}<button type="button" class="copy-btn" data-card="shot" title="حفظ صورة الحديث مع معاني كلماته وحكمه وشرحه" aria-label="حفظ صورة الحديث">${SHOT_ICON}</button><button type="button" class="copy-btn" data-card="share" title="مشاركة صورة الحديث والرابط" aria-label="مشاركة صورة الحديث">${SHARE_ICON}</button></div>${hadithTextHTML(h, G.nar)}</div>
+      <div class="panel hadith-text"><div class="text-tools">${copyBtnHTML("نسخ نص الحديث")}<button type="button" class="copy-btn" data-card="shot" title="حفظ صورة الحديث مع معاني كلماته وحكمه" aria-label="حفظ صورة الحديث">${SHOT_ICON}</button><button type="button" class="copy-btn" data-card="share" title="مشاركة صورة الحديث والرابط" aria-label="مشاركة صورة الحديث">${SHARE_ICON}</button></div>${hadithTextHTML(h, G.nar)}</div>
       <div id="sharh"></div>
       ${gradesHTML(h)}
       <div class="panel dorar">
