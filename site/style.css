@@ -511,4 +511,4 @@ p.more { margin: 12px 0 0; }
 /* a verdict framed in its degree's color, the narrators' grade colors: sahih green, hasan light green, daif red */
 .verdicts .g-sahih { --gc: var(--c-thiqa); } .verdicts .g-hasan { --gc: var(--c-saduq); } .verdicts .g-daif { --gc: var(--c-weak); }
 .verdicts .g-sahih .g-pill, .verdicts .g-hasan .g-pill, .verdicts .g-daif .g-pill { color: color-mix(in srgb, var(--gc) 75%, var(--ink));
-  border: 1.5px solid var(--gc); border-radius: 99px; padding: 0 .65em; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+  border: 1.5px solid var(--gc); border-radius: 1.2em; padding: 0 .75em .2em; display: inline-block; margin: .3em 0 .45em; line-height: 1.75; }
