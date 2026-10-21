@@ -482,6 +482,13 @@ p.more { margin: 12px 0 0; }
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .search, .theme, .graph-ctl, .graph-hint, .text-tools, .copy-btn { display: none !important; }
   .foot { break-inside: avoid; padding-bottom: 0; }
+  /* the words run on in lines, each in the matn's color with its meaning after it */
+  .sharh-words-box { break-inside: avoid; }
+  .sharh-words { font-size: 1rem; line-height: 1.8; }
+  .sharh-words dt, .sharh-words dd { display: inline; margin: 0; }
+  .sharh-words dt { color: var(--matn); }
+  .sharh-words dt::after { content: ": "; }
+  .sharh-words dd:not(:last-of-type)::after { content: "  ·  "; color: var(--muted); }
 }
 
 /* install button (shown by install.js only where the site can be installed) */

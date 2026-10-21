@@ -787,7 +787,7 @@
         ${blocks}
         <p class="muted small">من ${SHARH_BY} (${SHARH_ORG})، شرح مختصر لعموم القرّاء، يُنقل بنصه. وقد يكون لفظ الحديث في الموسوعة مختلفًا يسيرًا عن لفظ هذه الرواية.</p></details>`;
       if (words.length) wireCopy(el.querySelector(".sharh-words-box .copy-btn"), () => [
-        `معاني الكلمات: ${BOOK[h.book]} — حديث رقم ${h.label}`, words.map(([w, m]) => `- ${w}: ${m}`).join("\n"), location.href].join("\n\n"));
+        `${BOOK[h.book]} — حديث رقم ${h.label}`, h.parts.map((p) => p.text.trim()).join("\n\n"), "معاني الكلمات:\n" + words.map(([w, m]) => `- ${w}: ${m}`).join("\n"), location.href].join("\n\n"));
       wireCopy(el.querySelector(".sharh .copy-btn"), () => [
         `${similar ? "شرح حديث مشابه" : "الشرح الميسّر"}: ${BOOK[h.book]} — حديث رقم ${h.label}`,
         h.parts.map((p) => p.text.trim()).join("\n\n"),
