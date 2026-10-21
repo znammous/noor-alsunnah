@@ -769,29 +769,35 @@
             ${t && t.h || similar ? `<p class="sharh-hadith">${esc(e.h || "")}</p>` : ""}
             <p class="sharh-text">${esc(e.x)}</p>
             ${e.f && e.f.length ? `<details${ids.length > 1 ? "" : " open"}><summary>${t ? "Benefits · الفوائد" : "من فوائد الحديث"}</summary><ul>${e.f.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></details>` : ""}
-            ${!t && ownWords(a).length ? `<details><summary>معاني الكلمات</summary><dl class="sharh-words">${ownWords(a).map(([w, m]) => `<dt>${esc(w)}</dt><dd>${esc(m)}</dd>`).join("")}</dl></details>` : ""}
           </div>
           ${n === ids.length - 1 ? picker : ""}
           <span class="grade-src">${SHARH_BY} · <a href="${page}" target="_blank" rel="noopener">الحديث في الموسوعة ↗</a> · <a href="${mailto(`نور السنة: ملاحظة على الشرح الميسر في ${hkey(h.k)}`,
             `الحديث: ${hkey(h.k)}\n${location.href}\n\nالشرح المعروض: ${e.t || ""}\n${page}\n\nما الخطأ؟ (مثلًا: الشرح لحديث آخر، أو خطأ في الترجمة)\n`)}">أبلغ عن خطأ في هذا الشرح</a></span></article>`;
       }).join("");
+      // the words, in Arabic whatever the language, in their own box above the folded explanation
+      const seen = new Set(), words = ar.flatMap(ownWords).filter(([w]) => !seen.has(norm(w)) && seen.add(norm(w)));
+      const wordsBox = words.length ? `<section class="panel sharh-words-box"><div class="sharh-words-head"><h3>معاني الكلمات</h3>${copyBtnHTML("نسخ معاني الكلمات")}</div>
+        <dl class="sharh-words">${words.map(([w, m]) => `<dt>${esc(w)}</dt><dd>${esc(m)}</dd>`).join("")}</dl>
+        <p class="muted small">من ${SHARH_BY}${similar ? "، من شرح حديث قريب من هذا في لفظه" : ""}.</p></section>` : "";
       // folded until the reader opens it; it stays open when the language changes
-      el.innerHTML = `<details class="panel sharh"${open ? " open" : ""}>
+      el.innerHTML = wordsBox + `<details class="panel sharh"${open ? " open" : ""}>
         <summary class="sharh-head"><h3>${similar ? "شرح حديث مشابه" : "الشرح الميسّر"}</h3><span class="muted small">${similar
           ? "لا شرح لهذا الحديث بعينه، وهذا شرح حديث قريب منه في لفظه" : `شرح مختصر للحديث وفوائده، بالعربية و${fmt(langs.length - 1)} لغة`}</span>${copyBtnHTML("نسخ الشرح")}</summary>
         ${similar ? `<p class="notice">هذا نص الحديث المشروح في ${SHARH_BY}، وهو قريب من لفظ هذه الرواية وقد يختلفان في بعض المعنى، فقارن بين النصين.</p>` : ""}
         ${blocks}
         <p class="muted small">من ${SHARH_BY} (${SHARH_ORG})، شرح مختصر لعموم القرّاء، يُنقل بنصه. وقد يكون لفظ الحديث في الموسوعة مختلفًا يسيرًا عن لفظ هذه الرواية.</p></details>`;
-      wireCopy(el.querySelector(".copy-btn"), () => [
+      if (words.length) wireCopy(el.querySelector(".sharh-words-box .copy-btn"), () => [
+        `معاني الكلمات: ${BOOK[h.book]} — حديث رقم ${h.label}`, words.map(([w, m]) => `- ${w}: ${m}`).join("\n"), location.href].join("\n\n"));
+      wireCopy(el.querySelector(".sharh .copy-btn"), () => [
         `${similar ? "شرح حديث مشابه" : "الشرح الميسّر"}: ${BOOK[h.book]} — حديث رقم ${h.label}`,
         ...ids.map((id, n) => {  // the page's link names the source, so only the text is copied
           const a = ar[n], t = tr && tr[n], e = t || a;
           if (!e) return "";
           return [(t || similar) && e.h, e.x, e.f && e.f.length ? (t ? "" : "من فوائد الحديث:\n") + e.f.map((x) => "- " + x).join("\n") : "",
-            !t && ownWords(a).length ? "معاني الكلمات:\n" + ownWords(a).map(([w, m]) => `- ${w}: ${m}`).join("\n") : ""].filter(Boolean).join("\n\n");
+            ].filter(Boolean).join("\n\n");
         }),
         location.href].filter(Boolean).join("\n\n"));
-      el.querySelector("details").addEventListener("toggle", (ev) => { open = ev.target.open; });
+      el.querySelector("details.sharh").addEventListener("toggle", (ev) => { open = ev.target.open; });
       el.querySelector("select").addEventListener("change", (ev) => {
         try { localStorage.setItem("sharhLang", ev.target.value); } catch {}
         draw();

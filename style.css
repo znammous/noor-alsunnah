@@ -168,6 +168,10 @@ a.col:hover b { filter: brightness(1.2); }
 .sharh-hadith { background: var(--panel-2); border-radius: 10px; padding: 8px 14px; }
 .sharh-item details { margin: 6px 0; }
 .sharh-item summary { cursor: pointer; font-weight: 600; font-family: var(--font-ui); font-size: .95rem; }
+.sharh-words-box { margin: 16px 0; }
+.sharh-words-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+.sharh-words-head h3 { margin: 0; }
+.sharh-words { margin: 0 0 6px; }
 .sharh-words dt { font-weight: 700; color: var(--gold); }
 .sharh-words dd { margin: 0 0 6px; }
 .sharh-item .grade-src { display: block; font-size: .78rem; color: var(--muted); }
