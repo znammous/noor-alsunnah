@@ -516,7 +516,7 @@
         // a ready message naming the hadith and the verdict, so a reader can flag a wrong one
         const report = mailto(`نور السنة: ملاحظة على حكم في ${hkey(h.k)}`,
           `الحديث: ${hkey(h.k)}${num ? ` (الحديث ${num})` : ""}\n${location.href}\n\nالحكم المعروض: ${by}: ${v}\nالمصدر: ${work}${shamela ? `\n${shamela}` : ""}\n\nما الخطأ؟ (مثلًا: الحكم مختلف في المطبوع، أو هو حكم حديث آخر)\n`);
-        return `<blockquote class="g-${gradeClass(v) || "none"}"><cite>${esc(by)}${num ? ` · الحديث ${esc(num)}` : ""}</cite>${esc(v)}
+        return `<blockquote class="g-${gradeClass(v) || "none"}"><cite>${esc(by)}${num ? ` · الحديث ${esc(num)}` : ""}</cite><span class="g-pill">${esc(v)}</span>
           <span class="grade-src">${esc(work)}${shamela ? ` · <a href="${shamela}" target="_blank" rel="noopener">المكتبة الشاملة ↗</a>` : ""} · <a href="${report}">أبلغ عن خطأ في هذا الحكم</a></span></blockquote>`;
       }).join("")}</div>
       <p class="muted small">تُنقل الأحكام بنصها منسوبةً إلى أصحابها، وهي اجتهاد منهم. وقد يكون الحكم على الإسناد خاصة («إسناده ضعيف») والحديث ثابت من طريق أخرى.${
@@ -600,13 +600,20 @@
     // its verdict: the Sahihayn, al-Tirmidhi's own words, and the scholars' grades as the page shows them
     // each with a bar in its degree's color, as on the page
     const verdicts = [];
-    if (SAHIHAYN.has(h.book)) verdicts.push([`${h.type === "مرفوع" ? "صحيح: " : ""}أخرجه ${h.book === "bukhari" ? "البخاري" : "مسلم"} في صحيحه`, h.type === "مرفوع" ? "sahih" : ""]);
-    for (const v of h.verdicts || []) verdicts.push(["قال الترمذي: " + v, gradeClass(v)]);
+    const book = h.book === "bukhari" ? "البخاري" : "مسلم";
+    if (SAHIHAYN.has(h.book)) verdicts.push(h.type === "مرفوع" ? [`أخرجه ${book} في صحيحه:`, "صحيح", "sahih"] : ["", `أخرجه ${book} في صحيحه`, ""]);
+    for (const v of h.verdicts || []) verdicts.push(["قال الترمذي:", v, gradeClass(v)]);
     const src = META.grade_sources || {};
-    for (const [s, v] of h.grades || []) verdicts.push([`${(src[`${s}:${h.book}`] || [s])[0]}: ${v}`, gradeClass(v)]);
+    for (const [s, v] of h.grades || []) verdicts.push([`${(src[`${s}:${h.book}`] || [s])[0]}:`, v, gradeClass(v)]);
     if (verdicts.length) {
       rule(); heading("الحكم");
-      for (const [v, cls] of verdicts.slice(0, 4)) block(ui(500, 26), "--ink", fullStop(v), 42, { max: 4, mark: cls });
+      const f = ui(500, 26);
+      g.font = f; g.direction = "rtl";
+      for (const [by, v, cls] of verdicts.slice(0, 4)) {
+        // the verdict framed in its degree's color, as on the page, when the line fits; else a bar beside it
+        if (cls && g.measureText(`${by} ${v}`).width + 40 <= inner) { ops.push({ pill: true, by, v, cls, font: f, y: y + 23 }); y += 50; }
+        else block(f, "--ink", fullStop(`${by} ${v}`.trim()), 42, { max: 4, mark: cls });
+      }
       y += 8;
     }
 
@@ -657,6 +664,15 @@
     g.fillStyle = css("--line"); g.fillRect(pad, 124, inner, 2);
     for (const o of ops) {
       if (o.rule) { g.fillStyle = css("--line"); g.fillRect(pad + inner / 3, o.y + 6, inner / 3, 1); continue; }
+      if (o.pill) {
+        g.font = o.font; g.direction = "rtl"; g.textAlign = "right"; g.fillStyle = css("--ink");
+        const right = W - pad, byW = o.by ? g.measureText(o.by + " ").width : 0, vw = g.measureText(o.v).width, px = 16;
+        if (o.by) g.fillText(o.by, right, o.y);
+        const c = css(GRADE_VAR[o.cls]), x1 = right - byW - 4;
+        g.strokeStyle = c; g.lineWidth = 2; g.beginPath(); g.roundRect(x1 - vw - 2 * px, o.y - 21, vw + 2 * px, 42, 21); g.stroke();
+        g.fillStyle = c; g.fillText(o.v, x1 - px, o.y + 1);
+        continue;
+      }
       if (o.mark) { g.fillStyle = css(GRADE_VAR[o.mark]); g.fillRect(o.dir === "rtl" ? W - pad + 16 : pad - 22, o.y - o.lineH / 2 + 8, 6, o.lineH - 16); }
       g.font = o.font; g.fillStyle = css(o.color); g.direction = o.dir; g.textAlign = o.dir === "rtl" ? "right" : "left";
       const words = o.text.split(" ");
@@ -713,6 +729,17 @@
       return;
     }
     const langs = META.sharh.langs;
+    // the encyclopedia explains the words of its own (often longer) text: keep those this narration has,
+    // allowing a leading conjunction, preposition or article ("فَفَزِعَ" is in a text that says "فزع")
+    // and the alif of tanween ("تبرًا" is "التبر")
+    const stem = (w) => w.replace(/^(وال|فال|بال|كال|لل|ال|و|ف|ب|ل|ك)(?=..)/, "");
+    const forms = (x) => [x, stem(x), stem(stem(x))].flatMap((y) => y.length > 3 && y.endsWith("ا") ? [y, y.slice(0, -1)] : [y]);
+    const text = new Set(norm(h.parts.map((p) => p.matn ? p.text.slice(p.matn[0], p.matn[1]) : p.text).join(" "))
+      .split(" ").flatMap(forms));
+    const ownWords = (a) => (a && a.w || []).filter(([w]) => {
+      const ws = norm(w).split(" ").filter((x) => x.length > 1);
+      return ws.length && ws.every((x) => forms(x).some((y) => text.has(y)));
+    });
     let open = false;
     const draw = async () => {
       let lang = sharhLang();
@@ -735,7 +762,7 @@
             ${t && t.h || similar ? `<p class="sharh-hadith">${esc(e.h || "")}</p>` : ""}
             <p class="sharh-text">${esc(e.x)}</p>
             ${e.f && e.f.length ? `<details${ids.length > 1 ? "" : " open"}><summary>${t ? "Benefits · الفوائد" : "من فوائد الحديث"}</summary><ul>${e.f.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></details>` : ""}
-            ${!t && a.w && a.w.length ? `<details><summary>معاني الكلمات</summary><dl class="sharh-words">${a.w.map(([w, m]) => `<dt>${esc(w)}</dt><dd>${esc(m)}</dd>`).join("")}</dl></details>` : ""}
+            ${!t && ownWords(a).length ? `<details><summary>معاني الكلمات</summary><dl class="sharh-words">${ownWords(a).map(([w, m]) => `<dt>${esc(w)}</dt><dd>${esc(m)}</dd>`).join("")}</dl></details>` : ""}
           </div>
           ${n === ids.length - 1 ? picker : ""}
           <span class="grade-src">${SHARH_BY} · <a href="${page}" target="_blank" rel="noopener">الحديث في الموسوعة ↗</a> · <a href="${mailto(`نور السنة: ملاحظة على الشرح الميسر في ${hkey(h.k)}`,
@@ -754,7 +781,7 @@
           const a = ar[n], t = tr && tr[n], e = t || a;
           if (!e) return "";
           return [(t || similar) && e.h, e.x, e.f && e.f.length ? (t ? "" : "من فوائد الحديث:\n") + e.f.map((x) => "- " + x).join("\n") : "",
-            !t && a.w && a.w.length ? "معاني الكلمات:\n" + a.w.map(([w, m]) => `- ${w}: ${m}`).join("\n") : ""].filter(Boolean).join("\n\n");
+            !t && ownWords(a).length ? "معاني الكلمات:\n" + ownWords(a).map(([w, m]) => `- ${w}: ${m}`).join("\n") : ""].filter(Boolean).join("\n\n");
         }),
         location.href].filter(Boolean).join("\n\n"));
       el.querySelector("details").addEventListener("toggle", (ev) => { open = ev.target.open; });
@@ -879,7 +906,7 @@
       ${SAHIHAYN.has(book) ? "" : `<p class="notice sunan-note">${book === "muwatta"
         ? "في موطأ مالك المسند والمرسل والبلاغ، ومعها آثار الصحابة والتابعين وأقوال مالك"
         : `أحاديث ${BOOK[book]} فيها الصحيح والحسن والضعيف`}، فراجع أحكام المحدثين قبل الاستدلال بهذا الحديث.</p>`}
-      ${h.verdicts && h.verdicts.length ? `<div class="verdicts tirmidhi">${h.verdicts.map((v) => `<blockquote class="g-${gradeClass(v) || "none"}"><cite>قال الترمذي</cite>${esc(v)}</blockquote>`).join("")}
+      ${h.verdicts && h.verdicts.length ? `<div class="verdicts tirmidhi">${h.verdicts.map((v) => `<blockquote class="g-${gradeClass(v) || "none"}"><cite>قال الترمذي</cite><span class="g-pill">${esc(v)}</span></blockquote>`).join("")}
         <p class="muted small">للترمذي اصطلاح خاص في التحسين يختلف عن اصطلاح المتأخرين، فيُنظر معه في أحكام المحدثين الآخرين.</p></div>` : ""}
 
       <div class="summary">
