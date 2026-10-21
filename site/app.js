@@ -494,6 +494,17 @@
   const hadithTextHTML = (h, nar) => h.parts.map((p) => `<p>${partHTML(p, nar)}</p>${notesHTML(p)}`).join("");
   const matnOf = (h) => { const p = h.parts[0]; return p.matn ? p.text.slice(p.matn[0], p.matn[1]) : p.text; };
 
+  // a verdict's degree from its wording, for its color: sahih, hasan or daif ("" when it is not a verdict on the hadith).
+  // «حديث صحيح، وهذا إسناد ضعيف» and «إسناده ضعيف والحديث صحيح» are judged by what they say of the hadith.
+  function gradeClass(v) {
+    let t = String(v).replace(/[\u064B-\u0652\u0670\u0640]/g, "");
+    const whole = t.match(/والحديث\s+([^،.]+)/);
+    t = whole ? whole[1] : t.split(/،\s*وهذا\s+إسناد|،/)[0];
+    if (/ضعيف|منكر|موضوع|باطل|لا أصل|شاذ|واه|مكذوب|كذب|مرسل/.test(t)) return "daif";
+    if (/صحيح|متفق عليه/.test(t)) return "sahih";
+    if (/حسن|جيد|قوي/.test(t)) return "hasan";
+    return "";
+  }
   // Scholars' verdicts in their own words, each with its source and a link to its page in al-Shamela
   function gradesHTML(h) {
     if (!h.grades || !h.grades.length) return "";
@@ -505,7 +516,7 @@
         // a ready message naming the hadith and the verdict, so a reader can flag a wrong one
         const report = mailto(`نور السنة: ملاحظة على حكم في ${hkey(h.k)}`,
           `الحديث: ${hkey(h.k)}${num ? ` (الحديث ${num})` : ""}\n${location.href}\n\nالحكم المعروض: ${by}: ${v}\nالمصدر: ${work}${shamela ? `\n${shamela}` : ""}\n\nما الخطأ؟ (مثلًا: الحكم مختلف في المطبوع، أو هو حكم حديث آخر)\n`);
-        return `<blockquote><cite>${esc(by)}${num ? ` · الحديث ${esc(num)}` : ""}</cite>${esc(v)}
+        return `<blockquote class="g-${gradeClass(v) || "none"}"><cite>${esc(by)}${num ? ` · الحديث ${esc(num)}` : ""}</cite>${esc(v)}
           <span class="grade-src">${esc(work)}${shamela ? ` · <a href="${shamela}" target="_blank" rel="noopener">المكتبة الشاملة ↗</a>` : ""} · <a href="${report}">أبلغ عن خطأ في هذا الحكم</a></span></blockquote>`;
       }).join("")}</div>
       <p class="muted small">تُنقل الأحكام بنصها منسوبةً إلى أصحابها، وهي اجتهاد منهم. وقد يكون الحكم على الإسناد خاصة («إسناده ضعيف») والحديث ثابت من طريق أخرى.${
@@ -560,6 +571,7 @@
   }
   // a sentence closed with a full stop, unless it already ends in punctuation
   const fullStop = (t) => (/[.!?؟…:]\s*$/.test(t) || !t.trim() ? t : t.replace(/\s*$/, "."));
+  const GRADE_VAR = { sahih: "--c-thiqa", hasan: "--c-saduq", daif: "--c-weak" };
   async function hadithCardPNG(h, nar) {
     const W = 1080, pad = 64, inner = W - 2 * pad, ui = (w, px) => `${w} ${px}px -apple-system, BlinkMacSystemFont, "SF Arabic", Tajawal, sans-serif`;
     // the hadith in the site's Naskh
@@ -568,12 +580,12 @@
     const cv = document.createElement("canvas"), g = cv.getContext("2d");
     const ops = [];  // drawn after the height is known
     let y = 150;
-    const block = (font, color, text, lineH, { dir = "rtl", max = 0, gapAfter = 0 } = {}) => {
+    const block = (font, color, text, lineH, { dir = "rtl", max = 0, gapAfter = 0, mark = "" } = {}) => {
       g.font = font; g.direction = dir;
       // each line but a paragraph's last is justified: spread across the card's full width
       let lines = String(text).split(/\n+/).flatMap((p) => wrapLines(g, p, inner).map((l, i, a) => ({ l, just: i < a.length - 1 })));
       if (max && lines.length > max) { lines = lines.slice(0, max); lines[max - 1] = { l: lines[max - 1].l + " …", just: false }; }
-      for (const { l, just } of lines) { ops.push({ font, color, text: l, y: y + lineH / 2, dir, just }); y += lineH; }
+      for (const { l, just } of lines) { ops.push({ font, color, text: l, y: y + lineH / 2, dir, just, mark, lineH }); y += lineH; }
       y += gapAfter;
     };
     const rule = () => { ops.push({ rule: true, y: y }); y += 34; };
@@ -586,14 +598,15 @@
     block(naskh(400, 32), "--matn", matn, 62, { max: 16, gapAfter: 12 });
 
     // its verdict: the Sahihayn, al-Tirmidhi's own words, and the scholars' grades as the page shows them
+    // each with a bar in its degree's color, as on the page
     const verdicts = [];
-    if (SAHIHAYN.has(h.book)) verdicts.push(`${h.type === "مرفوع" ? "صحيح: " : ""}أخرجه ${h.book === "bukhari" ? "البخاري" : "مسلم"} في صحيحه`);
-    for (const v of h.verdicts || []) verdicts.push("قال الترمذي: " + v);
+    if (SAHIHAYN.has(h.book)) verdicts.push([`${h.type === "مرفوع" ? "صحيح: " : ""}أخرجه ${h.book === "bukhari" ? "البخاري" : "مسلم"} في صحيحه`, h.type === "مرفوع" ? "sahih" : ""]);
+    for (const v of h.verdicts || []) verdicts.push(["قال الترمذي: " + v, gradeClass(v)]);
     const src = META.grade_sources || {};
-    for (const [s, v] of h.grades || []) verdicts.push(`${(src[`${s}:${h.book}`] || [s])[0]}: ${v}`);
+    for (const [s, v] of h.grades || []) verdicts.push([`${(src[`${s}:${h.book}`] || [s])[0]}: ${v}`, gradeClass(v)]);
     if (verdicts.length) {
       rule(); heading("الحكم");
-      for (const v of verdicts.slice(0, 4)) block(ui(500, 26), "--ink", fullStop(v), 42, { max: 4 });
+      for (const [v, cls] of verdicts.slice(0, 4)) block(ui(500, 26), "--ink", fullStop(v), 42, { max: 4, mark: cls });
       y += 8;
     }
 
@@ -605,7 +618,24 @@
       if (e) {
         const tr = e !== null && lang !== "ar" && row && e.h, dir = tr && !row[3] ? "ltr" : "rtl";
         rule(); heading("الشرح الميسّر");
-        block(dir === "ltr" ? ui(400, 25) : naskh(400, 28), "--ink", fullStop(e.x), dir === "ltr" ? 40 : 50, { dir, max: 14, gapAfter: 6 });
+        // a long explanation grows the card up to 30 lines, then stops at the end of a sentence
+        const font = dir === "ltr" ? ui(400, 25) : naskh(400, 28), MAX = 30;
+        g.font = font; g.direction = dir;
+        const count = (t) => t.split(/\n+/).reduce((n, p) => n + wrapLines(g, p, inner).length, 0);
+        let x = fullStop(e.x).trim(), cut = false;
+        // cut at the last full stop that fits; failing that, at the last comma (closed with an ellipsis)
+        for (const marks of [[".", "؟", "!", "۔"], ["،", "؛", ",", ";"]]) {
+          let t = x;
+          while (count(t) > MAX) {
+            const end = Math.max(...marks.map((c) => t.lastIndexOf(c, t.length - 2)));
+            if (end < 1) break;
+            t = t.slice(0, end + 1).trim();
+          }
+          if (count(t) <= MAX) { if (t !== x) { x = marks[0] === "." ? t : t.slice(0, -1) + " …"; cut = true; } break; }
+        }
+        if (count(x) > MAX) cut = true;
+        block(font, "--ink", x, dir === "ltr" ? 40 : 50, { dir, max: MAX, gapAfter: 6 });
+        if (cut) block(ui(500, 21), "--gold", dir === "ltr" ? "The rest of the explanation is on the site." : "تتمة الشرح في الموقع", 34, { dir });
         block(ui(400, 20), "--muted", `من ${SHARH_BY}`, 32);
       }
     }
@@ -627,6 +657,7 @@
     g.fillStyle = css("--line"); g.fillRect(pad, 124, inner, 2);
     for (const o of ops) {
       if (o.rule) { g.fillStyle = css("--line"); g.fillRect(pad + inner / 3, o.y + 6, inner / 3, 1); continue; }
+      if (o.mark) { g.fillStyle = css(GRADE_VAR[o.mark]); g.fillRect(o.dir === "rtl" ? W - pad + 16 : pad - 22, o.y - o.lineH / 2 + 8, 6, o.lineH - 16); }
       g.font = o.font; g.fillStyle = css(o.color); g.direction = o.dir; g.textAlign = o.dir === "rtl" ? "right" : "left";
       const words = o.text.split(" ");
       if (!o.just || words.length < 2) { g.fillText(o.text, o.dir === "rtl" ? W - pad : pad, o.y); continue; }
@@ -848,7 +879,7 @@
       ${SAHIHAYN.has(book) ? "" : `<p class="notice sunan-note">${book === "muwatta"
         ? "في موطأ مالك المسند والمرسل والبلاغ، ومعها آثار الصحابة والتابعين وأقوال مالك"
         : `أحاديث ${BOOK[book]} فيها الصحيح والحسن والضعيف`}، فراجع أحكام المحدثين قبل الاستدلال بهذا الحديث.</p>`}
-      ${h.verdicts && h.verdicts.length ? `<div class="verdicts tirmidhi">${h.verdicts.map((v) => `<blockquote><cite>قال الترمذي</cite>${esc(v)}</blockquote>`).join("")}
+      ${h.verdicts && h.verdicts.length ? `<div class="verdicts tirmidhi">${h.verdicts.map((v) => `<blockquote class="g-${gradeClass(v) || "none"}"><cite>قال الترمذي</cite>${esc(v)}</blockquote>`).join("")}
         <p class="muted small">للترمذي اصطلاح خاص في التحسين يختلف عن اصطلاح المتأخرين، فيُنظر معه في أحكام المحدثين الآخرين.</p></div>` : ""}
 
       <div class="summary">
