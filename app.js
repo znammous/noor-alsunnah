@@ -563,8 +563,8 @@
   async function hadithCardPNG(h, nar) {
     const W = 1080, pad = 64, inner = W - 2 * pad, ui = (w, px) => `${w} ${px}px -apple-system, BlinkMacSystemFont, "SF Arabic", Tajawal, sans-serif`;
     // the hadith in the site's Naskh
-    const naskh = (w, px) => `${w} ${px}px "Noto Naskh Arabic", "Geeza Pro", Amiri, serif`;
-    await Promise.all([document.fonts.load(ui(400, 24)), document.fonts.load(ui(700, 24)), document.fonts.load(naskh(400, 30))]).catch(() => {});
+    const naskh = (w, px) => `${w} ${px}px "Taha Naskh", "Noto Naskh Arabic", "Geeza Pro", serif`;
+    await Promise.all([document.fonts.load(ui(400, 24)), document.fonts.load(ui(700, 24)), document.fonts.load(naskh(400, 30)), document.fonts.load(naskh(700, 30))]).catch(() => {});
     const cv = document.createElement("canvas"), g = cv.getContext("2d");
     const ops = [];  // drawn after the height is known
     let y = 150;
@@ -582,7 +582,7 @@
     const matn = h.parts.map((p) => fullStop((p.matn ? p.text.slice(p.matn[0], p.matn[1]) : p.text).trim())).join("\n");
     const companion = h.chains.map((c) => nar[c.ids[0]]).find((n) => n && n.cls === "sahabi");
     if (companion) block(ui(500, 24), "--muted", "راوي الحديث: " + companionName(companion.name), 38, { gapAfter: 4 });
-    block(naskh(500, 32), "--matn", matn, 62, { max: 16, gapAfter: 12 });
+    block(naskh(700, 32), "--matn", matn, 62, { max: 16, gapAfter: 12 });
 
     // its verdict: the Sahihayn, al-Tirmidhi's own words, and the scholars' grades as the page shows them
     const verdicts = [];
@@ -604,7 +604,7 @@
       if (e) {
         const tr = e !== null && lang !== "ar" && row && e.h, dir = tr && !row[3] ? "ltr" : "rtl";
         rule(); heading("الشرح الميسّر");
-        block(ui(400, dir === "ltr" ? 25 : 27), "--ink", fullStop(e.x), dir === "ltr" ? 40 : 46, { dir, max: 14, gapAfter: 6 });
+        block(dir === "ltr" ? ui(400, 25) : naskh(400, 28), "--ink", fullStop(e.x), dir === "ltr" ? 40 : 50, { dir, max: 14, gapAfter: 6 });
         block(ui(400, 20), "--muted", `من ${SHARH_BY}`, 32);
       }
     }
@@ -1151,8 +1151,8 @@
     // the matn, word-wrapped to the graph's width, capped so a long hadith does not dwarf the tree
     const text = side && side.text, lines = [], lineH = 46, areaW = cv.width - colW;
     if (text) {
-      await document.fonts.load('26px "Noto Naskh Arabic"').catch(() => {});
-      g.direction = "rtl"; g.font = '26px "Noto Naskh Arabic", "Geeza Pro", Amiri, serif';
+      await document.fonts.load('26px "Taha Naskh"').catch(() => {});
+      g.direction = "rtl"; g.font = '26px "Taha Naskh", "Noto Naskh Arabic", "Geeza Pro", serif';
       for (const w of text.body.split(/\s+/)) {
         const last = lines.length - 1, joined = last < 0 ? w : lines[last] + " " + w;
         if (last >= 0 && g.measureText(joined).width <= areaW - 2 * pad) lines[last] = joined; else lines.push(w);
@@ -1177,7 +1177,7 @@
       g.fillStyle = css("--line"); g.fillRect(colW + pad, ty, areaW - 2 * pad, 1);
       g.direction = "rtl"; g.textAlign = "right"; g.textBaseline = "middle";
       g.font = font(700, 24); g.fillStyle = css("--gold"); g.fillText(text.title, right, ty + 36);
-      g.font = '26px "Noto Naskh Arabic", "Geeza Pro", Amiri, serif'; g.fillStyle = css("--matn");
+      g.font = '26px "Taha Naskh", "Noto Naskh Arabic", "Geeza Pro", serif'; g.fillStyle = css("--matn");
       lines.forEach((l, i) => g.fillText(l, right, ty + 70 + lineH / 2 + i * lineH));
     }
     if (side) {
