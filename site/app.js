@@ -597,6 +597,32 @@
     if (companion) block(ui(500, 24), "--muted", "راوي الحديث: " + companionName(companion.name), 38, { gapAfter: 4 });
     block(naskh(400, 32), "--matn", matn, 62, { max: 16, gapAfter: 12 });
 
+    // the meanings of its words, run on in lines as in print: each word in the matn's color, its meaning after it;
+    // as many whole entries as fit in 8 lines
+    if (h.words && h.words.length) {
+      const font = naskh(400, 28), lineH = 50, MAXL = 8, space = () => g.measureText(" ").width;
+      g.font = font; g.direction = "rtl";
+      const tokens = (list) => list.flatMap(([w, m], i) => [
+        ...(i ? [{ t: "·", c: "--muted" }] : []),
+        ...w.trim().split(/\s+/).map((t, j, a) => ({ t: j === a.length - 1 ? t + ":" : t, c: "--matn" })),
+        ...fullStop(m.trim()).split(/\s+/).map((t) => ({ t, c: "--ink" }))]);
+      const layout = (list) => {
+        const lines = [[]]; let width = 0;
+        for (const tk of tokens(list)) {
+          const tw = g.measureText(tk.t).width;
+          if (lines.at(-1).length && width + space() + tw > inner) { lines.push([]); width = 0; }
+          width += (lines.at(-1).length ? space() : 0) + tw; lines.at(-1).push(tk);
+        }
+        return lines;
+      };
+      let n = h.words.length;
+      while (n > 1 && layout(h.words.slice(0, n)).length > MAXL) n--;
+      rule(); heading("معاني الكلمات");
+      for (const line of layout(h.words.slice(0, n)).slice(0, MAXL)) { ops.push({ runs: line, font, y: y + lineH / 2 }); y += lineH; }
+      if (n < h.words.length) block(ui(500, 21), "--gold", "تتمة المعاني في الموقع", 34);
+      y += 6;
+    }
+
     // its verdict: the Sahihayn, al-Tirmidhi's own words, and the scholars' grades as the page shows them
     // each with a bar in its degree's color, as on the page
     const verdicts = [];
@@ -663,6 +689,12 @@
     g.fillStyle = css("--line"); g.fillRect(pad, 124, inner, 2);
     for (const o of ops) {
       if (o.rule) { g.fillStyle = css("--line"); g.fillRect(pad + inner / 3, o.y + 6, inner / 3, 1); continue; }
+      if (o.runs) {  // words in their own colors, right to left
+        g.font = o.font; g.direction = "rtl"; g.textAlign = "right";
+        let x = W - pad;
+        for (const { t, c } of o.runs) { g.fillStyle = css(c); g.fillText(t, x, o.y); x -= g.measureText(t).width + g.measureText(" ").width; }
+        continue;
+      }
       if (o.pill) {
         g.font = o.font; g.direction = "rtl"; g.textAlign = "right"; g.fillStyle = css("--ink");
         const right = W - pad, byW = o.by ? g.measureText(o.by).width + 14 : 0, px = 16;
@@ -723,6 +755,40 @@
   const sharhLang = () => { try { return localStorage.getItem("sharhLang") || "ar"; } catch { return "ar"; } };
   const sharhEntry = (lang, id) => getJSON(`data/sharh/${lang}/${id % META.sharh.buckets}.json`).then((b) => b[id]).catch(() => null);
 
+  // one floating box for a marked word's meaning: on hover, focus or tap, kept inside the screen
+  function wireGloss(box) {
+    if (box.dataset.gloss) return;
+    box.dataset.gloss = "1";
+    let pop = document.querySelector(".gloss-pop");
+    const show = (w) => {
+      pop.textContent = w.dataset.gloss; pop.hidden = false;
+      const r = w.getBoundingClientRect(), pw = pop.offsetWidth, ph = pop.offsetHeight;
+      const left = Math.min(Math.max(8, r.left + r.width / 2 - pw / 2), innerWidth - pw - 8);
+      const top = r.top - ph - 8 > 8 ? r.top - ph - 8 : r.bottom + 8;
+      pop.style.left = left + "px"; pop.style.top = top + "px";
+    };
+    const hide = () => { pop.pinned = null; pop.hidden = true; };
+    if (!pop) {  // made once, and hidden by any click elsewhere, a scroll or leaving the page
+      pop = document.body.appendChild(Object.assign(document.createElement("div"), { className: "gloss-pop", role: "tooltip", hidden: true }));
+      const away = () => { pop.hidden = true; pop.pinned = null; };
+      document.addEventListener("click", away);
+      addEventListener("scroll", away, { passive: true });
+      addEventListener("hashchange", away);
+    }
+    box.addEventListener("mouseover", (ev) => { const w = ev.target.closest(".gloss"); if (w) show(w); });
+    box.addEventListener("mouseout", (ev) => { if (!pop.pinned && ev.target.closest(".gloss") && !ev.relatedTarget?.closest?.(".gloss")) hide(); });
+    box.addEventListener("focusin", (ev) => { const w = ev.target.closest(".gloss"); if (w) show(w); });
+    box.addEventListener("focusout", () => { if (!pop.pinned) hide(); });
+    // a tap (or click) keeps it open until the next tap on it or anywhere else
+    box.addEventListener("click", (ev) => {
+      const w = ev.target.closest(".gloss");
+      if (!w) return;
+      ev.stopPropagation();
+      if (pop.pinned === w) return hide();
+      show(w); pop.pinned = w;
+    });
+  }
+
   async function renderSharh(el, h) {
     if (!el || !META.sharh) return;
     // a hadith with no explanation of its own may have that of a similar one, shown as such
@@ -746,6 +812,44 @@
       const has = (x) => forms(x).some((y) => text.has(y)), found = ws.filter(has).length;
       return ws.length && (ws.length < 3 ? found === ws.length : found >= ws.length * 0.6 && has(ws[0]));
     });
+    // the explained words marked in the matn on the page, their meaning shown on hover or tap
+    const glossMatn = (words) => {
+      const box = $(".hadith-text");
+      if (!box || !words.length || box.querySelector(".gloss")) return;
+      const hit = (tok, x) => { const f = forms(tok); return forms(x).some((y) => f.includes(y)); };
+      const entries = words.map(([w, m]) => [norm(w).split(" ").filter((x) => x.length > 1 && x !== "الخ" && x !== "تعالي"), m])
+        .filter(([ws]) => ws.length).sort((a, b) => b[0].length - a[0].length);
+      const nodes = [];
+      for (const m of box.querySelectorAll(".matn")) {
+        const walk = document.createTreeWalker(m, NodeFilter.SHOW_TEXT);
+        while (walk.nextNode()) nodes.push(walk.currentNode);
+      }
+      for (const node of nodes) {
+        const parts = node.data.split(/(\s+)/), toks = [];
+        parts.forEach((t, i) => { if (t.trim() && norm(t)) toks.push(i); });
+        const marks = new Map();  // first part index -> [last part index, meaning]
+        for (let k = 0; k < toks.length; k++) {
+          // a phrase only where it is whole (its first word alone may be as common as "أنا")
+          const e = entries.find(([ws]) => ws.every((x, j) => toks[k + j] !== undefined && hit(norm(parts[toks[k + j]]), x)));
+          if (!e) continue;
+          const n = e[0].length;
+          marks.set(toks[k], [toks[k + n - 1], e[1]]);
+          k += n - 1;
+        }
+        if (!marks.size) continue;
+        let html = "";
+        for (let i = 0; i < parts.length; i++) {
+          const mk = marks.get(i);
+          if (!mk) { html += esc(parts[i]); continue; }
+          html += `<span class="gloss" tabindex="0" role="button" data-gloss="${esc(mk[1])}">${esc(parts.slice(i, mk[0] + 1).join(""))}</span>`;
+          i = mk[0];
+        }
+        const span = document.createElement("span");
+        span.innerHTML = html;
+        node.replaceWith(...span.childNodes);
+      }
+      wireGloss(box);
+    };
     let open = false;
     const draw = async () => {
       let lang = sharhLang();
@@ -776,6 +880,7 @@
       // the words, in Arabic whatever the language, in their own box above the folded explanation
       const seen = new Set(), words = ar.flatMap(ownWords).filter(([w]) => !seen.has(norm(w)) && seen.add(norm(w)));
       h.words = words;  // copied with the hadith's text
+      glossMatn(words);
       const wordsBox = words.length ? `<section class="panel sharh-words-box"><div class="sharh-words-head"><h3>معاني الكلمات</h3>${copyBtnHTML("نسخ معاني الكلمات")}</div>
         <dl class="sharh-words">${words.map(([w, m]) => `<dt>${esc(w)}</dt><dd>${esc(m)}</dd>`).join("")}</dl>
         <p class="muted small">من ${SHARH_BY}${similar ? "، من شرح حديث قريب من هذا في لفظه" : ""}.</p></section>` : "";
@@ -907,7 +1012,7 @@
           return k ? `<a class="btn" data-dir="${dir}" href="#/h/${k}" title="${label}: ${hkey(k)}" aria-label="${label}">${arrow}</a>`
             : `<span class="btn" aria-disabled="true">${arrow}</span>`;
         }).join("")}</nav></div>
-      <div class="panel hadith-text"><div class="text-tools">${copyBtnHTML("نسخ نص الحديث")}<button type="button" class="copy-btn" data-card="shot" title="حفظ صورة الحديث مع حكمه وشرحه" aria-label="حفظ صورة الحديث">${SHOT_ICON}</button><button type="button" class="copy-btn" data-card="share" title="مشاركة صورة الحديث والرابط" aria-label="مشاركة صورة الحديث">${SHARE_ICON}</button></div>${hadithTextHTML(h, G.nar)}</div>
+      <div class="panel hadith-text"><div class="text-tools">${copyBtnHTML("نسخ نص الحديث")}<button type="button" class="copy-btn" data-card="shot" title="حفظ صورة الحديث مع معاني كلماته وحكمه وشرحه" aria-label="حفظ صورة الحديث">${SHOT_ICON}</button><button type="button" class="copy-btn" data-card="share" title="مشاركة صورة الحديث والرابط" aria-label="مشاركة صورة الحديث">${SHARE_ICON}</button></div>${hadithTextHTML(h, G.nar)}</div>
       <div id="sharh"></div>
       ${gradesHTML(h)}
       <div class="panel dorar">

@@ -169,6 +169,12 @@ a.col:hover b { filter: brightness(1.2); }
 .sharh-item details { margin: 6px 0; }
 .sharh-item summary { cursor: pointer; font-weight: 600; font-family: var(--font-ui); font-size: .95rem; }
 .sharh-words-box { margin: 16px 0; }
+/* a word explained in the box below, marked in the matn: its meaning on hover or tap */
+.gloss { text-decoration: underline dotted var(--gold); text-decoration-thickness: 2px; text-underline-offset: 6px; cursor: help; border-radius: 4px; }
+.gloss:hover, .gloss:focus-visible { background: color-mix(in srgb, var(--gold) 16%, transparent); outline: none; }
+.gloss-pop { position: fixed; z-index: 50; max-width: min(340px, calc(100vw - 16px)); padding: 8px 12px; border-radius: 10px;
+  background: var(--panel); color: var(--ink); border: 1px solid var(--gold); box-shadow: var(--shadow);
+  font-family: var(--font-text); font-size: 1.05rem; line-height: 1.7; direction: rtl; pointer-events: none; }
 .sharh-words-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
 .sharh-words-head h3 { margin: 0; }
 .sharh-words { margin: 0 0 6px; }
@@ -480,7 +486,8 @@ p.more { margin: 12px 0 0; }
 /* print: the page as seen, without the controls; the footer's disclaimer always ends the printout */
 @media print {
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .search, .theme, .graph-ctl, .graph-hint, .text-tools, .copy-btn { display: none !important; }
+  .search, .theme, .graph-ctl, .graph-hint, .text-tools, .copy-btn, .gloss-pop { display: none !important; }
+  .gloss { text-decoration: none; }
   .foot { break-inside: avoid; padding-bottom: 0; }
   /* the words run on in lines, each in the matn's color with its meaning after it */
   .sharh-words-box { break-inside: avoid; }
