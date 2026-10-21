@@ -570,9 +570,10 @@
     let y = 150;
     const block = (font, color, text, lineH, { dir = "rtl", max = 0, gapAfter = 0 } = {}) => {
       g.font = font; g.direction = dir;
-      let lines = wrapLines(g, text, inner);
-      if (max && lines.length > max) { lines = lines.slice(0, max); lines[max - 1] += " …"; }
-      for (const l of lines) { ops.push({ font, color, text: l, y: y + lineH / 2, dir }); y += lineH; }
+      // each line but a paragraph's last is justified: spread across the card's full width
+      let lines = String(text).split(/\n+/).flatMap((p) => wrapLines(g, p, inner).map((l, i, a) => ({ l, just: i < a.length - 1 })));
+      if (max && lines.length > max) { lines = lines.slice(0, max); lines[max - 1] = { l: lines[max - 1].l + " …", just: false }; }
+      for (const { l, just } of lines) { ops.push({ font, color, text: l, y: y + lineH / 2, dir, just }); y += lineH; }
       y += gapAfter;
     };
     const rule = () => { ops.push({ rule: true, y: y }); y += 34; };
@@ -632,7 +633,12 @@
     for (const o of ops) {
       if (o.rule) { g.fillStyle = css("--line"); g.fillRect(pad + inner / 3, o.y + 6, inner / 3, 1); continue; }
       g.font = o.font; g.fillStyle = css(o.color); g.direction = o.dir; g.textAlign = o.dir === "rtl" ? "right" : "left";
-      g.fillText(o.text, o.dir === "rtl" ? W - pad : pad, o.y);
+      const words = o.text.split(" ");
+      if (!o.just || words.length < 2) { g.fillText(o.text, o.dir === "rtl" ? W - pad : pad, o.y); continue; }
+      // justified: the words one by one from the line's start, the slack shared among the gaps
+      const ws = words.map((w) => g.measureText(w).width), gap = (inner - ws.reduce((a, b) => a + b, 0)) / (words.length - 1);
+      let x = o.dir === "rtl" ? W - pad : pad;
+      words.forEach((w, i) => { g.fillText(w, x, o.y); x += (o.dir === "rtl" ? -1 : 1) * (ws[i] + gap); });
     }
     g.fillStyle = css("--panel-2") || bg; g.fillRect(0, footTop, W, cv.height - footTop);
     g.fillStyle = css("--gold"); g.fillRect(0, footTop, W, 3);
