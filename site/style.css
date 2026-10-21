@@ -508,7 +508,7 @@ p.more { margin: 12px 0 0; }
 
 /* long paragraphs justified: lines meet both margins (on screen and in print) */
 .hadith-text p, .sharh-text, .sharh-hadith, .sharh-item li, .verdicts blockquote, .terms blockquote, .rank-note p { text-align: justify; text-justify: inter-word; }
-/* a verdict's edge in its degree's color, the narrators' grade colors: sahih green, hasan light green, daif red */
-.verdicts blockquote.g-sahih { border-inline-start-color: var(--c-thiqa); }
-.verdicts blockquote.g-hasan { border-inline-start-color: var(--c-saduq); }
-.verdicts blockquote.g-daif { border-inline-start-color: var(--c-weak); }
+/* a verdict framed in its degree's color, the narrators' grade colors: sahih green, hasan light green, daif red */
+.verdicts .g-sahih { --gc: var(--c-thiqa); } .verdicts .g-hasan { --gc: var(--c-saduq); } .verdicts .g-daif { --gc: var(--c-weak); }
+.verdicts .g-sahih .g-pill, .verdicts .g-hasan .g-pill, .verdicts .g-daif .g-pill { color: color-mix(in srgb, var(--gc) 75%, var(--ink));
+  border: 1.5px solid var(--gc); border-radius: 99px; padding: 0 .65em; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
