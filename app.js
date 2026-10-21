@@ -582,7 +582,7 @@
     const matn = h.parts.map((p) => fullStop((p.matn ? p.text.slice(p.matn[0], p.matn[1]) : p.text).trim())).join("\n");
     const companion = h.chains.map((c) => nar[c.ids[0]]).find((n) => n && n.cls === "sahabi");
     if (companion) block(ui(500, 24), "--muted", "راوي الحديث: " + companionName(companion.name), 38, { gapAfter: 4 });
-    block(naskh(700, 32), "--matn", matn, 62, { max: 16, gapAfter: 12 });
+    block(naskh(400, 32), "--matn", matn, 62, { max: 16, gapAfter: 12 });
 
     // its verdict: the Sahihayn, al-Tirmidhi's own words, and the scholars' grades as the page shows them
     const verdicts = [];

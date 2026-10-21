@@ -209,7 +209,7 @@ a.col:hover b { filter: brightness(1.2); }
 .copy-btn:hover { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 .copy-btn.done { border-color: var(--gold); color: var(--gold); background: var(--panel-2); }
 .sharh-head .copy-btn { margin-inline-start: auto; align-self: center; }
-.hadith-text .matn { color: var(--matn); font-weight: 600; }
+.hadith-text .matn { color: var(--matn); }
 .hadith-text { color: color-mix(in srgb, var(--ink) 78%, var(--bg)); }
 .hadith-text a.nm { color: inherit; border-bottom: 2px solid var(--c); text-decoration: none; }
 .hadith-text a.nm:hover { background: color-mix(in srgb, var(--c) 18%, transparent); }
