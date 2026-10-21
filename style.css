@@ -1,3 +1,6 @@
+/* Sakkal Majalla where the reader's device has it (Windows, Microsoft Office); it may not be served from the site */
+@font-face { font-family: "Majalla"; src: local("Sakkal Majalla"), local("SakkalMajalla"); font-weight: 400; font-display: swap; size-adjust: 125%; }
+@font-face { font-family: "Majalla"; src: local("Sakkal Majalla Bold"), local("SakkalMajalla-Bold"); font-weight: 700; font-display: swap; size-adjust: 125%; }
 /* Uthman Taha Naskh by the King Fahd Glorious Qur'an Printing Complex (free to use, files unmodified) */
 @font-face { font-family: "Taha Naskh"; src: local("KFGQPC Uthman Taha Naskh"), url(fonts/taha-naskh.woff2) format("woff2"); font-weight: 400; font-display: swap; size-adjust: 112%; }
 @font-face { font-family: "Taha Naskh"; src: local("KFGQPC Uthman Taha Naskh Bold"), url(fonts/taha-naskh-bold.woff2) format("woff2"); font-weight: 700; font-display: swap; size-adjust: 112%; }
@@ -28,7 +31,7 @@
   --shadow: 0 1px 2px rgba(0,0,0,.04), 0 4px 16px rgba(0,0,0,.05);
   --radius: 12px;
   --font-ui: -apple-system, BlinkMacSystemFont, "SF Arabic", "Tajawal", sans-serif;
-  --font-text: "Taha Naskh", "Noto Naskh Arabic", "Geeza Pro", serif;
+  --font-text: "Majalla", "Taha Naskh", "Noto Naskh Arabic", "Geeza Pro", serif;
   --font-brand: "Aref Ruqaa", "Amiri", serif;
   --font-title: "Tajawal", sans-serif;
 }

@@ -563,7 +563,7 @@
   async function hadithCardPNG(h, nar) {
     const W = 1080, pad = 64, inner = W - 2 * pad, ui = (w, px) => `${w} ${px}px -apple-system, BlinkMacSystemFont, "SF Arabic", Tajawal, sans-serif`;
     // the hadith in the site's Naskh
-    const naskh = (w, px) => `${w} ${px}px "Taha Naskh", "Noto Naskh Arabic", "Geeza Pro", serif`;
+    const naskh = (w, px) => `${w} ${px}px "Majalla", "Taha Naskh", "Noto Naskh Arabic", "Geeza Pro", serif`;
     await Promise.all([document.fonts.load(ui(400, 24)), document.fonts.load(ui(700, 24)), document.fonts.load(naskh(400, 30)), document.fonts.load(naskh(700, 30))]).catch(() => {});
     const cv = document.createElement("canvas"), g = cv.getContext("2d");
     const ops = [];  // drawn after the height is known
@@ -1151,8 +1151,8 @@
     // the matn, word-wrapped to the graph's width, capped so a long hadith does not dwarf the tree
     const text = side && side.text, lines = [], lineH = 46, areaW = cv.width - colW;
     if (text) {
-      await document.fonts.load('26px "Taha Naskh"').catch(() => {});
-      g.direction = "rtl"; g.font = '26px "Taha Naskh", "Noto Naskh Arabic", "Geeza Pro", serif';
+      await document.fonts.load('26px Majalla, "Taha Naskh"').catch(() => {});
+      g.direction = "rtl"; g.font = '26px "Majalla", "Taha Naskh", "Noto Naskh Arabic", "Geeza Pro", serif';
       for (const w of text.body.split(/\s+/)) {
         const last = lines.length - 1, joined = last < 0 ? w : lines[last] + " " + w;
         if (last >= 0 && g.measureText(joined).width <= areaW - 2 * pad) lines[last] = joined; else lines.push(w);
@@ -1177,7 +1177,7 @@
       g.fillStyle = css("--line"); g.fillRect(colW + pad, ty, areaW - 2 * pad, 1);
       g.direction = "rtl"; g.textAlign = "right"; g.textBaseline = "middle";
       g.font = font(700, 24); g.fillStyle = css("--gold"); g.fillText(text.title, right, ty + 36);
-      g.font = '26px "Taha Naskh", "Noto Naskh Arabic", "Geeza Pro", serif'; g.fillStyle = css("--matn");
+      g.font = '26px "Majalla", "Taha Naskh", "Noto Naskh Arabic", "Geeza Pro", serif'; g.fillStyle = css("--matn");
       lines.forEach((l, i) => g.fillText(l, right, ty + 70 + lineH / 2 + i * lineH));
     }
     if (side) {
