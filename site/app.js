@@ -775,6 +775,7 @@
       }).join("");
       // the words, in Arabic whatever the language, in their own box above the folded explanation
       const seen = new Set(), words = ar.flatMap(ownWords).filter(([w]) => !seen.has(norm(w)) && seen.add(norm(w)));
+      h.words = words;  // copied with the hadith's text
       const wordsBox = words.length ? `<section class="panel sharh-words-box"><div class="sharh-words-head"><h3>معاني الكلمات</h3>${copyBtnHTML("نسخ معاني الكلمات")}</div>
         <dl class="sharh-words">${words.map(([w, m]) => `<dt>${esc(w)}</dt><dd>${esc(m)}</dd>`).join("")}</dl>
         <p class="muted small">من ${SHARH_BY}${similar ? "، من شرح حديث قريب من هذا في لفظه" : ""}.</p></section>` : "";
@@ -789,11 +790,11 @@
         `معاني الكلمات: ${BOOK[h.book]} — حديث رقم ${h.label}`, words.map(([w, m]) => `- ${w}: ${m}`).join("\n"), location.href].join("\n\n"));
       wireCopy(el.querySelector(".sharh .copy-btn"), () => [
         `${similar ? "شرح حديث مشابه" : "الشرح الميسّر"}: ${BOOK[h.book]} — حديث رقم ${h.label}`,
+        h.parts.map((p) => p.text.trim()).join("\n\n"),
         ...ids.map((id, n) => {  // the page's link names the source, so only the text is copied
           const a = ar[n], t = tr && tr[n], e = t || a;
           if (!e) return "";
-          return [(t || similar) && e.h, e.x, e.f && e.f.length ? (t ? "" : "من فوائد الحديث:\n") + e.f.map((x) => "- " + x).join("\n") : "",
-            ].filter(Boolean).join("\n\n");
+          return [(t || similar) && e.h, e.x, e.f && e.f.length ? (t ? "" : "من فوائد الحديث:\n") + e.f.map((x) => "- " + x).join("\n") : ""].filter(Boolean).join("\n\n");
         }),
         location.href].filter(Boolean).join("\n\n"));
       el.querySelector("details.sharh").addEventListener("toggle", (ev) => { open = ev.target.open; });
@@ -980,7 +981,8 @@
     const htBox = $(".hadith-text"), htTools = htBox.querySelector(".text-tools");
     const fitTools = () => { htBox.classList.remove("short"); htBox.classList.toggle("short", htBox.clientHeight < htTools.offsetHeight + 2 * htTools.offsetTop); };
     fitTools(); new ResizeObserver(fitTools).observe(htBox);
-    wireCopy($('.hadith-text .copy-btn:not([data-card])'), () => `${BOOK[book]} — ${h.aliases.length ? "الأحاديث" : "حديث رقم"} ${h.label}\n\n${h.parts.map((p) => p.text.trim()).join("\n\n")}\n\n${location.href}`);
+    wireCopy($('.hadith-text .copy-btn:not([data-card])'), () => `${BOOK[book]} — ${h.aliases.length ? "الأحاديث" : "حديث رقم"} ${h.label}\n\n${h.parts.map((p) => p.text.trim()).join("\n\n")}\n\n${
+      h.words && h.words.length ? "معاني الكلمات:\n" + h.words.map(([w, m]) => `- ${w}: ${m}`).join("\n") + "\n\n" : ""}${location.href}`);
     renderSharh($("#sharh"), h);
     let scope = others.length ? "all" : "one", bookFilter = "", rank = "";
     // default side panel: the narrators of the drawn tree, grouped by Ibn Hajar's tabaqat
