@@ -178,8 +178,9 @@
 
   // ---------- analytics (optional) ----------
   function track(type, key) {
-    try {
-      const recent = JSON.parse(localStorage.getItem("recent") || "[]").filter((x) => x.key !== key || x.type !== type);
+    // only hadith numbers go into the local history, never what the user typed
+    if (type === "view") try {
+      const recent = recentViews().filter((x) => x.key !== key);
       recent.unshift({ type, key, t: Date.now() });
       localStorage.setItem("recent", JSON.stringify(recent.slice(0, 12)));
     } catch (_) { /* storage unavailable */ }
@@ -188,7 +189,7 @@
     }
   }
   function recentViews() {
-    try { return JSON.parse(localStorage.getItem("recent") || "[]"); } catch (_) { return []; }
+    try { return JSON.parse(localStorage.getItem("recent") || "[]").filter((x) => x.type === "view"); } catch (_) { return []; }
   }
 
   // ---------- small renderers ----------
@@ -414,7 +415,7 @@
     }
     const recent = recentViews();
     box.innerHTML = `<p class="notice">يُفعَّل هذا المؤشر بعد نشر الموقع وربطه بعدّاد الزيارات، فيُظهر الأحاديث الأكثر زيارة وأكثر عبارات البحث بين جميع المستخدمين.</p>
-      ${recent.length ? `<h3 class="muted" style="margin-top:12px">آخر ما تصفحته</h3><ul class="bars">${recent.map((r) => `<li><span class="name">${r.type === "search" ? `<a href="#/search/${encodeURIComponent(r.key)}">بحث: ${esc(r.key)}</a>` : `<a href="#/h/${r.key}">${hkey(r.key)}</a>`}</span></li>`).join("")}</ul>` : ""}`;
+      ${recent.length ? `<h3 class="muted" style="margin-top:12px">آخر ما تصفحته</h3><ul class="bars">${recent.map((r) => `<li><span class="name"><a href="#/h/${r.key}">${hkey(r.key)}</a></span></li>`).join("")}</ul>` : ""}`;
   }
 
   // ---------- books ----------
