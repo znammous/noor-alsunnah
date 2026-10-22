@@ -211,7 +211,7 @@
     return `<div class="panel kpi"><div class="v">${fmt(v)}</div><div class="l">${l}</div><div class="s">${s}</div></div>`;
   }
   // the top menu's sections and the pages under each, shown as tabs at the top of the page
-  const NAV_OF = { home: /^\/$/, books: /^\/book/, narrators: /^\/(narrators|explore|compare|terms|n\/)/, hadiths: /^\/(turuq|awali|hterms|h\/)/, isnads: /^\/(chains|isnads)/, about: /^\/(about|tools)/ };
+  const NAV_OF = { home: /^\/$/, books: /^\/book/, narrators: /^\/(narrators|explore|compare|terms|n\/)/, hadiths: /^\/(turuq|awali|hterms|h\/)/, isnads: /^\/(chains|isnads)/, feel: /^\/feel/, about: /^\/(about|tools)/ };
   const SUBNAV = {
     narrators: [["narrators", "فهرس الرواة"], ["explore", "ترتيب الرواة"], ["compare", "مقارنة الكتب"], ["terms", "مراتب الرواة"]],
     hadiths: [["turuq", "ترتيب الأحاديث"], ["awali", "الثلاثيات وعوالي الأسانيد"], ["hterms", "مصطلحات الحديث"]],
@@ -260,6 +260,8 @@
     [/^\/terms$/, viewTerms],
     [/^\/hterms$/, viewHadithTerms],
     [/^\/about$/, viewAbout],
+    [/^\/feel$/, viewFeel],
+    [/^\/feel\/(\w+)$/, viewFeeling],
   ];
   // each history entry remembers its own scroll, so «back» returns to where the reader left off
   if ("scrollRestoration" in history) history.scrollRestoration = "manual";
@@ -2447,6 +2449,13 @@
         </details>
         <div id="sOut"></div>
       </div>` : lookup.length ? "" : '<div class="panel muted">اكتب كلمة من متن الحديث أو اسم راوٍ.</div>'}`;
+    // «أشعر بضيق» typed in the search: point to the hadiths for that feeling
+    feelIndex().then((index) => {
+      const nq = norm(q), found = feelMatch(q, index);
+      if (!found.length || !(/(^| )(اشعر|احس|حاسس|حاسه|انا|عندي|اعاني|اصابني|اصابتني)( |$)/.test(nq) || nq.split(" ").length === 1)) return;
+      if (!location.hash.startsWith("#/search/")) return;
+      app.insertAdjacentHTML("afterbegin", `<div class="panel feel-suggest"><span>أحاديث لما تجده في نفسك:</span> ${found.slice(0, 3).map((f) => feelChip(f, "on")).join(" ")}</div>`);
+    }).catch(() => {});
     if (!Q.req.length) return;
 
     let shown = 30;
@@ -2554,6 +2563,7 @@
         <li>أحاديث السنن فيها الصحيح والحسن والضعيف، ويُعرض حكم الترمذي بلفظه حيث ورد، وتُربط كل الأحاديث بأحكام المحدثين في الدرر السنية.</li>
         <li>أحكام المحدثين المعروضة في صفحة الحديث تُنقل بنصها منسوبةً إلى أصحابها ولا نرجّح بينها: حكم الألباني على أحاديث سنن أبي داود والترمذي وابن ماجه (من كتبه «صحيح وضعيف السنن» كما نقلتها المكتبة الشاملة) وسنن النسائي (من «صحيح سنن النسائي» و«ضعيف سنن النسائي»)، وحكم محققي طبعة الرسالة العالمية لسنن النسائي، وحكم شعيب الأرناؤوط ومحققي طبعة مؤسسة الرسالة لمسند أحمد، وكلام البوصيري في «مصباح الزجاجة» على زوائد ابن ماجه بنقل محمد فؤاد عبد الباقي، وحكم حسين سليم أسد في تحقيقه لمسند الدارمي.</li>
         <li>الشرح الميسّر في صفحة الحديث منقول بنصه من «موسوعة الأحاديث النبوية»، وهو شرح مختصر لعموم القرّاء مع فوائد الحديث ومعاني كلماته وترجماته إلى لغات المسلمين. ويُربط شرح الموسوعة بكل رواية في الكتب التسعة يوافق لفظها لفظ الحديث في الموسوعة، فقد يختلف اللفظان يسيرًا. فإن لم يكن للرواية شرح، وكان في الموسوعة حديث قريب من لفظها، عُرض شرحه بعنوان «شرح حديث مشابه» مع نصه للمقارنة.</li>
+        <li>صفحة «بماذا تشعر؟» تجمع أحاديث الموسوعة الصحيحة والحسنة بحسب المشاعر التي تعالجها، وكل حديث يُفتح على روايته في الكتب التسعة. وقد صُنّفت بقراءة كل حديث مع شرحه في الموسوعة، ثم مراجعة ما في كل باب؛ فهو تصنيف اجتهادي للتذكير، والمرجع نص الحديث وشرحه.</li>
         <li>الترقيم: البخاري على «فتح الباري»، ومسلم وابن ماجه على ترقيم محمد فؤاد عبد الباقي، وأبو داود على ترقيم محمد محيي الدين عبد الحميد، والترمذي على ترقيم أحمد شاكر، والنسائي على ترقيم برنامج الجامع.</li>
         <li>فهرس الكتب الكبرى للسنن الأربع من <a href="https://shamela.ws/" target="_blank" rel="noopener">المكتبة الشاملة</a>.</li>
       </ul>
@@ -2566,6 +2576,74 @@
       <p>للاقتراحات أو الإبلاغ عن خطأ في حديث أو راوٍ أو إسناد، راسلنا على: <a href="${mailto("نور السنة: اقتراح أو ملاحظة")}">${CONTACT}</a></p>
       <p class="notice">هذه نسخة أولية للتجربة والمراجعة، ونرحب بالتنبيه على أي خطأ.</p>
     </div>`;
+  }
+
+  // ---------- «بماذا تشعر؟» ----------
+  // the encyclopedia's hadiths grouped by the feelings they treat (pipeline/make_feelings.py)
+  const feelIndex = () => getJSON("data/feel/index.json");
+  const FEEL_ROLES = [["dua", "أدعية وأذكار", "ما تقوله"], ["bushra", "بشارات وتسلية", "ما يطمئن قلبك"], ["amal", "توجيه وعلاج", "ما تفعله"]];
+  const FEEL_NOTE = "هذه الأحاديث للتذكير والسكينة، وشرحها في صفحة كل حديث. وإن اشتد بك الضيق أو طال فلا تتردد في الحديث إلى من تثق به من أهلك أو أهل العلم أو المختصين؛ فطلب العون من الأخذ بالأسباب.";
+  // the feelings a text names: each word without its prefixes («بضيق»، «والحزن») against each feeling's words
+  function feelMatch(text, index) {
+    const q = norm(text);
+    const words = new Set(q.split(" ").flatMap((w) => [w, w.replace(/^(?:و|ف)?(?:ب|ل|ك)?(?:ال|لل)?/, ""), w.replace(/^(?:و|ف)/, "")]).filter((w) => w.length > 1));
+    return index.map((f) => [f, f.syn.filter((s) => (s.includes(" ") ? q.includes(s) : words.has(s))).length])
+      .filter(([, n]) => n).sort((a, b) => b[1] - a[1]).map(([f]) => f);
+  }
+  const feelChip = (f, cls = "") => `<a class="feel-chip ${cls}" href="#/feel/${f.id}">${esc(f.name)}</a>`;
+
+  async function viewFeel() {
+    const index = await feelIndex();
+    app.innerHTML = `<div class="feel">
+      <div class="feel-hero"><h1>بماذا تشعر؟</h1>
+        <p>اكتب ما تجده في نفسك أو اختر من القائمة، تجد أحاديث النبي ﷺ التي تعالجه: أدعية تقولها، وبشارات تطمئنك، وتوجيهًا تعمل به.</p>
+        <form class="feel-form" id="feelForm"><input id="feelQ" type="search" placeholder="مثلًا: أشعر بضيق، أنا قلق من المستقبل…" autocomplete="off" aria-label="بماذا تشعر؟"></form>
+        <div class="feel-hits" id="feelHits" aria-live="polite"></div>
+      </div>
+      <div class="feel-grid">${index.map((f) => `<a class="panel feel-card" href="#/feel/${f.id}"><b>${esc(f.name)}</b><span>${esc(f.feel)}</span><small>${fmt(f.n)} حديثًا</small></a>`).join("")}</div>
+      <p class="muted small feel-note">${FEEL_NOTE} الأحاديث من «موسوعة الأحاديث النبوية» مع شرحها الميسّر، وصُنّفت بحسب المشاعر بقراءة كل حديث وشرحه ثم مراجعتها؛ فإن رأيت حديثًا في غير موضعه فراسلنا.</p>
+    </div>`;
+    const input = $("#feelQ"), hits = $("#feelHits");
+    const show = () => {
+      const v = input.value.trim(), found = v ? feelMatch(v, index) : [];
+      hits.innerHTML = !v ? "" : found.length ? found.map((f, i) => feelChip(f, i ? "" : "on")).join("")
+        : '<span class="muted small">لم أجد شعورًا يوافق ما كتبت، فاختر أقربها إليك من القائمة.</span>';
+      return found;
+    };
+    input.addEventListener("input", show);
+    $("#feelForm").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const found = show();
+      if (found.length) go("#/feel/" + found[0].id);
+    });
+    input.focus({ preventScroll: true });
+  }
+
+  async function viewFeeling(id) {
+    const index = await feelIndex();
+    const f = index.find((x) => x.id === id);
+    if (!f) { app.innerHTML = '<div class="panel">الصفحة غير موجودة.</div>'; return; }
+    const rows = await getJSON(`data/feel/${id}.json`);
+    const card = (r) => `<li class="panel feel-item">
+        <a class="feel-t" href="#/h/${r.k}">«${esc(r.t)}»</a>
+        ${r.x ? `<p class="feel-x">${esc(r.x)}</p>` : ""}
+        <div class="meta-line"><span class="muted small">${esc(r.a)}</span><a class="feel-more" href="#/h/${r.k}">${r.e ? "الحديث وشرحه" : "الحديث"} ←</a></div></li>`;
+    const sections = FEEL_ROLES.map(([role, title, sub]) => [role, title, sub, rows.filter((r) => r.r === role)]).filter((s) => s[3].length);
+    const others = index.filter((x) => x.id !== id);
+    app.innerHTML = `<div class="feel">
+      <p class="feel-back"><a href="#/feel">→ بماذا تشعر؟</a></p>
+      <div class="feel-head"><h1>${esc(f.name)}</h1><p>أحاديث لمن يقول: «${esc(f.feel)}»</p></div>
+      ${sections.length > 1 ? `<nav class="subnav">${sections.map(([role, title, , rs]) => `<a href="#/feel/${id}" data-to="fs-${role}">${title} <small>${fmt(rs.length)}</small></a>`).join("")}</nav>` : ""}
+      ${sections.map(([role, title, sub, rs]) => `<section id="fs-${role}" class="feel-sec"><h2>${title} <small class="muted">${sub}</small></h2><ul class="feel-list">${rs.map(card).join("")}</ul></section>`).join("")
+        || '<div class="panel muted">لا أحاديث في هذا الباب بعد.</div>'}
+      <p class="notice">${FEEL_NOTE}</p>
+      <div class="panel feel-others"><h2>مشاعر أخرى</h2><div class="feel-chips">${others.map((x) => feelChip(x)).join("")}</div></div>
+    </div>`;
+    // the section links scroll within the page instead of changing the address
+    app.querySelectorAll("[data-to]").forEach((a) => a.addEventListener("click", (e) => {
+      e.preventDefault();
+      document.getElementById(a.dataset.to).scrollIntoView({ behavior: "smooth" });
+    }));
   }
 
   // ---------- theme ----------
