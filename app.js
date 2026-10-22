@@ -563,97 +563,134 @@
     }
     return lines;
   }
-  // a companion's name to its first few words, never ending on "بن" or "أبي"
+  // a companion's name as "عن ..." leads a hadith: his name and his father's ("عن جابر بن عبد الله"),
+  // a kunya alone ("عن أبي هريرة"), a single name with its nisba ("عن سلمان الفارسي"), the Prophet's wives by name
   function companionName(name) {
-    const w = String(name || "").replace(/[\u200e\u200f]/g, "").trim().split(/\s+/).slice(0, 5);
-    while (w.length > 1 && /^(بن|ابن|بنت|أبي|أبو|أم)$/.test(w[w.length - 1])) w.pop();
-    return w.join(" ");
+    const w = String(name || "").replace(/[\u200e\u200f]/g, "").trim().split(/\s+/);
+    if (w.join(" ").startsWith("هند بنت أبي أمية")) return "أم سلمة";
+    if (/زوج رسول الله/.test(w.join(" ")) || w[0] === "عائشة") return w[0];
+    let i = 0;
+    const core = (two) => { const out = [w[i++]]; if (two.test(out[0]) && w[i]) out.push(w[i++]); return out; };
+    const out = core(/^(عبد|أبو|أم)$/), kunya = /^(أبو|أم)$/.test(out[0]);
+    if (/^(بن|بنت)$/.test(w[i]) && w[i + 1]) { out.push(w[i++]); out.push(...core(/^(عبد|أبي|أم)$/)); }
+    else if (!kunya && out.length === 1 && /^ال/.test(w[i] || "")) out.push(w[i]);
+    if (out[0] === "أبو") out[0] = "أبي";
+    return out.join(" ");
   }
+  // a text with no matn marked, from where its companion speaks: past his name's first mention and the
+  // "قال:" (or "أنه") right after it; the whole text when his name isn't found
+  function afterCompanion(text, cname) {
+    const key = cname && cname.split(" ").find((w) => !/^(أبي|أم|عبد|بن|بنت)$/.test(w));
+    if (!key) return text;
+    // the letters without their vowel marks, each with its place in the text
+    const at = [], bare = [...text].map((ch, i) => (/[\u064b-\u065f\u0670]/.test(ch) ? "" : (at.push(i), ch))).join("");
+    const k = bare.search(new RegExp(`(^|\\s)${key.replace(/[إأآ]/g, "ا").replace(/ا/g, "[اأإآ]")}`));
+    if (k < 0) return text;
+    // his words after "قال:", or from an "أن" that opens them, near his name
+    const near = bare.slice(k, k + 60), said = near.match(/^\s*\S+[^:]*?قالت?\s*:\s*/), that = near.match(/^\s*\S+.*?\s(?=أن(ه|ها)?\s)/);
+    const ok = (m) => (m && !/\sعن\s/.test(m[0]) ? m[0].length : Infinity), cut = Math.min(ok(said), ok(that));
+    return cut < Infinity ? text.slice(at[k + cut] ?? text.length) : text;
+  }
+  // the honorific after a companion's name (no gender in the data: women by "بنت", "أم" or a known name)
+  const WOMEN = /^(عائشة|حفصة|ميمونة|زينب|فاطمة|أسماء|صفية|جويرية|سودة|خديجة|رملة|هند|أم|حمنة|الشفاء|سبيعة|فريعة|خنساء)(\s|$)/;
+  const radiya = (name) => (WOMEN.test(name) || /\sبنت\s/.test(name) ? "رضي الله عنها" : "رضي الله عنه");
   // a sentence closed with a full stop, unless it already ends in punctuation
   const fullStop = (t) => (/[.!?؟…:]\s*$/.test(t) || !t.trim() ? t : t.replace(/\s*$/, "."));
   const GRADE_VAR = { sahih: "--c-thiqa", hasan: "--c-saduq", daif: "--c-weak" };
+  // the hadith as a phone-screen picture (9:16): the companion, the matn, its words' meanings and verdict,
+  // in the largest type that fits, centered between the header and the footer
   async function hadithCardPNG(h, nar) {
-    const W = 1080, pad = 64, inner = W - 2 * pad, ui = (w, px) => `${w} ${px}px -apple-system, BlinkMacSystemFont, "SF Arabic", Tajawal, sans-serif`;
+    const W = 1080, H = 1920, pad = 72, inner = W - 2 * pad, top = 150, footH = 92, room = H - footH - 40 - top;
+    const ui = (w, px) => `${w} ${px}px -apple-system, BlinkMacSystemFont, "SF Arabic", Tajawal, sans-serif`;
     // the hadith in the site's Naskh
     const naskh = (w, px) => `${w} ${px}px "Majalla", "Taha Naskh", "Noto Naskh Arabic", "Geeza Pro", serif`;
     await Promise.all([document.fonts.load(ui(400, 24)), document.fonts.load(ui(700, 24)), document.fonts.load(naskh(400, 30)), document.fonts.load(naskh(700, 30))]).catch(() => {});
     const cv = document.createElement("canvas"), g = cv.getContext("2d");
-    const ops = [];  // drawn after the height is known
-    let y = 150;
-    const block = (font, color, text, lineH, { dir = "rtl", max = 0, gapAfter = 0, mark = "" } = {}) => {
-      g.font = font; g.direction = dir;
-      // each line but a paragraph's last is justified: spread across the card's full width
-      let lines = String(text).split(/\n+/).flatMap((p) => wrapLines(g, p, inner).map((l, i, a) => ({ l, just: i < a.length - 1 })));
-      if (max && lines.length > max) { lines = lines.slice(0, max); lines[max - 1] = { l: lines[max - 1].l + " …", just: false }; }
-      for (const { l, just } of lines) { ops.push({ font, color, text: l, y: y + lineH / 2, dir, just, mark, lineH }); y += lineH; }
-      y += gapAfter;
-    };
-    const rule = () => { ops.push({ rule: true, y: y }); y += 34; };
-    const heading = (text) => { block(ui(700, 26), "--gold", text, 40, { gapAfter: 6 }); };
 
-    // the hadith: the Prophet's words (the matn) with the companion who reports it
-    const matn = h.parts.map((p) => fullStop((p.matn ? p.text.slice(p.matn[0], p.matn[1]) : p.text).trim())).join("\n");
+    // the matn alone (a part with no matn marked is a further chain, left out when another part has one),
+    // led by its companion only, as books of selected hadith print it
     const companion = h.chains.map((c) => nar[c.ids[0]]).find((n) => n && n.cls === "sahabi");
-    if (companion) block(ui(500, 24), "--muted", "راوي الحديث: " + companionName(companion.name), 38, { gapAfter: 4 });
-    block(naskh(400, 32), "--matn", matn, 62, { max: 16, gapAfter: 12 });
-
-    // the meanings of its words, run on in lines as in print: each word in the matn's color, its meaning after it;
-    // an entry starts a new line rather than break from its word (unless it is longer than a line);
-    // as many whole entries as fit in 8 lines
-    if (h.words && h.words.length) {
-      const font = naskh(400, 28), lineH = 50, MAXL = 8, space = () => g.measureText(" ").width;
-      g.font = font; g.direction = "rtl";
-      const entry = ([w, m], i) => [
-        ...(i ? [{ t: "·", c: "--muted" }] : []),
-        ...w.trim().split(/\s+/).map((t, j, a) => ({ t: j === a.length - 1 ? t + ":" : t, c: "--matn" })),
-        ...fullStop(m.trim()).split(/\s+/).map((t) => ({ t, c: "--ink" }))];
-      const widthOf = (tks) => tks.reduce((n, tk) => n + g.measureText(tk.t).width, 0) + space() * (tks.length - 1);
-      const layout = (list) => {
-        const lines = [[]]; let width = 0;
-        list.forEach((e, i) => {
-          let tks = entry(e, i);
-          if (lines.at(-1).length && width + space() + widthOf(tks) > inner && widthOf(tks.slice(1)) <= inner) {
-            lines.push([]); width = 0; tks = tks.slice(1);  // no separator at a line's start
-          }
-          for (const tk of tks) {
-            const tw = g.measureText(tk.t).width;
-            if (lines.at(-1).length && width + space() + tw > inner) { lines.push([]); width = 0; }
-            width += (lines.at(-1).length ? space() : 0) + tw; lines.at(-1).push(tk);
-          }
-        });
-        return lines;
-      };
-      let n = h.words.length, lines;
-      while ((lines = layout(h.words.slice(0, n))).length > MAXL && n > 1) n--;
-      rule(); heading("معاني الكلمات");  // (after the layout: it sets its own font)
-      for (const line of lines.slice(0, MAXL)) { ops.push({ runs: line, font, y: y + lineH / 2 }); y += lineH; }
-      if (n < h.words.length) block(ui(500, 21), "--gold", "تتمة المعاني في الموقع", 34);
-      block(ui(400, 20), "--muted", `من ${SHARH_BY}`, 32);
-    }
-
-    // its verdict: the Sahihayn, al-Tirmidhi's own words, and the scholars' grades as the page shows them
-    // each with a bar in its degree's color, as on the page
-    const verdicts = [];
+    const cname = companion && companionName(companion.name);
+    const marked = h.parts.filter((p) => p.matn), parts = marked.length ? marked : h.parts;
+    const matn = parts.map((p) => fullStop((p.matn ? p.text.slice(p.matn[0], p.matn[1]) : afterCompanion(p.text, cname)).trim())).join("\n");
+    // its verdict: al-Tirmidhi's own words and the scholars' grades as the page shows them
     // (none for the Sahihayn: the card's header already names the book, which is the verdict)
+    const verdicts = [];
     for (const v of h.verdicts || []) verdicts.push(["قال الترمذي:", v, gradeClass(v)]);
     const src = META.grade_sources || {};
     for (const [s, v] of h.grades || []) verdicts.push([`${(src[`${s}:${h.book}`] || [s])[0]}:`, v, gradeClass(v)]);
-    if (verdicts.length) {
-      rule(); heading("الحكم");
-      const f = ui(500, 26);
-      g.font = f; g.direction = "rtl";
-      for (const [by, v, cls] of verdicts.slice(0, 4)) {
-        // the verdict framed in its degree's color, as on the page, when the line fits; else a bar beside it
-        if (cls && g.measureText(`${by} ${v}`).width + 40 <= inner) { ops.push({ pill: true, by, v, cls, font: f, y: y + 23 }); y += 50; }
-        else block(f, "--ink", fullStop(`${by} ${v}`.trim()), 42, { max: 4, mark: cls });
-      }
-      y += 8;
-    }
 
-    y += 24;
-    // footer: the site and its link
-    const footTop = y;
-    cv.width = W; cv.height = footTop + 92;
+    // the card's body at scale s, its matn cut to matnMax lines and the meanings to wordsMax; y from 0
+    const layout = (s, matnMax, wordsMax) => {
+      const ops = [], px = (n) => Math.round(n * s);
+      let y = 0;
+      const block = (font, color, text, lineH, { max = 0, gapAfter = 0, mark = "" } = {}) => {
+        g.font = font; g.direction = "rtl";
+        // each line but a paragraph's last is justified: spread across the card's full width
+        let lines = String(text).split(/\n+/).flatMap((p) => wrapLines(g, p, inner).map((l, i, a) => ({ l, just: i < a.length - 1 })));
+        if (max && lines.length > max) { lines = lines.slice(0, max); lines[max - 1] = { l: lines[max - 1].l + " …", just: false }; }
+        for (const { l, just } of lines) { ops.push({ font, color, text: l, y: y + lineH / 2, just, mark, lineH }); y += lineH; }
+        y += gapAfter;
+      };
+      const rule = () => { y += px(14); ops.push({ rule: true, y }); y += px(38); };
+      const heading = (text) => block(ui(700, px(34)), "--gold", text, px(54), { gapAfter: px(6) });
+
+      if (cname) block(naskh(700, px(40)), "--ink", `عن ${cname} ${radiya(cname)}:`, px(72), { gapAfter: px(4) });
+      block(naskh(400, px(50)), "--matn", matn, px(92), { max: matnMax });
+
+      // the meanings of its words, run on in lines as in print: each word in the matn's color, its meaning after it;
+      // an entry starts a new line rather than break from its word (unless it is longer than a line);
+      // as many whole entries as fit in wordsMax lines
+      if (h.words && h.words.length && wordsMax) {
+        const font = naskh(400, px(40)), lineH = px(72), space = () => g.measureText(" ").width;
+        g.font = font; g.direction = "rtl";
+        const entry = ([w, m], i) => [
+          ...(i ? [{ t: "·", c: "--muted" }] : []),
+          ...w.trim().split(/\s+/).map((t, j, a) => ({ t: j === a.length - 1 ? t + ":" : t, c: "--matn" })),
+          ...fullStop(m.trim()).split(/\s+/).map((t) => ({ t, c: "--ink" }))];
+        const widthOf = (tks) => tks.reduce((n, tk) => n + g.measureText(tk.t).width, 0) + space() * (tks.length - 1);
+        const wrap = (list) => {
+          const lines = [[]]; let width = 0;
+          list.forEach((e, i) => {
+            let tks = entry(e, i);
+            if (lines.at(-1).length && width + space() + widthOf(tks) > inner && widthOf(tks.slice(1)) <= inner) {
+              lines.push([]); width = 0; tks = tks.slice(1);  // no separator at a line's start
+            }
+            for (const tk of tks) {
+              const tw = g.measureText(tk.t).width;
+              if (lines.at(-1).length && width + space() + tw > inner) { lines.push([]); width = 0; }
+              width += (lines.at(-1).length ? space() : 0) + tw; lines.at(-1).push(tk);
+            }
+          });
+          return lines;
+        };
+        let n = h.words.length, lines;
+        while ((lines = wrap(h.words.slice(0, n))).length > wordsMax && n > 1) n--;
+        rule(); heading("معاني الكلمات");  // (after the wrapping: it sets its own font)
+        for (const line of lines.slice(0, wordsMax)) { ops.push({ runs: line, font, y: y + lineH / 2 }); y += lineH; }
+        if (n < h.words.length) block(ui(500, px(28)), "--gold", "تتمة المعاني في الموقع", px(46));
+        block(ui(400, px(27)), "--muted", `من ${SHARH_BY}`, px(44));
+      }
+
+      // each verdict framed in its degree's color, as on the page, when the line fits; else a bar beside it
+      if (verdicts.length) {
+        rule(); heading("الحكم");
+        const f = ui(500, px(34));
+        g.font = f; g.direction = "rtl";
+        for (const [by, v, cls] of verdicts.slice(0, 4)) {
+          if (cls && g.measureText(`${by} ${v}`).width + px(52) <= inner) { ops.push({ pill: true, by, v, cls, font: f, y: y + px(31), ph: px(56) }); y += px(68); }
+          else block(f, "--ink", fullStop(`${by} ${v}`.trim()), px(56), { max: 4, mark: cls });
+        }
+      }
+      return { ops, height: y };
+    };
+    // the largest scale at which it all fits; a long hadith at the smallest, cut to fit
+    let L;
+    for (let s = 1.6; s >= 0.8 - 1e-9; s -= 0.05) if ((L = layout(s, 0, 8)).height <= room) break;
+    for (let m = 30; L.height > room && m >= 8; m--) L = layout(0.8, m, 8);
+    for (let w = 7; L.height > room && w >= 2; w--) L = layout(0.8, 8, w);
+    const y0 = top + Math.max(0, (room - L.height) / 2), footTop = H - footH;
+    cv.width = W; cv.height = H;
 
     const bg = getComputedStyle(document.body).backgroundColor;
     g.fillStyle = bg; g.fillRect(0, 0, cv.width, cv.height);
@@ -663,46 +700,47 @@
     if (icon.complete && icon.naturalWidth) g.drawImage(icon, W - pad - 64, 40, 64, 64);
     g.textBaseline = "middle"; g.direction = "rtl"; g.textAlign = "right";
     g.font = ui(700, 34); g.fillStyle = css("--gold"); g.fillText("نور السنة", W - pad - 80, 72);
-    g.direction = "rtl"; g.textAlign = "left"; g.font = ui(700, 28); g.fillStyle = css("--ink");
+    g.direction = "rtl"; g.textAlign = "left"; g.font = ui(700, 30); g.fillStyle = css("--ink");
     g.fillText(`${BOOK[h.book]} · ${h.aliases.length ? "الأحاديث" : "حديث"} ${h.label}`, pad, 72);
     g.fillStyle = css("--line"); g.fillRect(pad, 124, inner, 2);
-    for (const o of ops) {
-      if (o.rule) { g.fillStyle = css("--line"); g.fillRect(pad + inner / 3, o.y + 6, inner / 3, 1); continue; }
+    for (const o of L.ops) {
+      const oy = y0 + o.y;
+      if (o.rule) { g.fillStyle = css("--line"); g.fillRect(pad + inner / 3, oy, inner / 3, 1); continue; }
       if (o.runs) {  // words in their own colors, right to left
         g.font = o.font; g.direction = "rtl"; g.textAlign = "right";
         let x = W - pad;
-        for (const { t, c } of o.runs) { g.fillStyle = css(c); g.fillText(t, x, o.y); x -= g.measureText(t).width + g.measureText(" ").width; }
+        for (const { t, c } of o.runs) { g.fillStyle = css(c); g.fillText(t, x, oy); x -= g.measureText(t).width + g.measureText(" ").width; }
         continue;
       }
       if (o.pill) {
         g.font = o.font; g.direction = "rtl"; g.textAlign = "right"; g.fillStyle = css("--ink");
-        const right = W - pad, byW = o.by ? g.measureText(o.by).width + 14 : 0, px = 16;
-        if (o.by) g.fillText(o.by, right, o.y);
+        const right = W - pad, byW = o.by ? g.measureText(o.by).width + 18 : 0, px = o.ph * 0.38;
+        if (o.by) g.fillText(o.by, right, oy);
         // the word centered in its frame by its drawn ink, not its advance box (Arabic sits off-center otherwise)
         g.textBaseline = "alphabetic";
         const m = g.measureText(o.v), inkW = m.actualBoundingBoxLeft + m.actualBoundingBoxRight;
         const c = css(GRADE_VAR[o.cls]), x1 = right - byW - 4, x0 = x1 - inkW - 2 * px;
-        g.strokeStyle = c; g.lineWidth = 2; g.beginPath(); g.roundRect(x0, o.y - 21, inkW + 2 * px, 42, 21); g.stroke();
-        g.fillStyle = c; g.fillText(o.v, x0 + px + m.actualBoundingBoxLeft, o.y + (m.actualBoundingBoxAscent - m.actualBoundingBoxDescent) / 2);
+        g.strokeStyle = c; g.lineWidth = 2.5; g.beginPath(); g.roundRect(x0, oy - o.ph / 2, inkW + 2 * px, o.ph, o.ph / 2); g.stroke();
+        g.fillStyle = c; g.fillText(o.v, x0 + px + m.actualBoundingBoxLeft, oy + (m.actualBoundingBoxAscent - m.actualBoundingBoxDescent) / 2);
         g.textBaseline = "middle";
         continue;
       }
-      if (o.mark) { g.fillStyle = css(GRADE_VAR[o.mark]); g.fillRect(o.dir === "rtl" ? W - pad + 16 : pad - 22, o.y - o.lineH / 2 + 8, 6, o.lineH - 16); }
-      g.font = o.font; g.fillStyle = css(o.color); g.direction = o.dir; g.textAlign = o.dir === "rtl" ? "right" : "left";
+      if (o.mark) { g.fillStyle = css(GRADE_VAR[o.mark]); g.fillRect(W - pad + 16, oy - o.lineH / 2 + 10, 6, o.lineH - 20); }
+      g.font = o.font; g.fillStyle = css(o.color); g.direction = "rtl"; g.textAlign = "right";
       const words = o.text.split(" ");
-      if (!o.just || words.length < 2) { g.fillText(o.text, o.dir === "rtl" ? W - pad : pad, o.y); continue; }
+      if (!o.just || words.length < 2) { g.fillText(o.text, W - pad, oy); continue; }
       // justified: the words one by one from the line's start, the slack shared among the gaps
       const ws = words.map((w) => g.measureText(w).width), gap = (inner - ws.reduce((a, b) => a + b, 0)) / (words.length - 1);
-      let x = o.dir === "rtl" ? W - pad : pad;
-      words.forEach((w, i) => { g.fillText(w, x, o.y); x += (o.dir === "rtl" ? -1 : 1) * (ws[i] + gap); });
+      let x = W - pad;
+      words.forEach((w, i) => { g.fillText(w, x, oy); x -= ws[i] + gap; });
     }
     g.fillStyle = css("--panel-2") || bg; g.fillRect(0, footTop, W, cv.height - footTop);
     g.fillStyle = css("--gold"); g.fillRect(0, footTop, W, 3);
-    g.direction = "rtl"; g.textAlign = "right"; g.font = ui(700, 26); g.fillStyle = css("--gold");
+    g.direction = "rtl"; g.textAlign = "right"; g.font = ui(700, 30); g.fillStyle = css("--gold");
     g.fillText("نور السنة", W - pad, footTop + 48);
     const nameW = g.measureText("نور السنة").width;
-    g.font = ui(500, 21); g.fillStyle = css("--ink"); g.fillText("· مشروع وقفي لخدمة السنة النبوية", W - pad - nameW - 12, footTop + 49);
-    g.direction = "ltr"; g.textAlign = "left"; g.font = ui(500, 22); g.fillStyle = css("--ink");
+    g.font = ui(500, 25); g.fillStyle = css("--ink"); g.fillText("· مشروع وقفي لخدمة السنة النبوية", W - pad - nameW - 12, footTop + 49);
+    g.direction = "ltr"; g.textAlign = "left"; g.font = ui(500, 26); g.fillStyle = css("--ink");
     g.fillText(location.host + location.pathname.replace(/[^/]*$/, ""), pad, footTop + 48);
     return new Promise((ok) => cv.toBlob(ok, "image/png"));
   }
