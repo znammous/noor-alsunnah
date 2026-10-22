@@ -530,3 +530,39 @@ p.more { margin: 12px 0 0; }
 .verdicts .g-sahih { --gc: var(--c-thiqa); } .verdicts .g-hasan { --gc: var(--c-saduq); } .verdicts .g-daif { --gc: var(--c-weak); }
 .verdicts .g-sahih .g-pill, .verdicts .g-hasan .g-pill, .verdicts .g-daif .g-pill { color: color-mix(in srgb, var(--gc) 75%, var(--ink));
   border: 1.5px solid var(--gc); border-radius: 1.2em; padding: 0 .75em .2em; display: inline-block; margin: .3em 0 .45em; line-height: 1.75; }
+
+/* «بماذا تشعر؟»: feelings and the hadiths that treat them */
+.feel { max-width: 920px; margin: 0 auto; }
+.feel-hero { text-align: center; padding: 18px 0 8px; }
+.feel-hero h1 { font-size: 2rem; margin: 0 0 6px; color: var(--gold); }
+.feel-hero p { color: var(--muted); max-width: 620px; margin: 0 auto 14px; line-height: 1.9; }
+.feel-form input { width: min(100%, 520px); font: inherit; font-size: 1.05rem; padding: 12px 16px; border-radius: 999px;
+  border: 1.5px solid var(--gold); background: var(--panel); color: var(--ink); text-align: center; }
+.feel-form input:focus { outline: none; box-shadow: 0 0 0 4px color-mix(in srgb, var(--gold) 22%, transparent); }
+.feel-hits { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; min-height: 40px; margin-top: 12px; }
+.feel-chip { display: inline-block; padding: 5px 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel-2); color: var(--ink); font-size: .92rem; }
+.feel-chip:hover { border-color: var(--gold); text-decoration: none; }
+.feel-chip.on { border-color: var(--gold); color: var(--gold); font-weight: 700; }
+.feel-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.feel-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-top: 10px; }
+.feel-card { display: flex; flex-direction: column; gap: 4px; padding: 14px 16px; color: var(--ink); text-decoration: none; transition: border-color .15s, transform .15s; }
+.feel-card:hover { border-color: var(--gold); text-decoration: none; transform: translateY(-2px); }
+.feel-card b { color: var(--gold); font-family: var(--font-title); font-size: 1.08rem; }
+.feel-card span { color: var(--ink); font-size: .9rem; }
+.feel-card small { color: var(--muted); font-size: .8rem; }
+.feel-note { margin-top: 18px; line-height: 1.9; }
+.feel-back { margin: 0 0 6px; }
+.feel-head { margin-bottom: 14px; }
+.feel-head h1 { margin: 0; color: var(--gold); }
+.feel-head p { margin: 2px 0 0; color: var(--muted); }
+.feel-sec h2 small { font-size: .85rem; font-weight: 400; }
+.feel-list { list-style: none; padding: 0; margin: 0 0 22px; display: grid; gap: 10px; }
+.feel-item { padding: 14px 18px; }
+.feel-t { display: block; font-family: var(--font-text); font-size: 1.3rem; line-height: 1.9; color: var(--matn); }
+.feel-t:hover { text-decoration: none; opacity: .85; }
+.feel-x { margin: 4px 0 6px; color: var(--muted); line-height: 1.85; text-align: justify; }
+.feel-item .meta-line { justify-content: space-between; }
+.feel-more { font-weight: 600; white-space: nowrap; }
+.feel-others { margin-top: 16px; }
+.feel .notice { margin-top: 6px; line-height: 1.9; }
+.feel-suggest { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 14px; border-color: var(--gold); }
