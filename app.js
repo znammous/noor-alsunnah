@@ -4,8 +4,8 @@
 
   // ---------- config ----------
   // When the site is deployed, point this at a tiny counter endpoint (Cloudflare Worker,
-  // Firebase function, ...) to collect "most viewed / most searched" indicators.
-  // It receives POST {type: "view"|"search", key} and GET returns {views: [[key,n]], searches: [[q,n]]}.
+  // Firebase function, ...) to collect the "most viewed" indicator.
+  // It receives POST {type: "view", key} and GET returns {views: [[key,n]]}. Search text is never sent.
   const ANALYTICS_ENDPOINT = window.ANALYTICS_ENDPOINT || null;
   const PAGE = 40;
   const LOADING = '<div class="loading" role="status" aria-label="جارٍ التحميل"><span class="fill" data-t="نور السنة">نور السنة</span></div>';
@@ -179,7 +179,7 @@
   // ---------- analytics (optional) ----------
   function track(type, key) {
     // only hadith numbers go into the local history, never what the user typed
-    if (type === "view") try {
+    try {
       const recent = recentViews().filter((x) => x.key !== key);
       recent.unshift({ type, key, t: Date.now() });
       localStorage.setItem("recent", JSON.stringify(recent.slice(0, 12)));
@@ -408,13 +408,12 @@
     if (ANALYTICS_ENDPOINT) {
       try {
         const d = await (await fetch(ANALYTICS_ENDPOINT)).json();
-        box.innerHTML = `<h3 class="muted">الأحاديث الأكثر زيارة</h3><ul class="bars">${(d.views || []).slice(0, 8).map(([k, n]) => `<li><span class="name"><a href="#/h/${k}">${hkey(k)}</a></span><span class="num">${fmt(n)}</span></li>`).join("")}</ul>
-          <h3 class="muted" style="margin-top:12px">أكثر عبارات البحث</h3><ul class="bars">${(d.searches || []).slice(0, 8).map(([q, n]) => `<li><span class="name"><a href="#/search/${encodeURIComponent(q)}">${esc(q)}</a></span><span class="num">${fmt(n)}</span></li>`).join("")}</ul>`;
+        box.innerHTML = `<h3 class="muted">الأحاديث الأكثر زيارة</h3><ul class="bars">${(d.views || []).slice(0, 8).map(([k, n]) => `<li><span class="name"><a href="#/h/${k}">${hkey(k)}</a></span><span class="num">${fmt(n)}</span></li>`).join("")}</ul>`;
         return;
       } catch (_) { /* fall through */ }
     }
     const recent = recentViews();
-    box.innerHTML = `<p class="notice">يُفعَّل هذا المؤشر بعد نشر الموقع وربطه بعدّاد الزيارات، فيُظهر الأحاديث الأكثر زيارة وأكثر عبارات البحث بين جميع المستخدمين.</p>
+    box.innerHTML = `<p class="notice">يُفعَّل هذا المؤشر بعد نشر الموقع وربطه بعدّاد الزيارات، فيُظهر الأحاديث الأكثر زيارة بين جميع المستخدمين.</p>
       ${recent.length ? `<h3 class="muted" style="margin-top:12px">آخر ما تصفحته</h3><ul class="bars">${recent.map((r) => `<li><span class="name"><a href="#/h/${r.key}">${hkey(r.key)}</a></span></li>`).join("")}</ul>` : ""}`;
   }
 
@@ -2408,7 +2407,6 @@
     const opt = { b: "", s: "all", o: "rel", g: "", h: "", ...Object.fromEntries(new URLSearchParams(pm ? pm[2] : "")) };
     $("#q").value = q;
     if (!q) { location.hash = "#/"; return; }
-    track("search", q);
     const lookup = numberLookup(q);
     // a named book with a number goes straight to that hadith (replacing this page in history)
     if (lookup.length === 1 && !/^\s*[\d٠-٩]+\s*$/.test(q)) { location.replace("#/h/" + lookup[0]); return; }
