@@ -566,3 +566,4 @@ p.more { margin: 12px 0 0; }
 .feel-others { margin-top: 16px; }
 .feel .notice { margin-top: 6px; line-height: 1.9; }
 .feel-suggest { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 14px; border-color: var(--gold); }
+.subnav.feel-secnav { border-bottom: 0; padding-bottom: 0; }
