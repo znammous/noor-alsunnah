@@ -4,6 +4,8 @@
 Two collections, each a folder of pipeline/:
 - feelings -> site/data/feel: «بماذا تشعر؟», the feelings a hadith treats
 - ahwal -> site/data/ahwal: «ماذا أقول عندما…؟», the situations a hadith gives a dhikr or sunnah for
+- tazkiya -> site/data/tazkiya: «تزكية النفس», the virtue a hadith builds or the vice it treats; each topic
+  has a group g, "tahliya" (virtues to acquire) or "takhliya" (vices to shed)
 
 In each folder, <folder>.json lists the topics; tags.json gives, for each encyclopedia hadith, the topics
 it serves: [topic, role, weight], where role is "dua" (words to say), "bushra" (comfort, glad tidings or
@@ -24,7 +26,7 @@ from pathlib import Path
 from common import RAW, SITE_DATA, dump, load, strip_diacritics
 
 HERE = Path(__file__).resolve().parent
-COLLECTIONS = [("feelings", "feel"), ("ahwal", "ahwal")]
+COLLECTIONS = [("feelings", "feel"), ("ahwal", "ahwal"), ("tazkiya", "tazkiya")]
 BOOK_ORDER = "bmdtnjawr"  # key prefixes in the order of the nine books
 ROLES = ["dua", "bushra", "amal"]
 
@@ -59,8 +61,12 @@ def build(folder, out, enc, keys_of):
     index = []
     for t in topics:
         rs = sorted(rows[t["id"]], key=lambda r: (-r["w"], BOOK_ORDER.index(r["k"][0]), int(r["k"][1:])))
+        # the encyclopedia has some hadiths twice; one card per narration
+        seen = set()
+        rs = [r for r in rs if not (r["k"] in seen or seen.add(r["k"]))]
         dump(rs, SITE_DATA / out / f"{t['id']}.json")
-        index.append({"id": t["id"], "name": t["name"], "feel": t["feel"], "syn": t["syn"], "n": len(rs)})
+        index.append({"id": t["id"], "name": t["name"], "feel": t["feel"], "syn": t["syn"], "n": len(rs),
+                      **({"g": t["g"]} if t.get("g") else {})})
         print(f"  {t['name']}: {len(rs)}", file=sys.stderr)
     dump(index, SITE_DATA / out / "index.json")
 

@@ -211,12 +211,12 @@
     return `<div class="panel kpi"><div class="v">${fmt(v)}</div><div class="l">${l}</div><div class="s">${s}</div></div>`;
   }
   // the top menu's sections and the pages under each, shown as tabs at the top of the page
-  const NAV_OF = { home: /^\/stats/, books: /^\/book/, narrators: /^\/(narrators|explore|compare|terms|n\/)/, hadiths: /^\/(turuq|awali|hterms|h\/)/, isnads: /^\/(chains|isnads)/, life: /^\/$|^\/(feel|ahwal)/, about: /^\/(about|tools)/ };
+  const NAV_OF = { home: /^\/stats/, books: /^\/book/, narrators: /^\/(narrators|explore|compare|terms|n\/)/, hadiths: /^\/(turuq|awali|hterms|h\/)/, isnads: /^\/(chains|isnads)/, life: /^\/$|^\/(feel|ahwal|tazkiya)/, about: /^\/(about|tools)/ };
   const SUBNAV = {
     narrators: [["narrators", "فهرس الرواة"], ["explore", "ترتيب الرواة"], ["compare", "مقارنة الكتب"], ["terms", "مراتب الرواة"]],
     hadiths: [["turuq", "ترتيب الأحاديث"], ["awali", "الثلاثيات وعوالي الأسانيد"], ["hterms", "مصطلحات الحديث"]],
     isnads: [["chains", "رجال الأسانيد"], ["isnads", "أشهر الأسانيد وأطوالها"]],
-    life: [["feel", "بماذا تشعر؟"], ["ahwal", "ماذا أقول عندما…؟"]],
+    life: [["feel", "بماذا تشعر؟"], ["ahwal", "ماذا أقول عندما…؟"], ["tazkiya", "تزكية النفس"]],
   };
   const subnav = (group, on) => `<nav class="subnav">${SUBNAV[group].map(([p, l]) => `<a href="#/${p}"${p === on ? ' class="on" aria-current="page"' : ""}>${l}</a>`).join("")}</nav>`;
   // what a researcher can ask of the site, one card per tool
@@ -262,8 +262,8 @@
     [/^\/terms$/, viewTerms],
     [/^\/hterms$/, viewHadithTerms],
     [/^\/about$/, viewAbout],
-    [/^\/(feel|ahwal)$/, viewLife],
-    [/^\/(feel|ahwal)\/(\w+)$/, viewLifeTopic],
+    [/^\/(feel|ahwal|tazkiya)$/, viewLife],
+    [/^\/(feel|ahwal|tazkiya)\/(\w+)$/, viewLifeTopic],
   ];
   // each history entry remembers its own scroll, so «back» returns to where the reader left off
   if ("scrollRestoration" in history) history.scrollRestoration = "manual";
@@ -2452,11 +2452,12 @@
         <div id="sOut"></div>
       </div>` : lookup.length ? "" : '<div class="panel muted">اكتب كلمة من متن الحديث أو اسم راوٍ.</div>'}`;
     // «أشعر بضيق» or «دعاء السفر» typed in the search: point to the hadiths for that feeling or situation
-    Promise.all([lifeIndex("feel"), lifeIndex("ahwal")]).then(([feel, ahwal]) => {
+    Promise.all([lifeIndex("feel"), lifeIndex("ahwal"), lifeIndex("tazkiya")]).then(([feel, ahwal, tazkiya]) => {
       const nq = norm(q), one = nq.split(" ").length === 1;
       const chips = [];
       if (one || /(^| )(اشعر|احس|حاسس|حاسه|انا|عندي|اعاني|اصابني|اصابتني)( |$)/.test(nq)) chips.push(...lifeMatch(q, feel).slice(0, 2).map((f) => lifeChip("feel", f, "on")));
       if (one || /(^| )(ماذا|اقول|دعاء|ذكر|اذكار|عند|عندما)( |$)/.test(nq)) chips.push(...lifeMatch(q, ahwal).slice(0, 2).map((f) => lifeChip("ahwal", f, "on")));
+      if (one || /(^| )(كيف|علاج|اتخلص|التخلص|اكتسب|فضل)( |$)/.test(nq)) chips.push(...lifeMatch(q, tazkiya).slice(0, 2).map((f) => lifeChip("tazkiya", f, "on")));
       if (!chips.length || !location.hash.startsWith("#/search/")) return;
       app.insertAdjacentHTML("afterbegin", `<div class="panel feel-suggest"><span>الحديث في حياتنا:</span> ${chips.join(" ")}</div>`);
     }).catch(() => {});
@@ -2567,7 +2568,7 @@
         <li>أحاديث السنن فيها الصحيح والحسن والضعيف، ويُعرض حكم الترمذي بلفظه حيث ورد، وتُربط كل الأحاديث بأحكام المحدثين في الدرر السنية.</li>
         <li>أحكام المحدثين المعروضة في صفحة الحديث تُنقل بنصها منسوبةً إلى أصحابها ولا نرجّح بينها: حكم الألباني على أحاديث سنن أبي داود والترمذي وابن ماجه (من كتبه «صحيح وضعيف السنن» كما نقلتها المكتبة الشاملة) وسنن النسائي (من «صحيح سنن النسائي» و«ضعيف سنن النسائي»)، وحكم محققي طبعة الرسالة العالمية لسنن النسائي، وحكم شعيب الأرناؤوط ومحققي طبعة مؤسسة الرسالة لمسند أحمد، وكلام البوصيري في «مصباح الزجاجة» على زوائد ابن ماجه بنقل محمد فؤاد عبد الباقي، وحكم حسين سليم أسد في تحقيقه لمسند الدارمي.</li>
         <li>الشرح الميسّر في صفحة الحديث منقول بنصه من «موسوعة الأحاديث النبوية»، وهو شرح مختصر لعموم القرّاء مع فوائد الحديث ومعاني كلماته وترجماته إلى لغات المسلمين. ويُربط شرح الموسوعة بكل رواية في الكتب التسعة يوافق لفظها لفظ الحديث في الموسوعة، فقد يختلف اللفظان يسيرًا. فإن لم يكن للرواية شرح، وكان في الموسوعة حديث قريب من لفظها، عُرض شرحه بعنوان «شرح حديث مشابه» مع نصه للمقارنة.</li>
-        <li>قسم «الحديث في حياتنا» يجمع أحاديث الموسوعة الصحيحة والحسنة بحسب المشاعر التي تعالجها («بماذا تشعر؟») والأحوال التي تُشرع فيها أذكار وسنن («ماذا أقول عندما…؟»)، وكل حديث يُفتح على روايته في الكتب التسعة. وقد صُنّفت بقراءة كل حديث مع شرحه في الموسوعة، ثم مراجعة ما في كل باب؛ فهو تصنيف اجتهادي للتذكير، والمرجع نص الحديث وشرحه.</li>
+        <li>قسم «الحديث في حياتنا» يجمع أحاديث الموسوعة الصحيحة والحسنة بحسب المشاعر التي تعالجها («بماذا تشعر؟») والأحوال التي تُشرع فيها أذكار وسنن («ماذا أقول عندما…؟») وأبواب تزكية النفس («تزكية النفس»)، وكل حديث يُفتح على روايته في الكتب التسعة. وقد صُنّفت بقراءة كل حديث مع شرحه في الموسوعة، ثم مراجعة ما في كل باب؛ فهو تصنيف اجتهادي للتذكير، والمرجع نص الحديث وشرحه.</li>
         <li>الترقيم: البخاري على «فتح الباري»، ومسلم وابن ماجه على ترقيم محمد فؤاد عبد الباقي، وأبو داود على ترقيم محمد محيي الدين عبد الحميد، والترمذي على ترقيم أحمد شاكر، والنسائي على ترقيم برنامج الجامع.</li>
         <li>فهرس الكتب الكبرى للسنن الأربع من <a href="https://shamela.ws/" target="_blank" rel="noopener">المكتبة الشاملة</a>.</li>
       </ul>
@@ -2596,6 +2597,12 @@
       placeholder: "مثلًا: السفر، قبل النوم، نزول المطر…", none: "لم أجد حالًا يوافق ما كتبت، فاختر أقربها إليك من القائمة.",
       roles: [["dua", "ما تقوله", "الأذكار والأدعية"], ["amal", "ما تفعله", "السنن والآداب"], ["bushra", "فضله وأجره", ""]],
       head: (f) => esc(f.feel), note: "الأذكار من أحاديث النبي ﷺ الصحيحة والحسنة، ونصها الكامل وشرحها في صفحة كل حديث.", by: "الأحوال" },
+    tazkiya: { title: "تزكية النفس", others: "أبواب أخرى",
+      intro: "«قد أفلح من زكّاها»: اختر خُلُقًا تريد أن تتحلّى به أو آفةً تريد أن تتخلّى عنها، تجد أحاديث النبي ﷺ فيها: توجيهًا تعمل به، وثمرةً أو عاقبةً تذكّرك، ودعاءً تسأل الله به.",
+      placeholder: "مثلًا: الإخلاص، الصبر، الكبر، الغيبة…", none: "لم أجد بابًا يوافق ما كتبت، فاختر أقربها إليك من القائمة.",
+      roles: [["amal", "التوجيه", "ما تعمل به"], ["bushra", "الثمرة والعاقبة", "فضل الخُلُق أو خطر الآفة"], ["dua", "أدعية", "ما تسأل الله به"]],
+      groups: [["tahliya", "فضائل تتحلّى بها"], ["takhliya", "آفات تتخلّى عنها"]],
+      head: (f) => esc(f.feel), note: "التزكية عمل العمر كله، وهذه الأحاديث معالم على الطريق، وشرحها في صفحة كل حديث.", by: "أبواب التزكية" },
   };
   const lifeIndex = (c) => getJSON(`data/${c}/index.json`);
   // the topics a text names: each word without its prefixes («بضيق»، «والحزن») against each topic's words
@@ -2615,7 +2622,7 @@
         <form class="feel-form" id="feelForm"><input id="feelQ" type="search" placeholder="${L.placeholder}" autocomplete="off" aria-label="${L.title}"></form>
         <div class="feel-hits" id="feelHits" aria-live="polite"></div>
       </div>
-      <div class="feel-grid">${index.map((f) => `<a class="panel feel-card" href="#/${c}/${f.id}"><b>${esc(f.name)}</b><span>${esc(f.feel)}</span><small>${fmt(f.n)} حديثًا</small></a>`).join("")}</div>
+      ${(L.groups || [["", ""]]).map(([g, label]) => `${label ? `<h2 class="feel-group">${label}</h2>` : ""}<div class="feel-grid">${index.filter((f) => !g || f.g === g).map((f) => `<a class="panel feel-card" href="#/${c}/${f.id}"><b>${esc(f.name)}</b><span>${esc(f.feel)}</span><small>${fmt(f.n)} حديثًا</small></a>`).join("")}</div>`).join("")}
       <p class="muted small feel-note">${L.note} الأحاديث من «موسوعة الأحاديث النبوية» مع شرحها الميسّر، وصُنّفت بحسب ${L.by} بقراءة كل حديث وشرحه ثم مراجعتها؛ فإن رأيت حديثًا في غير موضعه فراسلنا.</p>
     </div>`;
     const input = $("#feelQ"), hits = $("#feelHits");
