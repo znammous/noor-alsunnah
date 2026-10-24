@@ -211,7 +211,7 @@
     return `<div class="panel kpi"><div class="v">${fmt(v)}</div><div class="l">${l}</div><div class="s">${s}</div></div>`;
   }
   // the top menu's sections and the pages under each, shown as tabs at the top of the page
-  const NAV_OF = { home: /^\/$/, books: /^\/book/, narrators: /^\/(narrators|explore|compare|terms|n\/)/, hadiths: /^\/(turuq|awali|hterms|h\/)/, isnads: /^\/(chains|isnads)/, life: /^\/(feel|ahwal)/, about: /^\/(about|tools)/ };
+  const NAV_OF = { home: /^\/stats/, books: /^\/book/, narrators: /^\/(narrators|explore|compare|terms|n\/)/, hadiths: /^\/(turuq|awali|hterms|h\/)/, isnads: /^\/(chains|isnads)/, life: /^\/$|^\/(feel|ahwal)/, about: /^\/(about|tools)/ };
   const SUBNAV = {
     narrators: [["narrators", "فهرس الرواة"], ["explore", "ترتيب الرواة"], ["compare", "مقارنة الكتب"], ["terms", "مراتب الرواة"]],
     hadiths: [["turuq", "ترتيب الأحاديث"], ["awali", "الثلاثيات وعوالي الأسانيد"], ["hterms", "مصطلحات الحديث"]],
@@ -243,7 +243,8 @@
 
   // ---------- router ----------
   const routes = [
-    [/^\/?$/, viewHome],
+    [/^\/?$/, () => viewLife("feel")],
+    [/^\/stats$/, viewHome],
     [/^\/books$/, viewBooks],
     [new RegExp(`^/book/(${BOOKS.join("|")})$`), viewBook],
     [new RegExp(`^/book/(${BOOKS.join("|")})/(\\d+)(?:/(\\d+))?$`), viewKitab],
