@@ -6,7 +6,7 @@ const PRECACHE = [
   "./", "index.html", "app.html", "manifest.webmanifest",
   `style.css?v=${V}`, `landing.css?v=${V}`, `app.js?v=${V}`,
   `data/meta.json?v=${V}`, `data/stats.json?v=${V}`,
-  "vendor/cytoscape.min.js", "vendor/dagre.min.js", "vendor/cytoscape-dagre.js", "fonts/majalla.woff2", "fonts/taha-naskh.woff2", "fonts/taha-naskh-bold.woff2",
+  "vendor/cytoscape.min.js", "vendor/dagre.min.js", "vendor/cytoscape-dagre.js", "fonts/majalla.woff2", "fonts/majalla-bold.woff2", "fonts/taha-naskh.woff2", "fonts/taha-naskh-bold.woff2",
   `install.js?v=${V}`, "icons/icon-192.png", "icons/apple-touch-icon.png",
 ];
 
