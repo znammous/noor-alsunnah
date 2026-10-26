@@ -2658,7 +2658,7 @@
     const link = (k) => `#/h/${k}?from=${c}/${id}`;
     const nextUnread = keys.slice(i + 1).find((k) => !read.has(k)) || keys.find((k) => !read.has(k));
     return `<div class="panel path-nav">
-      <div class="path-top"><a href="#/${c}/${id}">${LIFE[c].title} ‹ <b>${esc(f.name)}</b></a><span class="muted small">الحديث ${fmt(i + 1)} من ${fmt(keys.length)} · قرأت ${fmt(done)}</span></div>
+      <div class="path-top"><a href="#/${c}/${id}">${LIFE[c].title} › <b>${esc(f.name)}</b></a><span class="muted small">الحديث ${fmt(i + 1)} من ${fmt(keys.length)} · قرأت ${fmt(done)}</span></div>
       ${lifeBar(done, keys.length)}
       <div class="path-btns">${i ? `<a class="btn" href="${link(keys[i - 1])}">→ السابق</a>` : "<span></span>"}
         ${nextUnread ? `<a class="btn gold" href="${link(nextUnread)}">${nextUnread === keys[i + 1] ? "التالي" : "التالي مما لم تقرأ"} ←</a>`
