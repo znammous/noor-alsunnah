@@ -61,9 +61,9 @@ def build(folder, out, enc, keys_of):
     index = []
     for t in topics:
         rs = sorted(rows[t["id"]], key=lambda r: (-r["w"], BOOK_ORDER.index(r["k"][0]), int(r["k"][1:])))
-        # the encyclopedia has some hadiths twice; one card per narration
+        # the encyclopedia has some hadiths twice, at times tied to different narrations; one card each
         seen = set()
-        rs = [r for r in rs if not (r["k"] in seen or seen.add(r["k"]))]
+        rs = [r for r in rs if not ({r["k"], r["t"]} & seen or seen.update((r["k"], r["t"])))]
         dump(rs, SITE_DATA / out / f"{t['id']}.json")
         index.append({"id": t["id"], "name": t["name"], "feel": t["feel"], "syn": t["syn"], "n": len(rs),
                       **({"g": t["g"]} if t.get("g") else {})})
