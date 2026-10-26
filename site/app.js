@@ -538,6 +538,11 @@
   // the page's link as shared: the site's root (it forwards #/… to the app) without the version or where the reader came from
   const shareURL = () => location.href.replace(/app\.html[^#]*/, "").replace(/\?from=[^#]*$/, "");
 
+  // the system share sheet for an image and its text; not on a Mac, where Chrome hands the apps the image's path
+  // on disk as text (WhatsApp shows it, and the image twice): there the image is saved and the text copied
+  const canShareFiles = (data) => !!(navigator.canShare && navigator.canShare(data))
+    && !(/Macintosh/.test(navigator.userAgent) && !navigator.maxTouchPoints);  // (an iPad says Macintosh too, but has touch)
+
   // ---------- copy buttons ----------
   const COPY_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
   const copyBtnHTML = (title) => `<button type="button" class="copy-btn" title="${title}" aria-label="${title}">${COPY_ICON}</button>`;
@@ -784,7 +789,7 @@
       const copied = share && message ? navigator.clipboard.writeText(text).then(() => true, () => false) : null;
       const blob = await hadithCardPNG(h, nar), f = new File([blob], `نور السنة - ${name}.png`, { type: "image/png" });
       const data = { files: [f], title: "نور السنة: " + name, text };
-      if (share && navigator.canShare && navigator.canShare(data)) {
+      if (share && canShareFiles(data)) {
         try { await navigator.share(data); } catch (_) { /* cancelled */ }
         return;
       }
@@ -1468,7 +1473,7 @@
       const flash = (t) => { b.title = t; b.classList.add("done"); setTimeout(() => { b.classList.remove("done"); b.title = share ? "مشاركة الصورة والرابط" : "لقطة: حفظ صورة الشجرة"; }, 1800); };
       const blob = await graphPNG(c, caption, side && side()), f = new File([blob], file + ".png", { type: "image/png" });
       const data = { files: [f], title: "نور السنة: " + caption, text: "نور السنة: " + caption + "\n" + shareURL() };
-      if (share && navigator.canShare && navigator.canShare(data)) {
+      if (share && canShareFiles(data)) {
         try { await navigator.share(data); } catch (_) { /* cancelled */ }
         return;
       }
