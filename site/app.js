@@ -216,7 +216,7 @@
     narrators: [["narrators", "فهرس الرواة"], ["explore", "ترتيب الرواة"], ["compare", "مقارنة الكتب"], ["terms", "مراتب الرواة"]],
     hadiths: [["turuq", "ترتيب الأحاديث"], ["awali", "الثلاثيات وعوالي الأسانيد"], ["hterms", "مصطلحات الحديث"]],
     isnads: [["chains", "رجال الأسانيد"], ["isnads", "أشهر الأسانيد وأطوالها"]],
-    life: [["feel", "بماذا تشعر؟"], ["ahwal", "ماذا أقول عندما…؟"], ["tazkiya", "تزكية النفس"]],
+    life: [["tazkiya", "تزكية النفس"], ["feel", "بماذا تشعر؟"], ["ahwal", "ماذا أقول عندما…؟"]],
   };
   const subnav = (group, on) => `<nav class="subnav">${SUBNAV[group].map(([p, l]) => `<a href="#/${p}"${p === on ? ' class="on" aria-current="page"' : ""}>${l}</a>`).join("")}</nav>`;
   // what a researcher can ask of the site, one card per tool
