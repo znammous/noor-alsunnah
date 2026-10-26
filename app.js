@@ -535,6 +535,9 @@
     return `https://dorar.net/hadith/search?q=${encodeURIComponent(words)}&st=w`;
   }
 
+  // the page's link as shared: the site's root (it forwards #/… to the app) without the version or where the reader came from
+  const shareURL = () => location.href.replace(/app\.html[^#]*/, "").replace(/\?from=[^#]*$/, "");
+
   // ---------- copy buttons ----------
   const COPY_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
   const copyBtnHTML = (title) => `<button type="button" class="copy-btn" title="${title}" aria-label="${title}">${COPY_ICON}</button>`;
@@ -776,7 +779,7 @@
       ev.preventDefault(); ev.stopPropagation();  // inside a <summary>, do not fold or unfold
       const share = b.dataset.card === "share", title = b.title;
       const flash = (t) => { b.title = t; b.classList.add("done"); setTimeout(() => { b.title = title; b.classList.remove("done"); }, 1800); };
-      const text = message ? message() : "نور السنة: " + name + "\n" + location.href;
+      const text = message ? message() : "نور السنة: " + name + "\n" + shareURL();
       // copied while the click still counts as the reader's (Safari refuses later), for apps that drop a shared image's text
       const copied = share && message ? navigator.clipboard.writeText(text).then(() => true, () => false) : null;
       const blob = await hadithCardPNG(h, nar), f = new File([blob], `نور السنة - ${name}.png`, { type: "image/png" });
@@ -944,24 +947,24 @@
       // folded until the reader opens it; it stays open when the language changes
       el.innerHTML = wordsBox + `<details class="panel sharh sharh-main"${open ? " open" : ""}>
         <summary class="sharh-head"><h3>${similar ? "شرح حديث مشابه" : "الشرح الميسّر"}</h3><span class="muted small">${similar
-          ? "لا شرح لهذا الحديث بعينه، وهذا شرح حديث قريب منه في لفظه" : `شرح مختصر للحديث وفوائده، بالعربية و${fmt(langs.length - 1)} لغة`}</span>${copyBtnHTML("نسخ الشرح")}<button type="button" class="copy-btn" data-card="share" title="مشاركة صورة الحديث مع شرحه الميسّر نصًّا" aria-label="مشاركة صورة الحديث مع شرحه">${SHARE_ICON}</button></summary>
+          ? "لا شرح لهذا الحديث بعينه، وهذا شرح حديث قريب منه في لفظه" : `شرح مختصر للحديث وفوائده، بالعربية و${fmt(langs.length - 1)} لغة`}</span><span class="head-tools">${copyBtnHTML("نسخ الشرح")}<button type="button" class="copy-btn" data-card="share" title="مشاركة صورة الحديث مع شرحه الميسّر نصًّا" aria-label="مشاركة صورة الحديث مع شرحه">${SHARE_ICON}</button></span></summary>
         ${similar ? `<p class="notice">هذا نص الحديث المشروح في ${SHARH_BY}، وهو قريب من لفظ هذه الرواية وقد يختلفان في بعض المعنى، فقارن بين النصين.</p>` : ""}
         ${picker}
         ${blocks}
         <p class="muted small sharh-note">من ${SHARH_BY} (${SHARH_ORG})، شرح مختصر لعموم القرّاء، يُنقل بنصه. وقد يكون لفظ الحديث في الموسوعة مختلفًا يسيرًا عن لفظ هذه الرواية.</p></details>`;
       if (words.length) wireCopy(el.querySelector(".sharh-words-box .copy-btn"), () => [
-        `${BOOK[h.book]} — حديث رقم ${h.label}`, h.parts.map((p) => p.text.trim()).join("\n\n"), "معاني الكلمات:\n" + words.map(([w, m]) => `- ${w}: ${m}`).join("\n"), location.href].join("\n\n"));
+        `${BOOK[h.book]} — حديث رقم ${h.label}`, h.parts.map((p) => p.text.trim()).join("\n\n"), "معاني الكلمات:\n" + words.map(([w, m]) => `- ${w}: ${m}`).join("\n"), shareURL()].join("\n\n"));
       // shared with the card, which shows the hadith itself: the explanation alone, the link at its head
       // (WhatsApp cuts an image's caption at about 1024 letters)
       const sharhText = (withHadith = true) => [
         `${similar ? "شرح حديث مشابه" : "الشرح الميسّر"}: ${BOOK[h.book]} — حديث رقم ${h.label}`,
-        withHadith ? h.parts.map((p) => p.text.trim()).join("\n\n") : location.href,
+        withHadith ? h.parts.map((p) => p.text.trim()).join("\n\n") : shareURL(),
         ...ids.map((id, n) => {  // the page's link names the source, so only the text is copied
           const a = ar[n], t = tr && tr[n], e = t || a;
           if (!e) return "";
           return [(t || similar) && e.h, e.x, e.f && e.f.length ? (t ? "" : "من فوائد الحديث:\n") + e.f.map((x) => "- " + x).join("\n") : ""].filter(Boolean).join("\n\n");
         }),
-        withHadith && location.href].filter(Boolean).join("\n\n");
+        withHadith && shareURL()].filter(Boolean).join("\n\n");
       wireCopy(el.querySelector(".sharh-main .copy-btn:not([data-card])"), () => sharhText());
       wireCard(el.querySelector(".sharh-main > summary"), h, nar, () => sharhText(false));
       el.querySelector(".sharh-main").addEventListener("toggle", (ev) => { open = ev.target.open; });
@@ -1151,7 +1154,7 @@
     const fitTools = () => { htBox.classList.remove("short"); htBox.classList.toggle("short", htBox.clientHeight < htTools.offsetHeight + 2 * htTools.offsetTop); };
     fitTools(); new ResizeObserver(fitTools).observe(htBox);
     wireCopy($('.hadith-text .copy-btn:not([data-card])'), () => `${BOOK[book]} — ${h.aliases.length ? "الأحاديث" : "حديث رقم"} ${h.label}\n\n${h.parts.map((p) => p.text.trim()).join("\n\n")}\n\n${
-      h.words && h.words.length ? "معاني الكلمات:\n" + h.words.map(([w, m]) => `- ${w}: ${m}`).join("\n") + "\n\n" : ""}${location.href}`);
+      h.words && h.words.length ? "معاني الكلمات:\n" + h.words.map(([w, m]) => `- ${w}: ${m}`).join("\n") + "\n\n" : ""}${shareURL()}`);
     renderSharh($("#sharh"), h, G.nar);
     let scope = others.length ? "all" : "one", bookFilter = "", rank = "";
     // default side panel: the narrators of the drawn tree, grouped by Ibn Hajar's tabaqat
@@ -1464,7 +1467,7 @@
     async function shareGraph(b, c, share) {
       const flash = (t) => { b.title = t; b.classList.add("done"); setTimeout(() => { b.classList.remove("done"); b.title = share ? "مشاركة الصورة والرابط" : "لقطة: حفظ صورة الشجرة"; }, 1800); };
       const blob = await graphPNG(c, caption, side && side()), f = new File([blob], file + ".png", { type: "image/png" });
-      const data = { files: [f], title: "نور السنة: " + caption, text: "نور السنة: " + caption + "\n" + location.href };
+      const data = { files: [f], title: "نور السنة: " + caption, text: "نور السنة: " + caption + "\n" + shareURL() };
       if (share && navigator.canShare && navigator.canShare(data)) {
         try { await navigator.share(data); } catch (_) { /* cancelled */ }
         return;
@@ -1473,7 +1476,7 @@
       a.href = URL.createObjectURL(blob); a.download = f.name; a.click();
       setTimeout(() => URL.revokeObjectURL(a.href), 4000);
       if (!share) return flash("حُفظت الصورة ✓");
-      try { await navigator.clipboard.writeText(location.href); flash("حُفظت الصورة ونُسخ الرابط ✓"); } catch (_) { flash("حُفظت الصورة"); }
+      try { await navigator.clipboard.writeText(shareURL()); flash("حُفظت الصورة ونُسخ الرابط ✓"); } catch (_) { flash("حُفظت الصورة"); }
     }
     // fullscreen: the canvas changes size, so resize and refit; button toggles to "exit"
     box.addEventListener("fullscreenchange", () => {
@@ -1996,7 +1999,7 @@
     });
     $("#treset").addEventListener("click", () => { Object.assign(st, TURUQ_DEFAULT, { y: "" }); sync(); render(); });
     $("#tcopy").addEventListener("click", async (e) => {
-      try { await navigator.clipboard.writeText(location.href); e.target.textContent = "نُسخ الرابط ✓"; } catch (_) { e.target.textContent = "تعذّر النسخ"; }
+      try { await navigator.clipboard.writeText(shareURL()); e.target.textContent = "نُسخ الرابط ✓"; } catch (_) { e.target.textContent = "تعذّر النسخ"; }
       setTimeout(() => { e.target.textContent = "نسخ رابط هذا الترتيب"; }, 1800);
     });
     render();
@@ -2299,7 +2302,7 @@
     showTab(cur ? +cur.parentElement.dataset.g : "c");
     $("#xreset").addEventListener("click", () => { Object.assign(st, EXPLORE_DEFAULT); open = null; sync(); render(); });
     $("#xcopy").addEventListener("click", async (e) => {
-      try { await navigator.clipboard.writeText(location.href); e.target.textContent = "نُسخ الرابط ✓"; } catch (_) { e.target.textContent = "تعذّر النسخ"; }
+      try { await navigator.clipboard.writeText(shareURL()); e.target.textContent = "نُسخ الرابط ✓"; } catch (_) { e.target.textContent = "تعذّر النسخ"; }
       setTimeout(() => { e.target.textContent = "نسخ رابط هذا الترتيب"; }, 1800);
     });
     $("#xl").addEventListener("click", (e) => {
