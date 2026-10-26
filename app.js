@@ -951,16 +951,17 @@
         <p class="muted small sharh-note">من ${SHARH_BY} (${SHARH_ORG})، شرح مختصر لعموم القرّاء، يُنقل بنصه. وقد يكون لفظ الحديث في الموسوعة مختلفًا يسيرًا عن لفظ هذه الرواية.</p></details>`;
       if (words.length) wireCopy(el.querySelector(".sharh-words-box .copy-btn"), () => [
         `${BOOK[h.book]} — حديث رقم ${h.label}`, h.parts.map((p) => p.text.trim()).join("\n\n"), "معاني الكلمات:\n" + words.map(([w, m]) => `- ${w}: ${m}`).join("\n"), location.href].join("\n\n"));
-      // shared with the card, which shows the hadith itself: the explanation alone
+      // shared with the card, which shows the hadith itself: the explanation alone, the link at its head
+      // (WhatsApp cuts an image's caption at about 1024 letters)
       const sharhText = (withHadith = true) => [
         `${similar ? "شرح حديث مشابه" : "الشرح الميسّر"}: ${BOOK[h.book]} — حديث رقم ${h.label}`,
-        withHadith && h.parts.map((p) => p.text.trim()).join("\n\n"),
+        withHadith ? h.parts.map((p) => p.text.trim()).join("\n\n") : location.href,
         ...ids.map((id, n) => {  // the page's link names the source, so only the text is copied
           const a = ar[n], t = tr && tr[n], e = t || a;
           if (!e) return "";
           return [(t || similar) && e.h, e.x, e.f && e.f.length ? (t ? "" : "من فوائد الحديث:\n") + e.f.map((x) => "- " + x).join("\n") : ""].filter(Boolean).join("\n\n");
         }),
-        location.href].filter(Boolean).join("\n\n");
+        withHadith && location.href].filter(Boolean).join("\n\n");
       wireCopy(el.querySelector(".sharh-main .copy-btn:not([data-card])"), () => sharhText());
       wireCard(el.querySelector(".sharh-main > summary"), h, nar, () => sharhText(false));
       el.querySelector(".sharh-main").addEventListener("toggle", (ev) => { open = ev.target.open; });
