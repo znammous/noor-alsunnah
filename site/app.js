@@ -243,7 +243,7 @@
 
   // ---------- router ----------
   const routes = [
-    [/^\/?$/, () => viewLife("feel")],
+    [/^\/?$/, () => viewLife("tazkiya")],
     [/^\/stats$/, viewHome],
     [/^\/books$/, viewBooks],
     [new RegExp(`^/book/(${BOOKS.join("|")})$`), viewBook],
@@ -595,6 +595,22 @@
     const ok = (m) => (m && !/\sعن\s/.test(m[0]) ? m[0].length : Infinity), cut = Math.min(ok(said), ok(that));
     return cut < Infinity ? text.slice(at[k + cut] ?? text.length) : text;
   }
+  // the words between the companion and a marked matn that carry it to the Prophet ﷺ ("قال رسول الله ﷺ:",
+  // "عن النبي ﷺ قال:", "أن رسول الله ﷺ قال:"), from the last pause or his name before them; "" when there are none
+  function prophetLead(text, start, cname) {
+    const at = [], bare = [...text.slice(0, start)].map((ch, i) => (/[\u064b-\u065f\u0670]/.test(ch) ? "" : (at.push(i), ch))).join("");
+    const m = [...bare.matchAll(/(النبي|رسول الله|نبي الله|أبا القاسم|أبو القاسم)/g)].at(-1);
+    if (!m) return "";
+    let from = Math.max(...[":", "،", ",", " عن ", " أن ", " أنه "].map((c) => bare.lastIndexOf(c, m.index) + 1));
+    const key = cname && cname.split(" ").filter((w) => !/^(أبي|أم|عبد|بن|بنت)$/.test(w)).at(-1);
+    if (key) {
+      const k = [...bare.slice(0, m.index).matchAll(new RegExp(key.replace(/[إأآ]/g, "ا").replace(/ا/g, "[اأإآ]"), "g"))].at(-1);
+      if (k) from = Math.max(from, k.index + k[0].length);
+    }
+    const lead = bare.slice(from).replace(/^\s*(رضي الله عنهم?ا?)?\s*/, "");
+    if (!lead || lead.length > 70 || /\sعن\s(?!(النبي|رسول الله|نبي الله|أبا القاسم|أبو القاسم))/.test(" " + lead)) return "";
+    return text.slice(at[bare.length - lead.length], start).replace(/\s+/g, " ").replace(/\s+([:،,])/g, "$1").trim();
+  }
   // the honorific after a companion's name (no gender in the data: women by "بنت", "أم" or a known name)
   const WOMEN = /^(عائشة|حفصة|ميمونة|زينب|فاطمة|أسماء|صفية|جويرية|سودة|خديجة|رملة|هند|أم|حمنة|الشفاء|سبيعة|فريعة|خنساء)(\s|$)/;
   const radiya = (name) => (WOMEN.test(name) || /\sبنت\s/.test(name) ? "رضي الله عنها" : "رضي الله عنه");
@@ -616,7 +632,9 @@
     const companion = h.chains.map((c) => nar[c.ids[0]]).find((n) => n && n.cls === "sahabi");
     const cname = companion && companionName(companion.name);
     const marked = h.parts.filter((p) => p.matn), parts = marked.length ? marked : h.parts;
-    const matn = parts.map((p) => fullStop((p.matn ? p.text.slice(p.matn[0], p.matn[1]) : afterCompanion(p.text, cname)).trim())).join("\n");
+    // a marked matn keeps the words before it that carry it to the Prophet ﷺ
+    const leads = parts.map((p) => (p.matn ? prophetLead(p.text, p.matn[0], cname) : ""));
+    const matn = parts.map((p, i) => fullStop(((p.matn ? `${leads[i]} ${p.text.slice(p.matn[0], p.matn[1])}` : afterCompanion(p.text, cname))).trim())).join("\n");
     // its verdict: al-Tirmidhi's own words and the scholars' grades as the page shows them
     // (none for the Sahihayn: the card's header already names the book, which is the verdict)
     const verdicts = [];
@@ -639,7 +657,7 @@
       const rule = () => { y += px(14); ops.push({ rule: true, y }); y += px(38); };
       const heading = (text) => block(ui(700, px(34)), "--gold", text, px(54), { gapAfter: px(6) });
 
-      if (cname) block(naskh(700, px(40)), "--ink", `عن ${cname} ${radiya(cname)}:`, px(72), { gapAfter: px(4) });
+      if (cname) block(naskh(700, px(40)), "--ink", `عن ${cname} ${radiya(cname)}${/^عن\s/.test((leads[0] || "").replace(/[\u064b-\u065f\u0670]/g, "")) ? "،" : ":"}`, px(72), { gapAfter: px(4) });
       block(naskh(400, px(50)), "--matn", matn, px(92), { max: matnMax });
 
       // the meanings of its words, run on in lines as in print: each word in the matn's color, its meaning after it;
