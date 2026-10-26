@@ -2669,7 +2669,7 @@
 
   function lifeCardProgress(c, f) {
     const done = Math.min(lifeRead(c, f.id).size, f.n);
-    return done ? `<small>قرأت ${fmt(done)} من ${fmt(f.n)}${done === f.n ? " ✓" : ""}</small>${lifeBar(done, f.n)}` : `<small>${fmt(f.n)} حديثًا</small>`;
+    return `<small>${done ? `قرأت ${fmt(done)} من ${fmt(f.n)}${done === f.n ? " ✓" : ""}` : `${fmt(f.n)} حديثًا · لم تبدأ بعد`}</small>${lifeBar(done, f.n)}`;
   }
 
   async function viewLife(c) {
