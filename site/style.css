@@ -534,8 +534,10 @@ p.more { margin: 12px 0 0; }
 .hadith-text.short { padding-inline-end: 18px; display: flow-root; }
 .hadith-text.short > .text-tools { position: static; float: inline-end; flex-direction: row; margin: 6px 0 0; margin-inline-start: 12px; }
 
-/* long paragraphs justified: lines meet both margins (on screen and in print) */
-.hadith-text p, .sharh-text, .sharh-hadith, .sharh-item li, .verdicts blockquote, .terms blockquote, .rank-note p { text-align: justify; text-justify: inter-word; }
+/* long paragraphs justified: lines meet both margins (on screen and in print); Majalla's kerning splits joined letters when Chrome justifies */
+.hadith-text p, .sharh-text, .sharh-hadith, .verdicts blockquote, .terms blockquote, .rank-note p { text-align: justify; text-justify: inter-word; font-kerning: none; }
+/* short list points stay ragged: justifying two-line items stretches the spaces */
+.sharh-item li { text-align: start; }
 /* a verdict framed in its degree's color, the narrators' grade colors: sahih green, hasan light green, daif red */
 .verdicts .g-sahih { --gc: var(--c-thiqa); } .verdicts .g-hasan { --gc: var(--c-saduq); } .verdicts .g-daif { --gc: var(--c-weak); }
 .verdicts .g-sahih .g-pill, .verdicts .g-hasan .g-pill, .verdicts .g-daif .g-pill { color: color-mix(in srgb, var(--gc) 75%, var(--ink));
@@ -570,7 +572,7 @@ p.more { margin: 12px 0 0; }
 .feel-item { padding: 14px 18px; }
 .feel-t { display: block; font-family: var(--font-text); font-size: 1.3rem; line-height: 1.9; color: var(--matn); }
 .feel-t:hover { text-decoration: none; opacity: .85; }
-.feel-x { margin: 4px 0 6px; color: var(--muted); line-height: 1.85; text-align: justify; }
+.feel-x { margin: 4px 0 6px; color: var(--muted); line-height: 1.85; text-align: justify; font-kerning: none; }
 .feel-item .meta-line { justify-content: space-between; }
 .feel-more { font-weight: 600; white-space: nowrap; }
 .feel-others { margin-top: 16px; }
