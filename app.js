@@ -766,16 +766,21 @@
     g.fillText(location.host + location.pathname.replace(/[^/]*$/, ""), pad, footTop + 48);
     return new Promise((ok) => cv.toBlob(ok, "image/png"));
   }
-  // save the card, or share it with the link (on phones: the share sheet, e.g. WhatsApp)
-  function wireCard(box, h, nar) {
+  // save the card, or share it with the link (on phones: the share sheet, e.g. WhatsApp);
+  // with message(), that text goes with the image instead, ready to send, and is copied too
+  function wireCard(box, h, nar, message) {
     const name = `${BOOK[h.book]} ${h.label}`;
     box.addEventListener("click", async (ev) => {
       const b = ev.target.closest("[data-card]");
       if (!b) return;
+      ev.preventDefault(); ev.stopPropagation();  // inside a <summary>, do not fold or unfold
       const share = b.dataset.card === "share", title = b.title;
       const flash = (t) => { b.title = t; b.classList.add("done"); setTimeout(() => { b.title = title; b.classList.remove("done"); }, 1800); };
+      const text = message ? message() : "نور السنة: " + name + "\n" + location.href;
+      // copied while the click still counts as the reader's (Safari refuses later), for apps that drop a shared image's text
+      const copied = share && message ? navigator.clipboard.writeText(text).then(() => true, () => false) : null;
       const blob = await hadithCardPNG(h, nar), f = new File([blob], `نور السنة - ${name}.png`, { type: "image/png" });
-      const data = { files: [f], title: "نور السنة: " + name, text: "نور السنة: " + name + "\n" + location.href };
+      const data = { files: [f], title: "نور السنة: " + name, text };
       if (share && navigator.canShare && navigator.canShare(data)) {
         try { await navigator.share(data); } catch (_) { /* cancelled */ }
         return;
@@ -784,7 +789,8 @@
       a.href = URL.createObjectURL(blob); a.download = f.name; a.click();
       setTimeout(() => URL.revokeObjectURL(a.href), 4000);
       if (!share) return flash("حُفظت الصورة ✓");
-      try { await navigator.clipboard.writeText(location.href); flash("حُفظت الصورة ونُسخ الرابط ✓"); } catch (_) { flash("حُفظت الصورة"); }
+      const ok = await (copied || navigator.clipboard.writeText(text).then(() => true, () => false));
+      flash(ok ? (message ? "حُفظت الصورة ونُسخ الشرح ✓" : "حُفظت الصورة ونُسخ الرابط ✓") : "حُفظت الصورة");
     });
   }
 
@@ -839,7 +845,7 @@
     });
   }
 
-  async function renderSharh(el, h) {
+  async function renderSharh(el, h, nar) {
     if (!el || !META.sharh) return;
     // a hadith with no explanation of its own may have that of a similar one, shown as such
     const similar = !h.sx && !!h.sy, ids = h.sx || (h.sy ? [h.sy] : []);
@@ -908,7 +914,7 @@
         lang === "ar" ? null : Promise.all(ids.map((i) => sharhEntry(lang, i)))]);
       if (!el.isConnected) return;
       const [, native, , rtl] = langs.find(([c]) => c === lang);
-      const picker = `<label class="sharh-lang">اقرأ الشرح بلغة أخرى <select>${langs.map(([c, name]) => `<option value="${c}"${c === lang ? " selected" : ""}>${esc(name)}</option>`).join("")}</select></label>`;
+      const picker = `<label class="sharh-lang"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z"/></svg>لغة الشرح <select>${langs.map(([c, name]) => `<option value="${c}"${c === lang ? " selected" : ""}>${esc(name)}</option>`).join("")}</select></label>`;
       const blocks = ids.map((id, n) => {
         const a = ar[n], t = tr && tr[n];
         if (!a && !t) return "";
@@ -923,7 +929,6 @@
             <p class="sharh-text">${esc(e.x)}</p>
             ${e.f && e.f.length ? `<details${ids.length > 1 ? "" : " open"}><summary>${t ? "Benefits · الفوائد" : "من فوائد الحديث"}</summary><ul>${e.f.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></details>` : ""}
           </div>
-          ${n === ids.length - 1 ? picker : ""}
           <span class="grade-src">${SHARH_BY} · <a href="${page}" target="_blank" rel="noopener">الحديث في الموسوعة ↗</a> · <a href="${mailto(`نور السنة: ملاحظة على الشرح الميسر في ${hkey(h.k)}`,
             `الحديث: ${hkey(h.k)}\n${location.href}\n\nالشرح المعروض: ${e.t || ""}\n${page}\n\nما الخطأ؟ (مثلًا: الشرح لحديث آخر، أو خطأ في الترجمة)\n`)}">أبلغ عن خطأ في هذا الشرح</a></span></article>`;
       }).join("");
@@ -939,21 +944,25 @@
       // folded until the reader opens it; it stays open when the language changes
       el.innerHTML = wordsBox + `<details class="panel sharh sharh-main"${open ? " open" : ""}>
         <summary class="sharh-head"><h3>${similar ? "شرح حديث مشابه" : "الشرح الميسّر"}</h3><span class="muted small">${similar
-          ? "لا شرح لهذا الحديث بعينه، وهذا شرح حديث قريب منه في لفظه" : `شرح مختصر للحديث وفوائده، بالعربية و${fmt(langs.length - 1)} لغة`}</span>${copyBtnHTML("نسخ الشرح")}</summary>
+          ? "لا شرح لهذا الحديث بعينه، وهذا شرح حديث قريب منه في لفظه" : `شرح مختصر للحديث وفوائده، بالعربية و${fmt(langs.length - 1)} لغة`}</span>${copyBtnHTML("نسخ الشرح")}<button type="button" class="copy-btn" data-card="share" title="مشاركة صورة الحديث مع شرحه الميسّر نصًّا" aria-label="مشاركة صورة الحديث مع شرحه">${SHARE_ICON}</button></summary>
         ${similar ? `<p class="notice">هذا نص الحديث المشروح في ${SHARH_BY}، وهو قريب من لفظ هذه الرواية وقد يختلفان في بعض المعنى، فقارن بين النصين.</p>` : ""}
+        ${picker}
         ${blocks}
-        <p class="muted small">من ${SHARH_BY} (${SHARH_ORG})، شرح مختصر لعموم القرّاء، يُنقل بنصه. وقد يكون لفظ الحديث في الموسوعة مختلفًا يسيرًا عن لفظ هذه الرواية.</p></details>`;
+        <p class="muted small sharh-note">من ${SHARH_BY} (${SHARH_ORG})، شرح مختصر لعموم القرّاء، يُنقل بنصه. وقد يكون لفظ الحديث في الموسوعة مختلفًا يسيرًا عن لفظ هذه الرواية.</p></details>`;
       if (words.length) wireCopy(el.querySelector(".sharh-words-box .copy-btn"), () => [
         `${BOOK[h.book]} — حديث رقم ${h.label}`, h.parts.map((p) => p.text.trim()).join("\n\n"), "معاني الكلمات:\n" + words.map(([w, m]) => `- ${w}: ${m}`).join("\n"), location.href].join("\n\n"));
-      wireCopy(el.querySelector(".sharh-main .copy-btn"), () => [
+      // shared with the card, which shows the hadith itself: the explanation alone
+      const sharhText = (withHadith = true) => [
         `${similar ? "شرح حديث مشابه" : "الشرح الميسّر"}: ${BOOK[h.book]} — حديث رقم ${h.label}`,
-        h.parts.map((p) => p.text.trim()).join("\n\n"),
+        withHadith && h.parts.map((p) => p.text.trim()).join("\n\n"),
         ...ids.map((id, n) => {  // the page's link names the source, so only the text is copied
           const a = ar[n], t = tr && tr[n], e = t || a;
           if (!e) return "";
           return [(t || similar) && e.h, e.x, e.f && e.f.length ? (t ? "" : "من فوائد الحديث:\n") + e.f.map((x) => "- " + x).join("\n") : ""].filter(Boolean).join("\n\n");
         }),
-        location.href].filter(Boolean).join("\n\n"));
+        location.href].filter(Boolean).join("\n\n");
+      wireCopy(el.querySelector(".sharh-main .copy-btn:not([data-card])"), () => sharhText());
+      wireCard(el.querySelector(".sharh-main > summary"), h, nar, () => sharhText(false));
       el.querySelector(".sharh-main").addEventListener("toggle", (ev) => { open = ev.target.open; });
       el.querySelector(".sharh-words-box")?.addEventListener("toggle", (ev) => { if (!printing) wordsOpen = ev.target.open; });
       el.querySelector("select").addEventListener("change", (ev) => {
@@ -1142,7 +1151,7 @@
     fitTools(); new ResizeObserver(fitTools).observe(htBox);
     wireCopy($('.hadith-text .copy-btn:not([data-card])'), () => `${BOOK[book]} — ${h.aliases.length ? "الأحاديث" : "حديث رقم"} ${h.label}\n\n${h.parts.map((p) => p.text.trim()).join("\n\n")}\n\n${
       h.words && h.words.length ? "معاني الكلمات:\n" + h.words.map(([w, m]) => `- ${w}: ${m}`).join("\n") + "\n\n" : ""}${location.href}`);
-    renderSharh($("#sharh"), h);
+    renderSharh($("#sharh"), h, G.nar);
     let scope = others.length ? "all" : "one", bookFilter = "", rank = "";
     // default side panel: the narrators of the drawn tree, grouped by Ibn Hajar's tabaqat
     const tabaqat = () => {

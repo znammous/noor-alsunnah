@@ -156,9 +156,16 @@ a.col:hover b { filter: brightness(1.2); }
 .sharh-head:hover h3::before { background: color-mix(in srgb, var(--gold) 28%, transparent); }
 .sharh[open] > .sharh-head h3::after { transform: rotate(-90deg); }
 .sharh[open] > .sharh-head { margin-bottom: 10px; }
-.sharh-lang { margin: 4px 0 10px; flex-wrap: wrap; }
-.sharh-lang { font-size: .88rem; color: var(--muted); display: flex; align-items: center; gap: 6px; }
-.sharh-lang select { padding: 5px 8px; border: 1px solid var(--line); border-radius: 9px; background: var(--bg); color: var(--ink); font: inherit; max-width: 60vw; }
+/* the language of the explanation: a small control at its head, the chevron drawn on the reading end */
+.sharh-lang { display: flex; align-items: center; gap: 8px; width: fit-content; margin: 0 0 12px; padding: 4px; padding-inline-start: 12px;
+  border: 1px solid var(--line); border-radius: 999px; background: var(--panel-2); font-family: var(--font-ui); font-size: .85rem; color: var(--muted); }
+.sharh-lang svg { width: 16px; height: 16px; fill: none; stroke: var(--gold); stroke-width: 1.6; flex: none; }
+.sharh-lang select { appearance: none; -webkit-appearance: none; width: auto; max-width: 50vw; padding: 4px 12px; padding-inline-end: 30px; cursor: pointer;
+  border: 1px solid var(--line); border-radius: 999px; background-color: var(--panel); color: var(--ink); font: inherit; font-weight: 600;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%238a97ad' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-size: 10px 7px; background-repeat: no-repeat; background-position: left 12px center; transition: border-color .15s; }
+.sharh-lang select:hover, .sharh-lang select:focus-visible { border-color: var(--gold); outline: none; }
+[dir="ltr"] .sharh-lang select { background-position: right 12px center; }
 .sharh-item { border-top: 1px solid var(--line); padding: 10px 0; }
 .sharh-item:first-of-type { border-top: 0; }
 .sharh-item h4 { margin: 0 0 6px; }
@@ -178,7 +185,8 @@ a.col:hover b { filter: brightness(1.2); }
 .sharh-words { margin: 0 0 6px; }
 .sharh-words dt { font-weight: 700; color: var(--gold); }
 .sharh-words dd { margin: 0 0 6px; }
-.sharh-item .grade-src { display: block; font-size: .78rem; color: var(--muted); }
+.sharh-item .grade-src { display: block; margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--line); font-family: var(--font-ui); font-size: .78rem; color: var(--muted); }
+.sharh-note { margin: 4px 0 0; }
 .sharh-none { margin: 16px 0; }
 .verdicts { display: grid; gap: 10px; margin: 6px 0 14px; }
 .verdicts blockquote { margin: 0; font-family: var(--font-text); font-size: 1.15rem; line-height: 1.8; background: var(--panel-2);
@@ -217,6 +225,7 @@ a.col:hover b { filter: brightness(1.2); }
 .copy-btn:hover { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 .copy-btn.done { border-color: var(--gold); color: var(--gold); background: var(--panel-2); }
 .sharh-head .copy-btn { margin-inline-start: auto; align-self: center; }
+.sharh-head .copy-btn + .copy-btn { margin-inline-start: 0; }
 .hadith-text .matn { color: var(--matn); }
 .hadith-text { color: color-mix(in srgb, var(--ink) 78%, var(--bg)); }
 .hadith-text a.nm { color: inherit; border-bottom: 2px solid var(--c); text-decoration: none; }
@@ -484,7 +493,7 @@ p.more { margin: 12px 0 0; }
 /* print: the page as seen, without the controls; the footer's disclaimer always ends the printout */
 @media print {
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .search, .theme, .graph-ctl, .graph-hint, .text-tools, .copy-btn, .gloss-pop { display: none !important; }
+  .search, .theme, .graph-ctl, .graph-hint, .text-tools, .copy-btn, .gloss-pop, .sharh-lang { display: none !important; }
   .gloss { text-decoration: none; }
   .foot { break-inside: avoid; padding-bottom: 0; }
   /* the words run on in lines, each in the matn's color with its meaning after it */
