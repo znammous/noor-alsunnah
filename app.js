@@ -248,7 +248,7 @@
     [/^\/books$/, viewBooks],
     [new RegExp(`^/book/(${BOOKS.join("|")})$`), viewBook],
     [new RegExp(`^/book/(${BOOKS.join("|")})/(\\d+)(?:/(\\d+))?$`), viewKitab],
-    [new RegExp(`^/h/([${Object.values(PREFIX).join("")}]\\d+)$`), viewHadith],
+    [new RegExp(`^/h/([${Object.values(PREFIX).join("")}]\\d+)(?:\\?from=(feel|ahwal|tazkiya)/(\\w+))?$`), viewHadith],
     [/^\/n\/([^/]+)(?:\/([ts])\/([^/]+))?$/, viewNarrator],
     [/^\/narrators$/, viewNarrators],
     [/^\/explore(?:\?(.*))?$/, viewExplore],
@@ -1026,8 +1026,8 @@
     list.addEventListener("click", (e) => { const t = e.target.closest(".tk-text"); if (t) t.classList.toggle("open"); });
   }
 
-  async function viewHadith(key) {
-    if (!META.index[key] && META.alias[key]) { location.replace("#/h/" + META.alias[key]); return; }
+  async function viewHadith(key, pc, pid) {
+    if (!META.index[key] && META.alias[key]) { location.replace(`#/h/${META.alias[key]}${pc ? `?from=${pc}/${pid}` : ""}`); return; }
     const entry = META.index[key];
     if (!entry) { app.innerHTML = missingHadithHTML(key); return; }
     const shard = await group(entry[1]);
@@ -1053,7 +1053,8 @@
     const madar = G.madar ? G.nar[G.madar] : null;
     const sp = G.spread;
 
-    app.innerHTML = `
+    const path = pc && LIFE[pc] ? await lifePathHTML(pc, pid, key) : "";
+    app.innerHTML = `${path}
       <div class="crumbs"><a href="#/book/${book}">${BOOK[book]}</a> ‹ <a href="#/book/${book}/${h.kitab}">${esc(kitab?.title || "")}</a>${h.bab ? ` ‹ ${esc(h.bab)}` : ""}</div>
       <h1>${BOOK[book]} — ${h.aliases.length ? "الأحاديث" : "حديث رقم"} ${esc(h.label)}</h1>
       <div class="meta-line" style="margin-bottom:10px">${typeTag(h.type)}
@@ -2630,7 +2631,46 @@
     return index.map((f) => [f, f.syn.filter((s) => (s.includes(" ") ? q.includes(s) : words.has(s))).length])
       .filter(([, n]) => n).sort((a, b) => b[1] - a[1]).map(([f]) => f);
   }
+  // reading progress through a topic, kept in this browser: {"tazkiya/ikhlas": ["b1", …]}
+  const lifeReadAll = () => { try { return JSON.parse(localStorage.getItem("lifeRead") || "{}"); } catch (_) { return {}; } };
+  const lifeRead = (c, id) => new Set(lifeReadAll()[`${c}/${id}`] || []);
+  function lifeSetRead(c, id, keys) {
+    const all = lifeReadAll();
+    if (keys.size) all[`${c}/${id}`] = [...keys]; else delete all[`${c}/${id}`];
+    try { localStorage.setItem("lifeRead", JSON.stringify(all)); } catch (_) {}
+  }
+  // a topic's hadiths in reading order: its sections one after the other
+  async function lifePath(c, id) {
+    const rows = await getJSON(`data/${c}/${id}.json`);
+    return LIFE[c].roles.flatMap(([role]) => rows.filter((r) => r.r === role));
+  }
+  const lifeBar = (done, n) => `<span class="path-bar" role="progressbar" aria-valuemin="0" aria-valuemax="${n}" aria-valuenow="${done}"><span style="width:${n ? (100 * done) / n : 0}%"></span></span>`;
+  // the bar above a hadith opened from a topic: where the reader is, and the way on
+  async function lifePathHTML(c, id, key) {
+    const f = (await lifeIndex(c)).find((x) => x.id === id);
+    const keys = f ? (await lifePath(c, id)).map((r) => r.k) : [];
+    const i = keys.indexOf(key);
+    if (i < 0) return "";
+    const read = lifeRead(c, id);
+    read.add(key);
+    lifeSetRead(c, id, read);
+    const done = keys.filter((k) => read.has(k)).length;
+    const link = (k) => `#/h/${k}?from=${c}/${id}`;
+    const nextUnread = keys.slice(i + 1).find((k) => !read.has(k)) || keys.find((k) => !read.has(k));
+    return `<div class="panel path-nav">
+      <div class="path-top"><a href="#/${c}/${id}">${LIFE[c].title} ‹ <b>${esc(f.name)}</b></a><span class="muted small">الحديث ${fmt(i + 1)} من ${fmt(keys.length)} · قرأت ${fmt(done)}</span></div>
+      ${lifeBar(done, keys.length)}
+      <div class="path-btns">${i ? `<a class="btn" href="${link(keys[i - 1])}">→ السابق</a>` : "<span></span>"}
+        ${nextUnread ? `<a class="btn gold" href="${link(nextUnread)}">${nextUnread === keys[i + 1] ? "التالي" : "التالي مما لم تقرأ"} ←</a>`
+          : `<a class="btn gold" href="#/${c}/${id}">أتممت «${esc(f.name)}» ✓</a>`}</div>
+    </div>`;
+  }
   const lifeChip = (c, f, cls = "") => `<a class="feel-chip ${cls}" href="#/${c}/${f.id}">${esc(f.name)}</a>`;
+
+  function lifeCardProgress(c, f) {
+    const done = Math.min(lifeRead(c, f.id).size, f.n);
+    return done ? `<small>قرأت ${fmt(done)} من ${fmt(f.n)}${done === f.n ? " ✓" : ""}</small>${lifeBar(done, f.n)}` : `<small>${fmt(f.n)} حديثًا</small>`;
+  }
 
   async function viewLife(c) {
     const L = LIFE[c], index = await lifeIndex(c);
@@ -2640,7 +2680,7 @@
         <form class="feel-form" id="feelForm"><input id="feelQ" type="search" placeholder="${L.placeholder}" autocomplete="off" aria-label="${L.title}"></form>
         <div class="feel-hits" id="feelHits" aria-live="polite"></div>
       </div>
-      ${(L.groups || [["", ""]]).map(([g, label]) => `${label ? `<h2 class="feel-group">${label}</h2>` : ""}<div class="feel-grid">${index.filter((f) => !g || f.g === g).map((f) => `<a class="panel feel-card" href="#/${c}/${f.id}"><b>${esc(f.name)}</b><span>${esc(f.feel)}</span><small>${fmt(f.n)} حديثًا</small></a>`).join("")}</div>`).join("")}
+      ${(L.groups || [["", ""]]).map(([g, label]) => `${label ? `<h2 class="feel-group">${label}</h2>` : ""}<div class="feel-grid">${index.filter((f) => !g || f.g === g).map((f) => `<a class="panel feel-card" href="#/${c}/${f.id}"><b>${esc(f.name)}</b><span>${esc(f.feel)}</span>${lifeCardProgress(c, f)}</a>`).join("")}</div>`).join("")}
       <p class="muted small feel-note">${L.note} الأحاديث من «موسوعة الأحاديث النبوية» مع شرحها الميسّر، وصُنّفت بحسب ${L.by} بقراءة كل حديث وشرحه ثم مراجعتها؛ فإن رأيت حديثًا في غير موضعه فراسلنا.</p>
     </div>`;
     const input = $("#feelQ"), hits = $("#feelHits");
@@ -2663,22 +2703,37 @@
     const L = LIFE[c], index = await lifeIndex(c);
     const f = index.find((x) => x.id === id);
     if (!f) { app.innerHTML = '<div class="panel">الصفحة غير موجودة.</div>'; return; }
-    const rows = await getJSON(`data/${c}/${id}.json`);
-    const card = (r) => `<li class="panel feel-item">
-        <a class="feel-t" href="#/h/${r.k}">«${esc(r.t)}»</a>
+    const rows = await lifePath(c, id);
+    const read = lifeRead(c, id), done = rows.filter((r) => read.has(r.k)).length;
+    const next = rows.find((r) => !read.has(r.k));
+    const link = (r) => `#/h/${r.k}?from=${c}/${id}`;
+    const card = (r) => `<li class="panel feel-item${read.has(r.k) ? " read" : ""}${r === next && done ? " next" : ""}" data-k="${r.k}">
+        ${read.has(r.k) ? '<span class="feel-badge">✓ قرأته</span>' : r === next && done ? '<span class="feel-badge">وصلت هنا</span>' : ""}
+        <a class="feel-t" href="${link(r)}">«${esc(r.t)}»</a>
         ${r.x ? `<p class="feel-x">${esc(r.x)}</p>` : ""}
-        <div class="meta-line"><span class="muted small">${esc(r.a)}</span><a class="feel-more" href="#/h/${r.k}">${r.e ? "الحديث وشرحه" : "الحديث"} ←</a></div></li>`;
+        <div class="meta-line"><span class="muted small">${esc(r.a)}</span><a class="feel-more" href="${link(r)}">${r.e ? "الحديث وشرحه" : "الحديث"} ←</a></div></li>`;
+    const progress = rows.length > 1 ? `<div class="panel path-nav">
+        <div class="path-top"><b>${done ? `قرأت ${fmt(done)} من ${fmt(rows.length)} حديثًا` : `${fmt(rows.length)} حديثًا في هذا الباب`}</b>
+          ${done ? '<button type="button" class="linkish muted small" id="pathReset">ابدأ من جديد</button>' : ""}</div>
+        ${lifeBar(done, rows.length)}
+        <div class="path-btns"><span class="muted small">${done ? (next ? "يُحفظ موضعك في هذا المتصفح." : "أتممت أحاديث هذا الباب، بارك الله فيك.") : "اقرأها بالترتيب، ويُحفظ موضعك في هذا المتصفح."}</span>
+          ${next ? `<a class="btn gold" href="${link(next)}">${done ? "تابع من حيث وصلت" : "ابدأ القراءة"} ←</a>` : ""}</div>
+      </div>` : "";
     const sections = L.roles.map(([role, title, sub]) => [role, title, sub, rows.filter((r) => r.r === role)]).filter((s) => s[3].length);
     const others = index.filter((x) => x.id !== id);
     app.innerHTML = `${subnav("life", c)}<div class="feel">
       <p class="feel-back"><a href="#/${c}">→ ${L.title}</a></p>
       <div class="feel-head"><h1>${esc(f.name)}</h1><p>${L.head(f)}</p></div>
+      ${progress}
       ${sections.length > 1 ? `<nav class="subnav feel-secnav">${sections.map(([role, title, , rs]) => `<a href="#/${c}/${id}" data-to="fs-${role}">${title} <small>${fmt(rs.length)}</small></a>`).join("")}</nav>` : ""}
       ${sections.map(([role, title, sub, rs]) => `<section id="fs-${role}" class="feel-sec"><h2>${title} ${sub ? `<small class="muted">${sub}</small>` : ""}</h2><ul class="feel-list">${rs.map(card).join("")}</ul></section>`).join("")
         || '<div class="panel muted">لا أحاديث في هذا الباب بعد.</div>'}
       <p class="notice">${L.note}</p>
       <div class="panel feel-others"><h2>${L.others}</h2><div class="feel-chips">${others.map((x) => lifeChip(c, x)).join("")}</div></div>
     </div>`;
+    $("#pathReset")?.addEventListener("click", () => {
+      if (confirm(`تبدأ «${f.name}» من جديد؟`)) { lifeSetRead(c, id, new Set()); route(); }
+    });
     // the section links scroll within the page instead of changing the address
     app.querySelectorAll("[data-to]").forEach((a) => a.addEventListener("click", (e) => {
       e.preventDefault();
