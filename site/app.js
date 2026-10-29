@@ -211,12 +211,12 @@
     return `<div class="panel kpi"><div class="v">${fmt(v)}</div><div class="l">${l}</div><div class="s">${s}</div></div>`;
   }
   // the top menu's sections and the pages under each, shown as tabs at the top of the page
-  const NAV_OF = { home: /^\/stats/, books: /^\/book/, narrators: /^\/(narrators|explore|compare|terms|n\/)/, hadiths: /^\/(turuq|awali|hterms|h\/)/, isnads: /^\/(chains|isnads)/, life: /^\/$|^\/(feel|ahwal|tazkiya)/, about: /^\/(about|tools)/ };
+  const NAV_OF = { home: /^\/stats/, books: /^\/book/, narrators: /^\/(narrators|explore|compare|terms|n\/)/, hadiths: /^\/(turuq|awali|hterms|h\/)/, isnads: /^\/(chains|isnads)/, life: /^\/$|^\/(feel|ahwal|tazkiya|nawawi)/, about: /^\/(about|tools)/ };
   const SUBNAV = {
     narrators: [["narrators", "فهرس الرواة"], ["explore", "ترتيب الرواة"], ["compare", "مقارنة الكتب"], ["terms", "مراتب الرواة"]],
     hadiths: [["turuq", "ترتيب الأحاديث"], ["awali", "الثلاثيات وعوالي الأسانيد"], ["hterms", "مصطلحات الحديث"]],
     isnads: [["chains", "رجال الأسانيد"], ["isnads", "أشهر الأسانيد وأطوالها"]],
-    life: [["tazkiya", "تزكية النفس"], ["feel", "بماذا تشعر؟"], ["ahwal", "ماذا أقول عندما…؟"]],
+    life: [["tazkiya", "تزكية النفس"], ["feel", "بماذا تشعر؟"], ["ahwal", "ماذا أقول عندما…؟"], ["nawawi", "الأربعون النووية"]],
   };
   const subnav = (group, on) => `<nav class="subnav">${SUBNAV[group].map(([p, l]) => `<a href="#/${p}"${p === on ? ' class="on" aria-current="page"' : ""}>${l}</a>`).join("")}</nav>`;
   // what a researcher can ask of the site, one card per tool
@@ -248,7 +248,7 @@
     [/^\/books$/, viewBooks],
     [new RegExp(`^/book/(${BOOKS.join("|")})$`), viewBook],
     [new RegExp(`^/book/(${BOOKS.join("|")})/(\\d+)(?:/(\\d+))?$`), viewKitab],
-    [new RegExp(`^/h/([${Object.values(PREFIX).join("")}]\\d+)(?:\\?from=(feel|ahwal|tazkiya)/(\\w+))?$`), viewHadith],
+    [new RegExp(`^/h/([${Object.values(PREFIX).join("")}]\\d+)(?:\\?from=(feel|ahwal|tazkiya|nawawi)/(\\w+))?$`), viewHadith],
     [/^\/n\/([^/]+)(?:\/([ts])\/([^/]+))?$/, viewNarrator],
     [/^\/narrators$/, viewNarrators],
     [/^\/explore(?:\?(.*))?$/, viewExplore],
@@ -264,6 +264,7 @@
     [/^\/about$/, viewAbout],
     [/^\/(feel|ahwal|tazkiya)$/, viewLife],
     [/^\/(feel|ahwal|tazkiya)\/(\w+)$/, viewLifeTopic],
+    [/^\/nawawi(?:\/arbaun)?$/, () => viewLifeTopic("nawawi", "arbaun")],
   ];
   // each history entry remembers its own scroll, so «back» returns to where the reader left off
   if ("scrollRestoration" in history) history.scrollRestoration = "manual";
@@ -2605,7 +2606,7 @@
         <li>أحاديث السنن فيها الصحيح والحسن والضعيف، ويُعرض حكم الترمذي بلفظه حيث ورد، وتُربط كل الأحاديث بأحكام المحدثين في الدرر السنية.</li>
         <li>أحكام المحدثين المعروضة في صفحة الحديث تُنقل بنصها منسوبةً إلى أصحابها ولا نرجّح بينها: حكم الألباني على أحاديث سنن أبي داود والترمذي وابن ماجه (من كتبه «صحيح وضعيف السنن» كما نقلتها المكتبة الشاملة) وسنن النسائي (من «صحيح سنن النسائي» و«ضعيف سنن النسائي»)، وحكم محققي طبعة الرسالة العالمية لسنن النسائي، وحكم شعيب الأرناؤوط ومحققي طبعة مؤسسة الرسالة لمسند أحمد، وكلام البوصيري في «مصباح الزجاجة» على زوائد ابن ماجه بنقل محمد فؤاد عبد الباقي، وحكم حسين سليم أسد في تحقيقه لمسند الدارمي.</li>
         <li>الشرح الميسّر في صفحة الحديث منقول بنصه من «موسوعة الأحاديث النبوية»، وهو شرح مختصر لعموم القرّاء مع فوائد الحديث ومعاني كلماته وترجماته إلى لغات المسلمين. ويُربط شرح الموسوعة بكل رواية في الكتب التسعة يوافق لفظها لفظ الحديث في الموسوعة، فقد يختلف اللفظان يسيرًا. فإن لم يكن للرواية شرح، وكان في الموسوعة حديث قريب من لفظها، عُرض شرحه بعنوان «شرح حديث مشابه» مع نصه للمقارنة.</li>
-        <li>قسم «الحديث في حياتنا» يجمع أحاديث الموسوعة الصحيحة والحسنة بحسب المشاعر التي تعالجها («بماذا تشعر؟») والأحوال التي تُشرع فيها أذكار وسنن («ماذا أقول عندما…؟») وأبواب تزكية النفس («تزكية النفس»)، وكل حديث يُفتح على روايته في الكتب التسعة. وقد صُنّفت بقراءة كل حديث مع شرحه في الموسوعة، ثم مراجعة ما في كل باب؛ فهو تصنيف اجتهادي للتذكير، والمرجع نص الحديث وشرحه.</li>
+        <li>قسم «الحديث في حياتنا» يجمع أحاديث الموسوعة الصحيحة والحسنة بحسب المشاعر التي تعالجها («بماذا تشعر؟») والأحوال التي تُشرع فيها أذكار وسنن («ماذا أقول عندما…؟») وأبواب تزكية النفس («تزكية النفس»)، ومعها «الأربعون النووية» مرتبةً كما في كتاب النووي، وكل حديث يُفتح على روايته في الكتب التسعة. وقد صُنّفت بقراءة كل حديث مع شرحه في الموسوعة، ثم مراجعة ما في كل باب؛ فهو تصنيف اجتهادي للتذكير، والمرجع نص الحديث وشرحه.</li>
         <li>الترقيم: البخاري على «فتح الباري»، ومسلم وابن ماجه على ترقيم محمد فؤاد عبد الباقي، وأبو داود على ترقيم محمد محيي الدين عبد الحميد، والترمذي على ترقيم أحمد شاكر، والنسائي على ترقيم برنامج الجامع.</li>
         <li>فهرس الكتب الكبرى للسنن الأربع من <a href="https://shamela.ws/" target="_blank" rel="noopener">المكتبة الشاملة</a>.</li>
       </ul>
@@ -2640,6 +2641,11 @@
       roles: [["amal", "التوجيه", "ما تعمل به"], ["bushra", "الثمرة والعاقبة", "فضل الخُلُق أو خطر الآفة"], ["dua", "أدعية", "ما تسأل الله به"]],
       groups: [["tahliya", "فضائل تتحلّى بها"], ["takhliya", "آفات تتخلّى عنها"]],
       head: (f) => esc(f.feel), note: "التزكية عمل العمر كله، وهذه الأحاديث معالم على الطريق، وشرحها في صفحة كل حديث.", by: "أبواب التزكية" },
+    // one list in the book's order, not topics: #/nawawi
+    nawawi: { title: "الأربعون النووية", list: true,
+      roles: [["nass", "", ""]],
+      head: () => "اثنان وأربعون حديثًا جمعها الإمام النووي رحمه الله، كلٌّ منها قاعدة عظيمة من قواعد الدين، يُبدأ بها في طلب العلم ويُحفظ نصها. اقرأها بالترتيب مع شرحها الميسّر، ويُحفظ موضعك.",
+      note: "كل حديث يُفتح على روايته في الكتب التسعة مع شرحه من «موسوعة الأحاديث النبوية». والحديثان 30 و41 ليسا في الكتب التسعة، فيُفتح شرحهما في موقع الموسوعة. وألفاظ الأحاديث هنا كما في الموسوعة، وقد تختلف يسيرًا عن لفظ الرواية." },
   };
   const lifeIndex = (c) => getJSON(`data/${c}/index.json`);
   // the topics a text names: each word without its prefixes («بضيق»، «والحزن») against each topic's words
@@ -2660,13 +2666,13 @@
   // a topic's hadiths in reading order: its sections one after the other
   async function lifePath(c, id) {
     const rows = await getJSON(`data/${c}/${id}.json`);
-    return LIFE[c].roles.flatMap(([role]) => rows.filter((r) => r.r === role));
+    return LIFE[c].roles.flatMap(([role]) => rows.filter((r) => r.r === role && r.k));
   }
   const lifeBar = (done, n) => `<span class="path-bar" role="progressbar" aria-valuemin="0" aria-valuemax="${n}" aria-valuenow="${done}"><span style="width:${n ? (100 * done) / n : 0}%"></span></span>`;
   // the bar above a hadith opened from a topic: where the reader is, and the way on
   async function lifePathHTML(c, id, key) {
     const f = (await lifeIndex(c)).find((x) => x.id === id);
-    const keys = f ? (await lifePath(c, id)).map((r) => r.k) : [];
+    const path = f ? await lifePath(c, id) : [], keys = path.map((r) => r.k);
     const i = keys.indexOf(key);
     if (i < 0) return "";
     const read = lifeRead(c, id);
@@ -2676,7 +2682,7 @@
     const link = (k) => `#/h/${k}?from=${c}/${id}`;
     const nextUnread = keys.slice(i + 1).find((k) => !read.has(k)) || keys.find((k) => !read.has(k));
     return `<div class="panel path-nav">
-      <div class="path-top"><a href="#/${c}/${id}">${LIFE[c].title} › <b>${esc(f.name)}</b></a><span class="muted small">الحديث ${fmt(i + 1)} من ${fmt(keys.length)} · قرأت ${fmt(done)}</span></div>
+      <div class="path-top"><a href="#/${c}/${id}">${LIFE[c].list ? `<b>${LIFE[c].title}</b>` : `${LIFE[c].title} › <b>${esc(f.name)}</b>`}</a><span class="muted small">${path[i].n ? `الحديث ${fmt(path[i].n)}: ${esc(path[i].h)}` : `الحديث ${fmt(i + 1)} من ${fmt(keys.length)}`} · قرأت ${fmt(done)} من ${fmt(keys.length)}</span></div>
       ${lifeBar(done, keys.length)}
       <div class="path-btns">${i ? `<a class="btn" href="${link(keys[i - 1])}">→ السابق</a>` : "<span></span>"}
         ${nextUnread ? `<a class="btn gold" href="${link(nextUnread)}">${nextUnread === keys[i + 1] ? "التالي" : "التالي مما لم تقرأ"} ←</a>`
@@ -2722,32 +2728,38 @@
     const f = index.find((x) => x.id === id);
     if (!f) { app.innerHTML = '<div class="panel">الصفحة غير موجودة.</div>'; return; }
     const rows = await lifePath(c, id);
+    const all = L.list ? await getJSON(`data/${c}/${id}.json`) : rows;
     const read = lifeRead(c, id), done = rows.filter((r) => read.has(r.k)).length;
     const next = rows.find((r) => !read.has(r.k));
     const link = (r) => `#/h/${r.k}?from=${c}/${id}`;
-    const card = (r) => `<li class="panel feel-item${read.has(r.k) ? " read" : ""}${r === next && done ? " next" : ""}" data-k="${r.k}">
+    const enc = (r) => `https://hadeethenc.com/ar/browse/hadith/${r.e}`;
+    const card = (r) => {
+      const href = r.k ? link(r) : enc(r), ext = r.k ? "" : ' target="_blank" rel="noopener"';
+      return `<li class="panel feel-item${read.has(r.k) ? " read" : ""}${r === next && done ? " next" : ""}"${r.k ? ` data-k="${r.k}"` : ""}>
         ${read.has(r.k) ? '<span class="feel-badge">✓ قرأته</span>' : r === next && done ? '<span class="feel-badge">وصلت هنا</span>' : ""}
-        <a class="feel-t" href="${link(r)}">«${esc(r.t)}»</a>
+        ${r.n ? `<div class="feel-num"><b>${fmt(r.n)}</b>${esc(r.h)}</div>` : ""}
+        <a class="feel-t" href="${href}"${ext}>«${esc(r.t)}»</a>
         ${r.x ? `<p class="feel-x">${esc(r.x)}</p>` : ""}
-        <div class="meta-line"><span class="muted small">${esc(r.a)}</span><a class="feel-more" href="${link(r)}">${r.e ? "الحديث وشرحه" : "الحديث"} ←</a></div></li>`;
+        <div class="meta-line"><span class="muted small">${esc(r.a)}</span><a class="feel-more" href="${href}"${ext}>${r.k ? (r.e ? "الحديث وشرحه" : "الحديث") : "شرحه في الموسوعة ↗"}${r.k ? " ←" : ""}</a></div></li>`;
+    };
     const progress = rows.length > 1 ? `<div class="panel path-nav">
-        <div class="path-top"><b>${done ? `قرأت ${fmt(done)} من ${fmt(rows.length)} حديثًا` : `${fmt(rows.length)} حديثًا في هذا الباب`}</b>
+        <div class="path-top"><b>${done ? `قرأت ${fmt(done)} من ${fmt(rows.length)} حديثًا` : `${fmt(rows.length)} حديثًا ${L.list ? "لها روايات في الكتب التسعة" : "في هذا الباب"}`}</b>
           ${done ? '<button type="button" class="linkish muted small" id="pathReset">ابدأ من جديد</button>' : ""}</div>
         ${lifeBar(done, rows.length)}
-        <div class="path-btns"><span class="muted small">${done ? (next ? "يُحفظ موضعك في هذا المتصفح." : "أتممت أحاديث هذا الباب، بارك الله فيك.") : "اقرأها بالترتيب، ويُحفظ موضعك في هذا المتصفح."}</span>
+        <div class="path-btns"><span class="muted small">${done ? (next ? "يُحفظ موضعك في هذا المتصفح." : `أتممت ${L.list ? L.title : "أحاديث هذا الباب"}، بارك الله فيك.`) : "اقرأها بالترتيب، ويُحفظ موضعك في هذا المتصفح."}</span>
           ${next ? `<a class="btn gold" href="${link(next)}">${done ? "تابع من حيث وصلت" : "ابدأ القراءة"} ←</a>` : ""}</div>
       </div>` : "";
-    const sections = L.roles.map(([role, title, sub]) => [role, title, sub, rows.filter((r) => r.r === role)]).filter((s) => s[3].length);
+    const sections = L.roles.map(([role, title, sub]) => [role, title, sub, all.filter((r) => r.r === role)]).filter((s) => s[3].length);
     const others = index.filter((x) => x.id !== id);
     app.innerHTML = `${subnav("life", c)}<div class="feel">
-      <p class="feel-back"><a href="#/${c}">→ ${L.title}</a></p>
+      ${L.list ? "" : `<p class="feel-back"><a href="#/${c}">→ ${L.title}</a></p>`}
       <div class="feel-head"><h1>${esc(f.name)}</h1><p>${L.head(f)}</p></div>
       ${progress}
       ${sections.length > 1 ? `<nav class="subnav feel-secnav">${sections.map(([role, title, , rs]) => `<a href="#/${c}/${id}" data-to="fs-${role}">${title} <small>${fmt(rs.length)}</small></a>`).join("")}</nav>` : ""}
-      ${sections.map(([role, title, sub, rs]) => `<section id="fs-${role}" class="feel-sec"><h2>${title} ${sub ? `<small class="muted">${sub}</small>` : ""}</h2><ul class="feel-list">${rs.map(card).join("")}</ul></section>`).join("")
+      ${sections.map(([role, title, sub, rs]) => `<section id="fs-${role}" class="feel-sec">${title ? `<h2>${title} ${sub ? `<small class="muted">${sub}</small>` : ""}</h2>` : ""}<ul class="feel-list">${rs.map(card).join("")}</ul></section>`).join("")
         || '<div class="panel muted">لا أحاديث في هذا الباب بعد.</div>'}
       <p class="notice">${L.note}</p>
-      <div class="panel feel-others"><h2>${L.others}</h2><div class="feel-chips">${others.map((x) => lifeChip(c, x)).join("")}</div></div>
+      ${L.list ? "" : `<div class="panel feel-others"><h2>${L.others}</h2><div class="feel-chips">${others.map((x) => lifeChip(c, x)).join("")}</div></div>`}
     </div>`;
     $("#pathReset")?.addEventListener("click", () => {
       if (confirm(`تبدأ «${f.name}» من جديد؟`)) { lifeSetRead(c, id, new Set()); route(); }

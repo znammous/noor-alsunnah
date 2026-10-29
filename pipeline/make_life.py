@@ -6,6 +6,10 @@ Two collections, each a folder of pipeline/:
 - ahwal -> site/data/ahwal: «ماذا أقول عندما…؟», the situations a hadith gives a dhikr or sunnah for
 - tazkiya -> site/data/tazkiya: «تزكية النفس», the virtue a hadith builds or the vice it treats; each topic
   has a group g, "tahliya" (virtues to acquire) or "takhliya" (vices to shed)
+- nawawi -> site/data/nawawi: «الأربعون النووية», one list in the book's order rather than topics.
+  nawawi/nawawi.json gives each hadith its number n, a heading h, its narration k in the nine books
+  (null for 30 and 41, which they lack) and its encyclopedia hadith e; kept whatever its grade, being
+  al-Nawawi's own choice
 
 In each folder, <folder>.json lists the topics; tags.json gives, for each encyclopedia hadith, the topics
 it serves: [topic, role, weight], where role is "dua" (words to say), "bushra" (comfort, glad tidings or
@@ -71,6 +75,22 @@ def build(folder, out, enc, keys_of):
     dump(index, SITE_DATA / out / "index.json")
 
 
+def build_nawawi(enc):
+    rows = []
+    for x in load(HERE / "nawawi" / "nawawi.json"):
+        h = enc[str(x["e"])]
+        a = (h.get("attribution") or "").strip()
+        grade = (h.get("grade") or "").strip()
+        rows.append({"n": x["n"], "h": x["h"], "e": x["e"], "r": "nass", "w": 3,
+                     "t": re.sub(r"[«»]", "", strip_diacritics(h["title"])).strip(),
+                     "a": a if grade in ("", "صحيح") or grade in a else f"{a} · {grade}",
+                     "x": first_sentence(h.get("explanation")), **({"k": x["k"]} if x["k"] else {})})
+    dump(rows, SITE_DATA / "nawawi" / "arbaun.json")
+    dump([{"id": "arbaun", "name": "الأربعون النووية", "feel": "", "syn": [], "n": len(rows)}],
+         SITE_DATA / "nawawi" / "index.json")
+    print(f"nawawi: {len(rows)}", file=sys.stderr)
+
+
 def main():
     enc = load(RAW / "hadeethenc" / "ar.json")
     keys_of = defaultdict(list)
@@ -81,6 +101,7 @@ def main():
         if (HERE / folder / "tags.json").exists():
             print(folder, file=sys.stderr)
             build(folder, out, enc, keys_of)
+    build_nawawi(enc)
 
 
 if __name__ == "__main__":
