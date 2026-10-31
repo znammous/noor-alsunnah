@@ -994,6 +994,11 @@
   document.addEventListener("click", (e) => {
     document.querySelectorAll(".type-tip[open]").forEach((d) => { if (!d.contains(e.target)) d.open = false; });
   });
+  // on phones the keyboard stays up after a search; the back button then closes it
+  // by going back a page, so drop focus once the query is sent
+  const dropKeyboard = () => { const a = document.activeElement; if (a && /^(INPUT|TEXTAREA)$/.test(a.tagName)) a.blur(); };
+  document.addEventListener("submit", dropKeyboard, true);
+  document.addEventListener("keyup", (e) => { if (e.key === "Enter" && e.target.tagName === "INPUT") dropKeyboard(); });
   document.addEventListener("keydown", (e) => {
     if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey || /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) || e.target.isContentEditable) return;
     const a = e.key === "ArrowRight" ? $(".hnav [data-dir=prev]") : e.key === "ArrowLeft" ? $(".hnav [data-dir=next]") : null;
