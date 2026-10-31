@@ -529,11 +529,19 @@
   }
 
   // The Dorar API cannot be embedded (served as text/html with nosniff and no CORS), so we link
-  // to its hadith encyclopedia search for the opening words of the matn.
+  // to its hadith encyclopedia search for the matn's first distinctive words: openings such as
+  // «كنا مع رسول الله صلى الله عليه وسلم» are shared by hundreds of hadiths, so the formulas
+  // and the common narrative words are skipped and the words after them searched.
+  const DORAR_SKIP = new Set(("أن إن ان كان كانت كنا كنت قال قالت قلت قالوا يقول فقال فقالت فقلت يا عن في من على إلى الى مع ما لا لم"
+    + " رسول الله النبي نبي رسولالله رأيت سمعت سألت سئل أتيت أتى أتي أتانا جاء جاءت خرج خرجنا خرجت دخل دخلت بعث بعثني"
+    + " رجل رجلا امرأة نحن ذات يوم بينما بينا حين إذ إذا ثم لنا لي له لها لهم بنا علينا عليه عند عندنا هو هي أنه أنها"
+    + " حتى فإذا فلما لما فقالوا فلا لكن ليس فيها يكن ذلك بعد قد وقد وهو وهي إني وإن").split(" "));
   function dorarURL(h) {
-    const words = matnOf(h).replace(/[\u064B-\u0652\u0670\u0640]/g, "").replace(/[^\u0621-\u064A\s]/g, " ")
-      .split(/\s+/).filter(Boolean).slice(0, 7).join(" ");
-    return `https://dorar.net/hadith/search?q=${encodeURIComponent(words)}&st=w`;
+    const words = matnOf(h).replace(/[\u064B-\u0652\u0670\u0640]/g, "")
+      .replace(/صل[ىي] الله عليه و ?سلم|رضي الله عن(?:ه|ها|هما|هم)|عز و ?جل|تبارك وتعالى|سبحانه وتعالى/g, " ")
+      .replace(/[^\u0621-\u064A\s]/g, " ").split(/\s+/).filter(Boolean);
+    const key = [...new Set(words.filter((w) => w.length > 2 && !DORAR_SKIP.has(w)))].slice(0, 5);
+    return `https://dorar.net/hadith/search?q=${encodeURIComponent((key.length >= 3 ? key : words.slice(0, 7)).join(" "))}&st=w`;
   }
 
   // the page's link as shared: the site's root (it forwards #/… to the app) without the version or where the reader came from
