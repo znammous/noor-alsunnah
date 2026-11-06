@@ -2733,7 +2733,8 @@
       const found = show();
       if (found.length) go(`#/${c}/${found[0].id}`);
     });
-    input.focus({ preventScroll: true });
+    // only with a mouse: on a phone, focusing opens the keyboard over the page on every visit
+    if (matchMedia("(hover: hover) and (pointer: fine)").matches) input.focus({ preventScroll: true });
   }
 
   async function viewLifeTopic(c, id) {
