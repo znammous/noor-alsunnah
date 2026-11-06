@@ -2676,6 +2676,13 @@
     if (keys.size) all[`${c}/${id}`] = [...keys]; else delete all[`${c}/${id}`];
     try { localStorage.setItem("lifeRead", JSON.stringify(all)); } catch (_) {}
   }
+  // the hadith last opened in each topic, where "continue" returns to: opening one doesn't mean it was finished
+  const lifeLastAll = () => { try { return JSON.parse(localStorage.getItem("lifeLast") || "{}"); } catch (_) { return {}; } };
+  function lifeSetLast(c, id, key) {
+    const all = lifeLastAll();
+    if (key) all[`${c}/${id}`] = key; else delete all[`${c}/${id}`];
+    try { localStorage.setItem("lifeLast", JSON.stringify(all)); } catch (_) {}
+  }
   // a topic's hadiths in reading order: its sections one after the other
   async function lifePath(c, id) {
     const rows = await getJSON(`data/${c}/${id}.json`);
@@ -2691,6 +2698,7 @@
     const read = lifeRead(c, id);
     read.add(key);
     lifeSetRead(c, id, read);
+    lifeSetLast(c, id, key);
     const done = keys.filter((k) => read.has(k)).length;
     const link = (k) => `#/h/${k}?from=${c}/${id}`;
     const next = keys[i + 1];
@@ -2745,12 +2753,16 @@
     const all = L.list ? await getJSON(`data/${c}/${id}.json`) : rows;
     const read = lifeRead(c, id), done = rows.filter((r) => read.has(r.k)).length;
     const next = rows.find((r) => !read.has(r.k));
+    const last = lifeLastAll()[`${c}/${id}`];
+    // readers from before lifeLast existed have none: they continue from the first unread
+    const here = rows.find((r) => r.k === last) || next;
+    const atHere = (r) => r === here && next && done;
     const link = (r) => `#/h/${r.k}?from=${c}/${id}`;
     const enc = (r) => `https://hadeethenc.com/ar/browse/hadith/${r.e}`;
     const card = (r) => {
       const href = r.k ? link(r) : enc(r), ext = r.k ? "" : ' target="_blank" rel="noopener"';
-      return `<li class="panel feel-item${read.has(r.k) ? " read" : ""}${r === next && done ? " next" : ""}"${r.k ? ` data-k="${r.k}"` : ""}>
-        ${read.has(r.k) ? '<span class="feel-badge">✓ قرأته</span>' : r === next && done ? '<span class="feel-badge">وصلت هنا</span>' : ""}
+      return `<li class="panel feel-item${atHere(r) ? " next" : read.has(r.k) ? " read" : ""}"${r.k ? ` data-k="${r.k}"` : ""}>
+        ${atHere(r) ? '<span class="feel-badge">وصلت هنا</span>' : read.has(r.k) ? '<span class="feel-badge">✓ قرأته</span>' : ""}
         ${r.n ? `<div class="feel-num"><b>${fmt(r.n)}</b>${esc(r.h)}</div>` : ""}
         <a class="feel-t" href="${href}"${ext}>«${esc(r.t)}»</a>
         ${r.x ? `<p class="feel-x">${esc(r.x)}</p>` : ""}
@@ -2761,7 +2773,7 @@
           ${done ? '<button type="button" class="linkish muted small" id="pathReset">ابدأ من جديد</button>' : ""}</div>
         ${lifeBar(done, rows.length)}
         <div class="path-btns"><span class="muted small">${done ? (next ? "يُحفظ موضعك في هذا المتصفح." : `أتممت ${L.list ? L.title : "أحاديث هذا الباب"}، بارك الله فيك.`) : "اقرأها بالترتيب، ويُحفظ موضعك في هذا المتصفح."}</span>
-          ${next ? `<a class="btn gold" href="${link(next)}">${done ? "تابع من حيث وصلت" : "ابدأ القراءة"} ←</a>` : ""}</div>
+          ${here ? `<a class="btn gold" href="${link(here)}">${!done ? "ابدأ القراءة" : next ? "تابع من حيث وصلت" : "آخر حديث فتحته"} ←</a>` : ""}</div>
       </div>` : "";
     const sections = L.roles.map(([role, title, sub]) => [role, title, sub, all.filter((r) => r.r === role)]).filter((s) => s[3].length);
     const others = index.filter((x) => x.id !== id);
@@ -2776,7 +2788,7 @@
       ${L.list ? "" : `<div class="panel feel-others"><h2>${L.others}</h2><div class="feel-chips">${others.map((x) => lifeChip(c, x)).join("")}</div></div>`}
     </div>`;
     $("#pathReset")?.addEventListener("click", () => {
-      if (confirm(`تبدأ «${f.name}» من جديد؟`)) { lifeSetRead(c, id, new Set()); route(); }
+      if (confirm(`تبدأ «${f.name}» من جديد؟`)) { lifeSetRead(c, id, new Set()); lifeSetLast(c, id, null); route(); }
     });
     // the section links scroll within the page instead of changing the address
     app.querySelectorAll("[data-to]").forEach((a) => a.addEventListener("click", (e) => {
