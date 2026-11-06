@@ -2693,13 +2693,13 @@
     lifeSetRead(c, id, read);
     const done = keys.filter((k) => read.has(k)).length;
     const link = (k) => `#/h/${k}?from=${c}/${id}`;
-    const nextUnread = keys.slice(i + 1).find((k) => !read.has(k)) || keys.find((k) => !read.has(k));
+    const next = keys[i + 1];
     return `<div class="panel path-nav">
       <div class="path-top"><a href="#/${c}/${id}">${LIFE[c].list ? `<b>${LIFE[c].title}</b>` : `${LIFE[c].title} › <b>${esc(f.name)}</b>`}</a><span class="muted small">${path[i].n ? `الحديث ${fmt(path[i].n)}: ${esc(path[i].h)}` : `الحديث ${fmt(i + 1)} من ${fmt(keys.length)}`} · قرأت ${fmt(done)} من ${fmt(keys.length)}</span></div>
       ${lifeBar(done, keys.length)}
       <div class="path-btns">${i ? `<a class="btn" href="${link(keys[i - 1])}">→ السابق</a>` : "<span></span>"}
-        ${nextUnread ? `<a class="btn gold" href="${link(nextUnread)}">${nextUnread === keys[i + 1] ? "التالي" : "التالي مما لم تقرأ"} ←</a>`
-          : `<a class="btn gold" href="#/${c}/${id}">أتممت «${esc(f.name)}» ✓</a>`}</div>
+        ${next ? `<a class="btn gold" href="${link(next)}">التالي ←</a>`
+          : `<a class="btn gold" href="#/${c}/${id}">${done === keys.length ? `أتممت «${esc(f.name)}» ✓` : `العودة إلى «${esc(f.name)}»`}</a>`}</div>
     </div>`;
   }
   const lifeChip = (c, f, cls = "") => `<a class="feel-chip ${cls}" href="#/${c}/${f.id}">${esc(f.name)}</a>`;
