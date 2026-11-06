@@ -1160,6 +1160,7 @@
           ${o.chains.slice(0, 3).map((c) => chainHTML(c.ids, G.nar, c.z ? null : compilerOf(k))).join("")}${o.chains.length > 3 ? `<p class="muted small">و${fmt(o.chains.length - 3)} أسانيد أخرى</p>` : ""}</li>`;
       }).join("")}</ul></div>` : ""}`;
 
+    wirePathDock();
     wireTakhrij($("#takhrij"), key, entry[1], G);
     if ($("#others")) {
       let ob = "", ot = "";
@@ -2702,13 +2703,27 @@
     const done = keys.filter((k) => read.has(k)).length;
     const link = (k) => `#/h/${k}?from=${c}/${id}`;
     const next = keys[i + 1];
+    const prev = i ? `<a class="btn" href="${link(keys[i - 1])}">→ السابق</a>` : "<span></span>";
+    const nextBtn = next ? `<a class="btn gold" href="${link(next)}">التالي ←</a>` : "";
     return `<div class="panel path-nav">
       <div class="path-top"><a href="#/${c}/${id}">${LIFE[c].list ? `<b>${LIFE[c].title}</b>` : `${LIFE[c].title} › <b>${esc(f.name)}</b>`}</a><span class="muted small">${path[i].n ? `الحديث ${fmt(path[i].n)}: ${esc(path[i].h)}` : `الحديث ${fmt(i + 1)} من ${fmt(keys.length)}`} · قرأت ${fmt(done)} من ${fmt(keys.length)}</span></div>
       ${lifeBar(done, keys.length)}
-      <div class="path-btns">${i ? `<a class="btn" href="${link(keys[i - 1])}">→ السابق</a>` : "<span></span>"}
-        ${next ? `<a class="btn gold" href="${link(next)}">التالي ←</a>`
+      <div class="path-btns">${prev}
+        ${next ? nextBtn
           : `<a class="btn gold" href="#/${c}/${id}">${done === keys.length ? `أتممت «${esc(f.name)}» ✓` : `العودة إلى «${esc(f.name)}»`}</a>`}</div>
-    </div>`;
+    </div>
+    <nav class="path-dock" aria-label="التنقل في هذا المسار">${prev}
+      <span class="muted small">${fmt(i + 1)} من ${fmt(keys.length)}</span>
+      ${next ? nextBtn : `<a class="btn gold" href="#/${c}/${id}">${done === keys.length ? "أتممت ✓" : "العودة"}</a>`}
+    </nav>`;
+  }
+  // on a phone the buttons stay in reach while reading: the dock appears once the panel's own buttons have scrolled away
+  function wirePathDock() {
+    const dock = $(".path-dock"), btns = $(".path-nav .path-btns");
+    if (!dock || !btns) return;
+    const io = new IntersectionObserver(([e]) => dock.classList.toggle("show", !e.isIntersecting), { rootMargin: `-${$(".topbar")?.offsetHeight || 0}px 0px 0px 0px` });
+    io.observe(btns);
+    addEventListener("hashchange", () => io.disconnect(), { once: true });
   }
   const lifeChip = (c, f, cls = "") => `<a class="feel-chip ${cls}" href="#/${c}/${f.id}">${esc(f.name)}</a>`;
 
