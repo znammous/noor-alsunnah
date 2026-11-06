@@ -276,7 +276,18 @@
   }
   addEventListener("scroll", () => { clearTimeout(saveTimer); saveTimer = setTimeout(saveScroll, 250); }, { passive: true });
   addEventListener("pagehide", saveScroll);
-  document.addEventListener("click", (e) => { if (e.target.closest && e.target.closest('a[href^="#"]')) saveScroll(); }, true);
+  let fromDock = false; // a press on the floating buttons: the next hadith opens at its own start, past the progress panel
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest || !e.target.closest('a[href^="#"]')) return;
+    saveScroll();
+    fromDock = !!e.target.closest(".path-dock");
+  }, true);
+  function hadithTop() {
+    const start = $(".path-dock") && $(".crumbs"), bar = $(".topbar");
+    if (!start) return 0;
+    const covered = bar && getComputedStyle(bar).position === "sticky" ? bar.offsetHeight : 0;
+    return Math.max(0, Math.round(start.getBoundingClientRect().top + scrollY - covered - 10));
+  }
   function go(hash) { saveScroll(); location.hash = hash; }
   function restoreScroll(y) {
     // trees and lists may still be growing; retry briefly until the page is tall enough
@@ -293,6 +304,8 @@
     clearTimeout(saveTimer);
     restoring = true;
     const savedY = (history.state && history.state.y) || 0;
+    const jump = fromDock;
+    fromDock = false;
     for (const a of document.querySelectorAll(".nav a")) {
       const nav = a.dataset.nav;
       a.classList.toggle("active", NAV_OF[nav].test(path));
@@ -302,7 +315,7 @@
       if (m) {
         app.innerHTML = LOADING;
         try { await meta(); await fn(...m.slice(1)); } catch (e) { console.error(e); app.innerHTML = `<div class="panel">تعذّر التحميل: ${esc(e.message)}</div>`; }
-        restoreScroll(savedY);
+        restoreScroll(jump ? hadithTop() : savedY);
         return;
       }
     }
@@ -1160,7 +1173,6 @@
           ${o.chains.slice(0, 3).map((c) => chainHTML(c.ids, G.nar, c.z ? null : compilerOf(k))).join("")}${o.chains.length > 3 ? `<p class="muted small">و${fmt(o.chains.length - 3)} أسانيد أخرى</p>` : ""}</li>`;
       }).join("")}</ul></div>` : ""}`;
 
-    wirePathDock();
     wireTakhrij($("#takhrij"), key, entry[1], G);
     if ($("#others")) {
       let ob = "", ot = "";
@@ -2716,14 +2728,6 @@
       <span class="muted small">${fmt(i + 1)} من ${fmt(keys.length)}</span>
       ${next ? nextBtn : `<a class="btn gold" href="#/${c}/${id}">${done === keys.length ? "أتممت ✓" : "العودة"}</a>`}
     </nav>`;
-  }
-  // on a phone the buttons stay in reach while reading: the dock appears once the panel's own buttons have scrolled away
-  function wirePathDock() {
-    const dock = $(".path-dock"), btns = $(".path-nav .path-btns");
-    if (!dock || !btns) return;
-    const io = new IntersectionObserver(([e]) => dock.classList.toggle("show", !e.isIntersecting), { rootMargin: `-${$(".topbar")?.offsetHeight || 0}px 0px 0px 0px` });
-    io.observe(btns);
-    addEventListener("hashchange", () => io.disconnect(), { once: true });
   }
   const lifeChip = (c, f, cls = "") => `<a class="feel-chip ${cls}" href="#/${c}/${f.id}">${esc(f.name)}</a>`;
 
