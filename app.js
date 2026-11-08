@@ -109,10 +109,20 @@
       <div class="tip-body"><b>${HTERMS[k][0]}:</b> ${esc(HTERMS[k][1])}<a href="#/hterms">مصطلحات الحديث ←</a></div></details>`;
   };
   // a glossary in the layout of the ranks: the term, its definition (first sentence) boxed, the rest under it
-  const termsList = (terms) => `<ol class="ranks">${Object.values(terms).map(([t, d]) => {
+  const termsList = (terms, notes = {}) => `<ol class="ranks">${Object.entries(terms).map(([k, [t, d]]) => {
     const [, def, rest] = d.match(/^(.+?[.؟])(?:\s+(.*))?$/) || [, d, ""];
-    return `<li><h3>${t}</h3><blockquote>${esc(def)}</blockquote>${rest ? `<p>${esc(rest)}</p>` : ""}</li>`;
+    return `<li><h3>${t}</h3><blockquote>${esc(def)}</blockquote>${rest ? `<p>${esc(rest)}</p>` : ""}${notes[k] ? ibnSalahHTML(notes[k]) : ""}</li>`;
   }).join("")}</ol>`;
+  // Ibn al-Salah's words on each term, verbatim from Itr's edition on al-Shamela (book 22870): [text, printed page, Shamela page]
+  const IBN_SALAH_TERMS = {
+    marfu: [[`وهو: ما أضيف إلى رسول الله - صلى الله عليه وسلم - خاصة، ولا يقع مطلقه على غير ذلك، نحو الموقوف على الصحابة وغيرهم. ويدخل في المرفوع المتصل، والمنقطع، والمرسل، ونحوها`, 45, 42]],
+    mawquf: [[`وهو ما يروى عن الصحابة رضي الله عنهم من أقوالهم أو أفعالهم ونحوها، فيوقف عليهم، ولا يتجاوز به إلى رسول الله - صلى الله عليه وسلم -.`, 46, 43],
+      [`وهكذا قول الصحابي: " من السنة كذا " فالأصح أنه مسند مرفوع؛ لأن الظاهر أنه لا يريد به إلا سنة رسول الله صلى الله عليه وسلم وما يجب اتباعه.`, 50, 47]],
+    maqtu: [[`وهو غير المنقطع الذي يأتي ذكره إن شاء الله تعالى. ويقال في جمعه: المقاطع والمقاطيع. وهو ما جاء عن التابعين موقوفا عليهم من أقوالهم أو أفعالهم.`, 47, 44],
+      [`قلت: وقد وجدت التعبير بالمقطوع عن المنقطع غير الموصول في كلام الإمام الشافعي، وأبي القاسم الطبراني، وغيرهما، والله أعلم.`, 47, 44]],
+  };
+  const ibnSalahHTML = (quotes) => `<aside class="isnad-note"><h4>قال ابن الصلاح</h4>${quotes.map(([q, printed, page]) =>
+    `<p>«${esc(q)}»</p><span class="grade-src">مقدمة ابن الصلاح، تحقيق نور الدين عتر، ص${printed} · <a href="https://shamela.ws/book/22870/${page}" target="_blank" rel="noopener">المكتبة الشاملة ↗</a></span>`).join("")}</aside>`;
   const termLink = (k) => `<a href="#/terms" title="${esc(TERMS[k][1])}">${TERMS[k][0]}</a>`;
   // chains are described by the weakest Ibn Hajar grade among their narrators (not a verdict on the hadith)
   const CHAIN_LABEL = { thiqat: ["رجاله ثقات", "ok"], saduq: ["فيه من قيل فيه: صدوق", "mid"], mutakallam: ["فيه من تُكلِّم فيه", "low"], unknown: ["فيه من لم تُذكر رتبته", ""] };
@@ -1754,7 +1764,9 @@
     app.innerHTML = `${subnav("hadiths", "hterms")}<div class="panel terms" style="max-width:860px">
       <h1>مصطلحات الحديث</h1>
       <p>يُوصف كل حديث في الموقع بمن يُنسب إليه كلامه، كما في برنامج جامع خادم الحرمين الشريفين، ويظهر الوصف أعلى صفحة الحديث. وهو وصفٌ لنسبة المتن لا حكمٌ على الحديث بالصحة أو الضعف.</p>
-      ${termsList(HTERMS)}
+      ${termsList(HTERMS, IBN_SALAH_TERMS)}
+      <h2>«صحيح الإسناد» و«حسن الإسناد»</h2>
+      ${ISNAD_HASAN_NOTE}
       <p class="muted small">ولمصطلحات الأسانيد (المتابعة والشاهد والتدليس وغيرها) ومراتب الرواة عند ابن حجر: <a href="#/terms">مراتب الرواة ومصطلحاتها</a>.</p>
     </div>`;
   }

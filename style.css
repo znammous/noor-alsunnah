@@ -315,6 +315,10 @@ details.jarh li { font-family: var(--font-text); font-size: 1.05rem; margin: 4px
 .grades .verdicts { margin: 0 0 8px; }
 .grades .grade-src { display: block; font-family: var(--font-ui); font-size: .78rem; color: var(--muted); }
 .isnad-note { margin: 0 0 10px; padding: 10px 14px; background: var(--panel-2); border-radius: 8px; border: 1px dashed var(--line); }
+.isnad-note .grade-src { display: block; margin-bottom: 8px; font-family: var(--font-ui); font-size: .78rem; color: var(--muted); }
+.isnad-note .grade-src:last-child { margin-bottom: 0; }
+.terms .isnad-note { margin: 8px 0 0; }
+.terms .isnad-note p { margin: 0 0 6px; }
 .isnad-note h4 { margin: 0 0 4px; font-family: var(--font-ui); font-size: .9rem; }
 .isnad-note p { margin: 0 0 6px; font-family: var(--font-text); font-size: 1.08rem; line-height: 1.8; text-align: justify; }
 .pager { display: flex; gap: 8px; justify-content: center; margin-top: 16px; }
