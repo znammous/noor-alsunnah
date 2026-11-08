@@ -314,6 +314,9 @@ details.jarh li { font-family: var(--font-text); font-size: 1.05rem; margin: 4px
 .grades h3 { margin: 0 0 10px; }
 .grades .verdicts { margin: 0 0 8px; }
 .grades .grade-src { display: block; font-family: var(--font-ui); font-size: .78rem; color: var(--muted); }
+.isnad-note { margin: 0 0 10px; padding: 10px 14px; background: var(--panel-2); border-radius: 8px; border: 1px dashed var(--line); }
+.isnad-note h4 { margin: 0 0 4px; font-family: var(--font-ui); font-size: .9rem; }
+.isnad-note p { margin: 0 0 6px; font-family: var(--font-text); font-size: 1.08rem; line-height: 1.8; text-align: justify; }
 .pager { display: flex; gap: 8px; justify-content: center; margin-top: 16px; }
 .notice { padding: 10px 14px; border-radius: 10px; background: var(--panel-2); color: var(--muted); font-size: .88rem; }
 .s-tools { display: flex; flex-wrap: wrap; gap: 10px 22px; align-items: center; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
