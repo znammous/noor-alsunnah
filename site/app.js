@@ -523,6 +523,17 @@
     if (/حسن|جيد|قوي/.test(t)) return "hasan";
     return "";
   }
+  // «إسناده حسن» / «حسن الإسناد» with no verdict on the hadith itself; «حديث صحيح، وهذا إسناد حسن» already gives one
+  function isnadHasanOnly(v) {
+    const t = String(v).replace(/[ً-ْٰـ]/g, "").replace(/[أإآ]/g, "ا");
+    return /(اسناده|اسناد)\s+حسن|حسن\s+الاسناد/.test(t)
+      && !/حديث\s+(صحيح|حسن)|(و|ولكن\s+|لكن\s+)الحديث|وهذا\s+اسناد|لغيره|بشواهده|حسن\s+صحيح|صحيح\s+حسن|ضعيف|(^|\s)(صحيح|حسن)،/.test(t);
+  }
+  // Ibn al-Salah's caution on such wording, al-Muqaddima, second type (hasan), seventh note
+  const ISNAD_HASAN_NOTE = `<aside class="isnad-note"><h4>حكمٌ على الإسناد خاصة</h4>
+      <p>قال ابن الصلاح في «المقدمة»: «قولهم: هذا حديث صحيح الإسناد أو حسن الإسناد، دون قولهم: هذا حديث صحيح أو حديث حسن؛ لأنه قد يقال: هذا حديث صحيح الإسناد، ولا يصح لكونه شاذًّا أو معللًا. غير أن المصنف المعتمد منهم إذا اقتصر على قوله: إنه صحيح الإسناد، ولم يذكر له علة ولم يقدح فيه، فالظاهر منه الحكم له بأنه صحيح في نفسه؛ لأن عدم العلة والقادح هو الأصل والظاهر».</p>
+      <span class="grade-src">مقدمة ابن الصلاح، النوع الثاني: معرفة الحسن من الحديث، التنبيه السابع</span></aside>`;
+
   // Scholars' verdicts in their own words, each with its source and a link to its page in al-Shamela
   function gradesHTML(h) {
     if (!h.grades || !h.grades.length) return "";
@@ -537,6 +548,7 @@
         return `<blockquote class="g-${gradeClass(v) || "none"}"><cite>${esc(by)}${num ? ` · الحديث ${esc(num)}` : ""}</cite><span class="g-pill">${esc(v)}</span>
           <span class="grade-src">${esc(work)}${shamela ? ` · <a href="${shamela}" target="_blank" rel="noopener">المكتبة الشاملة ↗</a>` : ""} · <a href="${report}">أبلغ عن خطأ في هذا الحكم</a></span></blockquote>`;
       }).join("")}</div>
+      ${h.grades.some(([, v]) => isnadHasanOnly(v)) ? ISNAD_HASAN_NOTE : ""}
       <p class="muted small">تُنقل الأحكام بنصها منسوبةً إلى أصحابها، وهي اجتهاد منهم. وقد يكون الحكم على الإسناد خاصة («إسناده ضعيف») والحديث ثابت من طريق أخرى.${
         h.grades.some(([s, v]) => s.startsWith("albani") && /(^|\s)[خمق](\s|،|$)/.test(v)) ? " ورموز الألباني: خ البخاري، م مسلم، ق متفق عليه." : ""}</p></div>`;
   }
