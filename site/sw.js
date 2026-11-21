@@ -1,6 +1,6 @@
 // Service worker: makes «نور السنة» installable and keeps what the reader has opened available offline.
 // V is stamped by scripts/stamp.py on every publish; a new V drops the previous version's caches.
-const V = "f88f4d9dd4";
+const V = "2244d6fb6e";
 const SHELL = `shell-${V}`, DATA = `data-${V}`, FONTS = "fonts";
 const PRECACHE = [
   "./", "index.html", "app.html", "manifest.webmanifest",

@@ -38,7 +38,12 @@ BOOKS = {
     "ibnhibban": ("sahih-ibn-hibban", 10, 1729, {"ابن حبان"}, "marker"),
     "ibnkhuzayma": ("sahih-ibn-khuzaymah", 11, 121382, {"ابن خزيمة"}, "bracket"),
     "mustadrak": ("al-mustadrak-ala-al-sahihayn", 24, 2266, {"الحاكم"}, "talkhis"),
+    "abuyala": ("musnad-abi-yala-al-mawsili", 23, 61, {"أبو يعلى الموصلي", "أبو يعلى"}, "majma"),
 }
+#   majma: al-Haythami's «رواه ...» line in «مجمع الزوائد» (al-Qudsi ed.): the entry whose matn the hadith shares
+#          most, whose «رواه» names the book, from the same companion. Only the hadiths found there are shown.
+MAJMA_KEY = {"abuyala": r"أبو يعلى|أبي يعلى", "bazzar": r"البزار", "awsat": r"الأوسط", "saghir": r"الصغير",
+             "kabir": r"الطبراني(?! في (?:الأوسط|الصغير)(?!\s*و))|الكبير"}
 # a second edition read for its muhaqqiqs' footnotes: book -> Shamela id
 SECOND = {"mustadrak": 1424}
 #   talkhis: al-Hakim's verdict in his own text and al-Dhahabi's comment after the hadith («<s0>١٩ - على شرط
@@ -286,6 +291,87 @@ def risala_notes(slug, shamela_id, wanted):
     return out
 
 
+def majma_notes(book, slug, shamela_id, wanted):
+    """program number -> {page, vp, ed (entry number in the Majma'), rawah, score}."""
+    import math
+    vp = page_vp(shamela_id)
+    D = str.maketrans("٠١٢٣٤٥٦٧٨٩", "0123456789")
+    E, cur = {}, None
+    for line in open(SHAMELA / "books" / f"{shamela_id}.jsonl", encoding="utf-8"):
+        d = json.loads(line)
+        for ln in shamela_clean(d["body"]).split("\n"):
+            m = re.match(r"\s*([٠-٩]+)\s*-\s*(.*)", ln)
+            if m:
+                cur = int(m.group(1).translate(D))
+                E[cur] = {"page": d["page"], "text": m.group(2), "notes": []}
+                continue
+            if cur is None or not ln.strip():
+                continue
+            t = strip_diacritics(ln).strip()
+            if t.startswith(("رواه", "ورواه", "قلت")):
+                E[cur]["notes"].append(ln.strip())
+            elif re.match(r"[\[(]?\s*(?:باب|كتاب|فصل)", t):
+                E[cur]["closed"] = True         # a heading: what follows is not this entry's note
+            elif E[cur]["notes"] and not E[cur].get("closed"):   # a line the edition wrapped: it continues the note
+                E[cur]["notes"][-1] += " " + ln.strip()
+            else:
+                E[cur]["text"] += " " + ln
+    key = re.compile(MAJMA_KEY[book])
+    bag = {n: words(e["text"]) for n, e in E.items()}
+    df = Counter(w for b in bag.values() for w in b)
+    idf = {w: math.log(len(E) / c) for w, c in df.items()}
+    inv = defaultdict(set)
+    for n, b in bag.items():
+        for w in b:
+            if df[w] < 300:
+                inv[w].add(n)
+    narrators = {n["narrator_id"]: n for n in read(RAW / "ifta" / "original" / "ifta_narrators.json")}
+    STOP = {"ابو", "ابن", "بن", "عبد", "الله", "ام", "بنت", "رضي", "عنه", "عنها", "عنهما", "قال", "قالت", "النبي", "رسول"}
+
+    def toks(t):
+        t = re.sub(r"\bابي\b", "ابو", re.sub("[أإآ]", "ا", strip_diacritics(t or "")).replace("ة", "ه").replace("ى", "ي"))
+        return {w for w in t.split() if len(w) > 2 and w not in STOP}
+
+    def entry_companion(e):
+        m = re.search(r"عن\s+(.{0,40}?)(?:\s+(?:قال|قالت|أن|أنه|أنها|عن|رضي|،|:)|[،:])", strip_diacritics(e["text"])[:120])
+        return toks(m.group(1)) if m else set()
+
+    original, graph = read_book(slug)
+    graph = {h["mainId"]: h for h in graph}
+    first = {}
+    for rec in original:
+        n = number_of(rec)
+        if n and int(n) in wanted and int(n) not in first:
+            first[int(n)] = rec
+    out = {}
+    for n, rec in first.items():
+        mine = words(rec.get("matn_text_diac") or "")
+        total = sum(idf.get(w, 0) for w in mine)
+        if not total:
+            continue
+        comp = set()
+        for c in (graph.get(rec["mainId"]) or {}).get("chain_of_narrators") or []:
+            v = narrators.get(c[0][0], {}) if c else {}
+            for f in ("display_name", "name", "kunya", "nickname"):
+                comp |= toks(v.get(f))
+        best, score = None, 0
+        for m in set().union(*[inv[w] for w in mine if w in inv]):
+            e = E[m]
+            if not any(key.search(strip_diacritics(x)) for x in e["notes"] if strip_diacritics(x).startswith(("رواه", "ورواه"))):
+                continue
+            ec = entry_companion(e)
+            if comp and ec and not comp & ec:
+                continue
+            sc = sum(idf[w] for w in mine & bag[m]) / total
+            if sc > score:
+                best, score = m, sc
+        if best is not None and score >= 0.6:
+            e = E[best]
+            out[n] = {"page": e["page"], "vp": vp.get(e["page"], ""), "ed": best, "score": round(score, 2),
+                      "rawah": "\n".join(e["notes"])}
+    return out
+
+
 def kitabs(shamela_id):
     """[(first page, kitab title)] from the top level of the book's table of contents."""
     titles = {}
@@ -294,8 +380,22 @@ def kitabs(shamela_id):
         for m in re.finditer(r"<span data-type=[\"']title[\"'] id=toc-(\d+)>(.*?)</span>", d["body"]):
             titles[int(m.group(1))] = re.sub(r"\s+", " ", strip_diacritics(re.sub(r"<[^>]+>", "", m.group(2)))).strip()
     db = sqlite3.connect(SHAMELA / "database" / "book" / f"{shamela_id % 1000:03d}" / f"{shamela_id}.db")
-    return [(page, titles.get(i, "")) for i, page, parent in db.execute("select id, page, parent from title order by id")
-            if parent == 0 and titles.get(i, "").strip() and titles.get(i) != "مقدمات" and not titles[i].startswith("مقدمة")]
+    bodies = {}
+    for line in open(SHAMELA / "books" / f"{shamela_id}.jsonl", encoding="utf-8"):
+        d = json.loads(line)
+        bodies[d["page"]] = strip_diacritics(shamela_clean(d["body"]))
+    out = []
+    for i, page, parent in db.execute("select id, page, parent from title order by id"):
+        if parent != 0:
+            continue
+        t = titles.get(i, "")
+        if not t:                       # the title is not tagged: the first «كتاب ...» line of its page
+            m = re.search(r"(?m)^\s*(?:[٠-٩]+\s*-\s*)?\(?(كتاب[^\n)]{2,60})", bodies.get(page, ""))
+            t = m.group(1) if m else ""
+        t = re.sub(r"^[٠-٩\d]+\s*-\s*", "", t).strip(" ()[]")
+        if t and t != "مقدمات" and not t.startswith(("مقدمة", "خطبة")):
+            out.append((page, t))
+    return out
 
 
 def extract(book):
@@ -310,14 +410,15 @@ def extract(book):
             takh[cur] += [b for b, _, _ in rec["takhreej"]]
     wanted = {n for n, bs in takh.items() if not NINE & set(bs)}
     notes = (footnotes(shamela_id, wanted) if style == "marker" else bracket_notes(shamela_id, wanted)
-             if style == "bracket" else talkhis_notes(slug, shamela_id, wanted))
+             if style == "bracket" else talkhis_notes(slug, shamela_id, wanted) if style == "talkhis"
+             else majma_notes(book, slug, shamela_id, wanted))
     if book in SECOND:                  # a second edition with its own muhaqqiqs (al-Mustadrak: al-Risala)
         sid = SECOND[book]
         for n, r in risala_notes(slug, sid, wanted).items():
             notes.setdefault(n, {})["risala"] = r
     dump({"shamela": shamela_id, "kitabs": kitabs(shamela_id),
           "notes": {str(n): r for n, r in sorted(notes.items())}}, OUT / f"{book}.json", pretty=True)
-    print(f"{book}: {len(notes)} of {len(wanted)} zawa'id located, {sum(1 for r in notes.values() if r.get('note') or r.get('dhahabi'))} with a note")
+    print(f"{book}: {len(notes)} of {len(wanted)} zawa'id located, {sum(1 for r in notes.values() if r.get('note') or r.get('dhahabi') or r.get('rawah'))} with a note")
 
 
 # ---------- step 2: site data ----------
@@ -367,10 +468,31 @@ def split_albani(note):
     return own.strip().strip(" .،").strip(), [a for a in albani if a]
 
 
+HAYTHAMI_V = re.compile(r"(?:(?:و|ف)?(?:ب)?إسناد(?:ه|هما|ها|هم|ين)?|إسناد\s+(?P<who>[^،.]{2,24}?)|(?:و)?هو\s+حديث|حديث)\s+"
+                        r"(?P<v>حسن|صحيح|ضعيف|جيد|منقطع|مرسل|مظلم|واه)(?:\s+(?:جدا|لغيره|صحيح|حسن))?")
+
+
+def haythami_verdict(book, rawah):
+    """His explicit verdict on this book's isnad («وإسناده حسن»، «وإسناد أبي يعلى حسن»), or "" when he only
+    describes the men («رجاله ثقات»، «فيه فلان وهو ضعيف»), which the user chose not to count as a verdict."""
+    key = re.compile(MAJMA_KEY[book])
+    for line in rawah.split("\n"):
+        t = strip_diacritics(line)
+        if not t.startswith(("رواه", "ورواه")) or not key.search(t):
+            continue
+        for m in HAYTHAMI_V.finditer(t):
+            if m.group("who") and not key.search(m.group("who")):
+                continue                    # «وإسناد البزار حسن» on another book's isnad
+            return re.sub(r"^(?:و|ف)", "", m.group(0)).strip()
+    return ""
+
+
 def grades_of(book, note):
     """[{s: source, v: verdict or "", t: the note}] as each scholar words it."""
     if not note:
         return []
+    if book in MAJMA_KEY:
+        return [{"s": "haythami", "v": haythami_verdict(book, note["rawah"]), "t": note["rawah"]}] if note.get("rawah") else []
     if book == "mustadrak":
         hk = note.get("hakim", "")
         v = re.match(r"(.*?(?:ولم يخرجاه|ولم يخرجه|[.؛]|$))", hk, re.S).group(1).strip(" .؛،") if hk else ""
@@ -433,7 +555,7 @@ def build(book):
         for rec in recs:
             text, ed_notes = split_notes(clean(rec["hadith_text_diac"]))
             # Ibn Hibban's records open with the heading of the hadith («ذِكْرُ ...») and its number
-            lead = re.search(r"(?:^|\s)" + num + r"\s*[-–]\s*", text[:1500])
+            lead = re.search(r"(?:^|\s)\(?\s*" + num + r"\s*\)?\s*[-–]\s*", text[:1500])
             if lead:
                 text = text[lead.end():]
             matn = clean(rec.get("matn_text_diac"))
@@ -471,6 +593,8 @@ def build(book):
                 continue
             books[re.sub(r"\s+في\s+.*$", "", re.sub(r"^\(كتب أخرى\)", "", name or "")).strip() or str(b)].add(main)
         note = G["notes"].get(num, {})
+        if book in MAJMA_KEY and not note:
+            continue                    # only what al-Haythami spoke of
         # a hadith without a located page stays in the kitab of the hadith before it
         k = max(0, sum(1 for p in kitab_pages if p <= note["page"]) - 1) if note.get("page") else (out[-1]["kitab"] - 1 if out else 0)
         shawahid = sorted({(n or "").strip() for r in recs for n, _, _ in r["shawahed"]} - {""})
@@ -478,7 +602,7 @@ def build(book):
             "n": num, "kitab": k + 1, "bab": h["bab"], "type": typ, "parts": parts, "chains": chains,
             "takhrij": sorted(([b, len(ids)] for b, ids in books.items()), key=lambda r: -r[1]),
             "shawahid": shawahid,
-            "grades": grades_of(book, note if book == "mustadrak" else note.get("note")),
+            "grades": grades_of(book, note if book == "mustadrak" or book in MAJMA_KEY else note.get("note")),
             "page": note.get("page"), "vp": note.get("vp", ""), **({"ed": note["ed"]} if note.get("ed") else {}),
         })
 
