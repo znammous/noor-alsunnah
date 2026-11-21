@@ -2614,22 +2614,24 @@
 
   // one query word -> regex source: whole word, tolerant of the clitics و ف ب ك ل and the article;
   // short words must match exactly (so «الى» does not hit «اليمن»), longer ones or «word*» may continue.
-  function termSource(w) {
+  // exact: the word as typed, standing alone (no clitics, article or continuation), unless «word*»
+  function termSource(w, exact) {
     const star = /\*$/.test(w);
     w = fold(norm(w)).replace(/ /g, "");
     if (!w) return null;
+    if (exact) return `(?<![${L}])${w}${star ? `[${L}]*` : `(?![${L}])`}`;
     let core;
     if (w === "ابن") core = "ا?بن";
     else if (w.startsWith("ال") && w.length > 3) core = `(?:[بك]?ال|لل)${w.slice(2)}`;
     else core = `[بكل]?(?:ال)?${w}`;
     return `(?<![${L}])[وف]?${core}${star || w.length >= 4 ? `[${L}]*` : `(?![${L}])`}`;
   }
-  function parseQuery(q) {
+  function parseQuery(q, exact) {
     const req = [], neg = [], words = [];
     let phrased = false;
     for (const m of q.replace(/[«»“”]/g, '"').matchAll(/(-?)"([^"]*)"?|(-?)(\S+)/g)) {
       const isPhrase = m[2] != null, minus = isPhrase ? m[1] : m[3];
-      const parts = (isPhrase ? m[2] : m[4]).split(/\s+/).map(termSource).filter(Boolean);
+      const parts = (isPhrase ? m[2] : m[4]).split(/\s+/).map((w) => termSource(w, exact)).filter(Boolean);
       if (!parts.length) continue;
       const re = new RegExp(parts.join(`[^${L}]+`), "g");
       if (minus) { neg.push(re); continue; }
@@ -2725,19 +2727,19 @@
   async function viewSearch(path) {
     const pm = path.match(/^(.*?)\?((?:[a-z]=\w*&?)+)$/);
     const q = (pm ? pm[1] : path).trim();
-    const opt = { b: "", s: "all", o: "rel", g: "", h: "", ...Object.fromEntries(new URLSearchParams(pm ? pm[2] : "")) };
+    const opt = { b: "", s: "all", o: "rel", g: "", h: "", x: "", ...Object.fromEntries(new URLSearchParams(pm ? pm[2] : "")) };
     $("#q").value = q;
     if (!q) { location.hash = "#/"; return; }
     const lookup = numberLookup(q);
     // a named book with a number goes straight to that hadith (replacing this page in history)
     if (lookup.length === 1 && !/^\s*[\d٠-٩]+\s*$/.test(q)) { location.replace("#/h/" + lookup[0]); return; }
     // «البخاري 1524» is a lookup, not a text search
-    const Q = lookup.length ? { req: [] } : parseQuery(q);
+    let Q = lookup.length ? { req: [] } : parseQuery(q, opt.x);
     const words = norm(q.replace(/(^|\s)-\S+/g, " ")).split(" ").filter((w) => w.length > 1);
     const narrators = words.length && !lookup.length ? Object.entries(META.directory).filter(([, v]) => words.every((w) => norm(v[0]).includes(w)))
       .sort((a, b) => totalOf(b[1]) - totalOf(a[1])).slice(0, 12) : [];
     const recs = Q.req.length ? await corpus() : [];
-    const byScope = {};
+    let byScope = {};
     const hitsFor = (s) => (byScope[s] ||= recs.map((r) => matchRecord(r, Q, s)).filter(Boolean));
 
     const SCOPES = [["all", "الكل"], ["matn", "المتن"], ["isnad", "الإسناد"], ["bab", "التبويب"]];
@@ -2752,13 +2754,15 @@
         <div class="s-tools">
           <div class="s-row"><span class="s-lbl">البحث في</span><div class="seg" id="sScope">${SCOPES.map(([v, l]) => `<button data-v="${v}" class="${opt.s === v ? "on" : ""}">${l}</button>`).join("")}</div></div>
           <div class="s-row"><span class="s-lbl">الترتيب</span><div class="seg" id="sSort">${SORTS.map(([v, l]) => `<button data-v="${v}" class="${opt.o === v ? "on" : ""}">${l}</button>`).join("")}</div>
-            <label class="s-check"><input type="checkbox" id="sGroup" ${opt.g ? "checked" : ""}> ضمّ روايات الحديث الواحد</label></div>
+            <label class="s-check"><input type="checkbox" id="sGroup" ${opt.g ? "checked" : ""}> ضمّ روايات الحديث الواحد</label>
+            <label class="s-check" title="الكلمة كما كُتبت، دون ما يتصل بها من الحروف وأداة التعريف"><input type="checkbox" id="sExact" ${opt.x ? "checked" : ""}> مطابقة تامة للكلمة</label></div>
           <div class="s-row"><span class="s-lbl">الحكم</span><div class="seg" id="sGrade"></div></div>
           <div class="s-books" id="sBooks"></div>
         </div>
         <details class="s-help"><summary>طريقة البحث</summary>
           <ul>
             <li>تُطابَق الكلمة كاملة مع ما يتصل بها من الواو والفاء والباء واللام وأداة التعريف، ولا يُلتفت إلى التشكيل ولا إلى الهمزات والتاء المربوطة والألف المقصورة.</li>
+            <li>«مطابقة تامة للكلمة»: تُطابَق الكلمة كما كُتبت وحدها، فلا يدخل في «صلاة» مثلًا «الصلاة» ولا «بصلاة» ولا «صلاته» (ويبقى التشكيل والهمزات غير ملتفت إليها).</li>
             <li>عبارة متصلة: ضعها بين علامتي تنصيص <code>"العمرة إلى العمرة"</code> أو <code>«العمرة إلى العمرة»</code>.</li>
             <li>استبعاد كلمة: ضع قبلها علامة الطرح <code>الصلاة -الجمعة</code>.</li>
             <li>بداية كلمة: أضف نجمة <code>صلا*</code> لتشمل صلاة وصلاته وصلاتكم.</li>
@@ -2834,6 +2838,7 @@
     });
     bind("#sScope", "s"); bind("#sSort", "o"); bind("#sBooks", "b"); bind("#sGrade", "h");
     $("#sGroup").addEventListener("change", (e) => { opt.g = e.target.checked ? "1" : ""; shown = 30; render(); });
+    $("#sExact").addEventListener("change", (e) => { opt.x = e.target.checked ? "1" : ""; Q = parseQuery(q, opt.x); byScope = {}; shown = 30; render(); });
     render();
   }
 
