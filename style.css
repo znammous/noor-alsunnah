@@ -614,3 +614,7 @@ p.more { margin: 12px 0 0; }
 .feel-num b { display: inline-grid; place-items: center; min-width: 30px; height: 30px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); font-size: .9rem; }
 .feel-card .path-bar { height: 4px; margin: auto 0 0; }
 .feel-card small { margin-bottom: 4px; }
+/* zawa'id: the muhaqqiq's whole footnote under his verdict */
+.znote { margin: 8px 0 4px; }
+.znote summary { cursor: pointer; color: var(--muted); font-size: .9rem; }
+.znote p { text-align: justify; font-size: .95rem; line-height: 1.8; margin: 6px 0 0; }

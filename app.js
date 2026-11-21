@@ -33,8 +33,16 @@
   };
   // Abdullah son of Ahmad transmits the Musnad; his own additions (zawa'id) end with him
   const ZAWAID = "من زوائد عبد الله بن أحمد";
+  // zawa'id over the nine books (pipeline/make_zawaid.py): a further book's hadiths that the program's takhrij
+  // places in none of the nine, with the muhaqqiq's verdict from his footnote
+  const ZBOOKS = {
+    ibnhibban: { title: "زوائد ابن حبان", full: "زوائد صحيح ابن حبان على الكتب التسعة", author: "ابن حبان", node: "الإمام ابن حبان",
+      numbering: "ترقيم «الإحسان في تقريب صحيح ابن حبان»، ط. الرسالة", by: "شعيب الأرناؤوط",
+      work: "الإحسان في تقريب صحيح ابن حبان، تحقيق شعيب الأرناؤوط، مؤسسة الرسالة، ط2 1414هـ" },
+  };
+  const zbook = (b) => getJSON(`data/z/${b}.json`);
   // where a book's chains end: the compiler's node (Malik, Ahmad and al-Darimi are narrators too)
-  const endOf = (k, c) => (c.z ? [] : [META.books[bookOf(k)].node]);
+  const endOf = (k, c) => (c.z ? [] : k.startsWith("z:") ? [k.split(":")[1]] : [META.books[bookOf(k)].node]);
   const bookOf = (k) => BOOK_OF[k[0]];
   const CLS_LABEL = {
     nabi: "النبي ﷺ", sahabi: "صحابي", thiqa: "ثقة", saduq: "صدوق", maqbul: "مقبول / مجهول الحال",
@@ -138,7 +146,7 @@
   const termLink = (k) => `<a href="#/terms" title="${esc(TERMS[k][1])}">${TERMS[k][0]}</a>`;
   // chains are described by the weakest Ibn Hajar grade among their narrators (not a verdict on the hadith)
   const CHAIN_LABEL = { thiqat: ["رجاله ثقات", "ok"], saduq: ["فيه من قيل فيه: صدوق", "mid"], mutakallam: ["فيه من تُكلِّم فيه", "low"], unknown: ["فيه من لم تُذكر رتبته", ""] };
-  const SPECIAL = new Set(["nabi", ...BOOKS]);
+  const SPECIAL = new Set(["nabi", ...BOOKS, ...Object.keys(ZBOOKS)]);
   const totalOf = (v) => v[2].reduce((a, n) => a + n, 0);
   const countsLabel = (counts) => BOOKS.map((b, i) => (counts[i] ? `${AUTHOR[b]} ${fmt(counts[i])}` : "")).filter(Boolean).join(" · ");
 
@@ -217,7 +225,7 @@
   // ---------- small renderers ----------
   function chip(id, nar) {
     const n = nar[id] || { name: id, cls: "unknown" };
-    const linkable = !SPECIAL.has(id) && n.cls !== "taliq" && n.cls !== "mubham";
+    const linkable = !SPECIAL.has(id) && n.cls !== "taliq" && n.cls !== "mubham" && !n.out;
     const title = esc([n.rank, n.tadlis ? "موصوف بالتدليس" : "", n.ikhtilat ? "اختلط" : ""].filter(Boolean).join(" · ") || CLS_LABEL[n.cls] || "");
     const inner = `<span class="dot"></span>${esc(shortName(n.name))}${n.tadlis ? '<sup class="flag" title="مدلس">د</sup>' : ""}${n.ikhtilat ? '<sup class="flag" title="اختلط">خ</sup>' : ""}`;
     return linkable
@@ -233,7 +241,7 @@
     return `<div class="panel kpi"><div class="v">${fmt(v)}</div><div class="l">${l}</div><div class="s">${s}</div></div>`;
   }
   // the top menu's sections and the pages under each, shown as tabs at the top of the page
-  const NAV_OF = { home: /^\/stats/, books: /^\/book/, narrators: /^\/(narrators|explore|compare|terms|n\/)/, hadiths: /^\/(turuq|awali|hterms|h\/)/, isnads: /^\/(chains|isnads)/, life: /^\/$|^\/(feel|ahwal|tazkiya|nawawi)/, about: /^\/(about|tools)/ };
+  const NAV_OF = { home: /^\/stats/, books: /^\/(book|z\/)/, narrators: /^\/(narrators|explore|compare|terms|n\/)/, hadiths: /^\/(turuq|awali|hterms|h\/)/, isnads: /^\/(chains|isnads)/, life: /^\/$|^\/(feel|ahwal|tazkiya|nawawi)/, about: /^\/(about|tools)/ };
   const SUBNAV = {
     narrators: [["narrators", "فهرس الرواة"], ["explore", "ترتيب الرواة"], ["compare", "مقارنة الكتب"], ["terms", "مراتب الرواة"]],
     hadiths: [["turuq", "ترتيب الأحاديث"], ["awali", "الثلاثيات وعوالي الأسانيد"], ["hterms", "مصطلحات الحديث"]],
@@ -271,6 +279,8 @@
     [new RegExp(`^/book/(${BOOKS.join("|")})$`), viewBook],
     [new RegExp(`^/book/(${BOOKS.join("|")})/(\\d+)(?:/(\\d+))?$`), viewKitab],
     [new RegExp(`^/h/([${Object.values(PREFIX).join("")}]\\d+)(?:\\?from=(feel|ahwal|tazkiya|nawawi)/(\\w+))?$`), viewHadith],
+    [new RegExp(`^/z/(${Object.keys(ZBOOKS).join("|")})$`), viewZawaid],
+    [new RegExp(`^/z/(${Object.keys(ZBOOKS).join("|")})/(\\d+)$`), viewZawaidHadith],
     [/^\/n\/([^/]+)(?:\/([ts])\/([^/]+))?$/, viewNarrator],
     [/^\/narrators$/, viewNarrators],
     [/^\/explore(?:\?(.*))?$/, viewExplore],
@@ -459,11 +469,14 @@
 
   // ---------- books ----------
   async function viewBooks() {
-    const S = await stats();
+    const [S, ZI] = await Promise.all([stats(), getJSON("data/z/index.json").catch(() => ({}))]);
     app.innerHTML = `<h1>الكتب التسعة</h1><p class="muted">أصول دواوين السنة، بأسانيدها ورواتها، من برنامج جامع خادم الحرمين الشريفين</p>
       <div class="kitabs books">${BOOKS.map((b) => `<a href="#/book/${b}"><span><b>${BOOK[b]}</b><br><span class="muted small">${NUMBERING[b]}</span></span>
         <span class="muted small">${fmt(S.totals.books[b].hadith)} حديثًا</span></a>`).join("")}</div>
-      <p class="notice" style="margin-top:16px">أحاديث الصحيحين صحيحة بحكم الشيخين. وأحاديث السنن والمسانيد والموطأ فيها الصحيح والحسن والضعيف، فراجع أحكام المحدثين في صفحة كل حديث.</p>`;
+      <p class="notice" style="margin-top:16px">أحاديث الصحيحين صحيحة بحكم الشيخين. وأحاديث السنن والمسانيد والموطأ فيها الصحيح والحسن والضعيف، فراجع أحكام المحدثين في صفحة كل حديث.</p>
+      <div class="section-title"><h2>الزوائد على الكتب التسعة</h2><p>أحاديث في كتب السنة الأخرى لم يخرّجها أصحاب الكتب التسعة من حديث الصحابي نفسه، بحسب تخريج البرنامج</p></div>
+      <div class="kitabs books">${Object.entries(ZBOOKS).map(([b, z]) => `<a href="#/z/${b}"><span><b>${z.full}</b><br><span class="muted small">مع حكم ${z.by} على كل حديث</span></span>
+        <span class="muted small">${ZI[b] ? `${fmt(ZI[b])} حديثًا` : ""}</span></a>`).join("")}</div>`;
   }
 
   async function viewBook(book) {
@@ -524,7 +537,9 @@
       out += emit(pos, c.s);
       const n = nar[c.id];
       const label = esc(t.slice(c.s, c.e));
-      out += n ? `<a class="nm cls-${n.cls}" href="#/n/${encodeURIComponent(c.id)}" title="${esc(n.name + (n.rank ? " — " + n.rank : ""))}">${label}</a>` : label;
+      const tip = n ? esc(n.name + (n.rank ? " — " + n.rank : "")) : "";
+      out += !n ? label : n.out ? `<span class="nm cls-${n.cls}" title="${tip}">${label}</span>`
+        : `<a class="nm cls-${n.cls}" href="#/n/${encodeURIComponent(c.id)}" title="${tip}">${label}</a>`;
       pos = c.e;
     }
     return out + emit(pos, t.length);
@@ -1306,6 +1321,102 @@
     graphTools($("#tree"), () => cy, () => readable(cy, "nabi"), "شجرة إسناد " + hkey(key), `isnad-${key}`, tabaqatSide);
   }
 
+  // ---------- zawa'id over the nine books ----------
+  // the muhaqqiq's verdict class: "" when his footnote opens without one
+  const zClass = (h) => (h.grade.v ? gradeClass(h.grade.v) || "none" : "none");
+  const Z_FILTERS = [["", "الكل"], ["sahih", "صحيح"], ["hasan", "حسن"], ["daif", "ضعيف"], ["none", "دون حكم صريح"]];
+  const zTag = (h) => {
+    const c = zClass(h), t = { sahih: ["صحيح", "thiqa"], hasan: ["حسن", "saduq"], daif: ["ضعيف", "weak"] }[c];
+    return t ? `<span class="s-gr cls-${t[1]}" title="${esc(h.grade.v)}">${t[0]}</span>` : "";
+  };
+
+  async function viewZawaid(book) {
+    const Z = ZBOOKS[book], D = await zbook(book);
+    const counts = {};
+    for (const h of D.hadiths) counts[zClass(h)] = (counts[zClass(h)] || 0) + 1;
+    let filt = "";
+    app.innerHTML = `<div class="crumbs"><a href="#/books">الكتب</a> ‹ ${Z.title}</div>
+      <h1>${Z.full}</h1>
+      <p class="muted">${fmt(D.hadiths.length)} حديثًا مرفوعًا في ${fmt(D.kitabs.length)} كتابًا · ${Z.numbering}</p>
+      <div class="panel">
+        <p>هذه أحاديث في صحيح ${Z.author} لم يذكر برنامج جامع خادم الحرمين الشريفين تخريجها في أيٍّ من الكتب التسعة من حديث الصحابي نفسه. فقد يكون للحديث فيها شاهد عن صحابي آخر، أو يكون في غيرها من كتب السنة.</p>
+        <p>والحكم على كل حديث منقول بنصه من حاشية تحقيق الشيخ ${Z.by}، وهو أول عبارة في حاشيته، ونص الحاشية كاملًا في صفحة الحديث مع رابط موضعه في المكتبة الشاملة.</p>
+      </div>
+      <div class="tree-tools"><div class="seg" id="zf">${Z_FILTERS.filter(([v]) => !v || counts[v]).map(([v, l]) => `<button data-v="${v}"${v ? "" : ' class="on"'}>${l} (${fmt(v ? counts[v] : D.hadiths.length)})</button>`).join("")}</div></div>
+      <div id="zlist"></div>`;
+    const draw = () => {
+      const by = new Map();
+      for (const h of D.hadiths) if (!filt || zClass(h) === filt) (by.get(h.kitab) || by.set(h.kitab, []).get(h.kitab)).push(h);
+      $("#zlist").innerHTML = D.kitabs.filter(([no]) => by.has(no)).map(([no, title]) => `<div class="section-title"><h2>${esc(title)}</h2><p>${fmt(by.get(no).length)} حديثًا</p></div>
+        <div class="panel"><ul class="list">${by.get(no).map((h) => {
+          const p = h.parts[0], matn = p.matn ? p.text.slice(p.matn[0], p.matn[1]) : p.text;
+          return `<li><div class="row-link"><div class="meta-line"><a href="#/z/${book}/${h.n}">${Z.author} ${h.n}</a>${zTag(h)}${h.bab ? `<span>${esc(clip(h.bab, 90))}</span>` : ""}</div>
+            <a href="#/z/${book}/${h.n}" class="snip row-main" style="color:inherit">${esc(clip(matn, 220))}</a></div></li>`;
+        }).join("")}</ul></div>`).join("");
+    };
+    $("#zf").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; filt = b.dataset.v; setSeg("#zf", b); draw(); });
+    draw();
+  }
+
+  async function viewZawaidHadith(book, num) {
+    const Z = ZBOOKS[book], D = await zbook(book);
+    const i = D.hadiths.findIndex((x) => x.n === num);
+    if (i < 0) { app.innerHTML = `<div class="panel">ليس الحديث ${esc(num)} من ${Z.full}. <a href="#/z/${book}">فهرس الزوائد</a></div>`; return; }
+    const h = D.hadiths[i], key = `z:${book}:${num}`, g = h.grade;
+    const kitab = (D.kitabs.find(([no]) => no === h.kitab) || [])[1] || "";
+    const nar = { ...D.nar, nabi: { name: "النبي ﷺ", cls: "nabi" }, [book]: { name: Z.node, cls: "imam" } };
+    const G = { items: { [key]: { chains: h.chains } }, nar, madar: null };
+    const shamela = g.page ? `https://shamela.ws/book/${D.shamela}/${g.page}` : `https://shamela.ws/book/${D.shamela}`;
+    const report = mailto(`نور السنة: ملاحظة على حكم في ${Z.title} ${num}`,
+      `الحديث: ${Z.title} ${num}\n${location.href}\n\nالحكم المعروض: ${Z.by}: ${g.v || "—"}\nالمصدر: ${Z.work}${g.vp ? ` (${g.vp})` : ""}\n${shamela}\n\nما الخطأ؟\n`);
+    const nav = [D.hadiths[i - 1], D.hadiths[i + 1]].map((x, j) => {
+      const label = j ? "الحديث التالي" : "الحديث السابق";
+      const arrow = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${j ? "M15 6l-6 6 6 6" : "M9 6l6 6-6 6"}"/></svg>`;
+      return x ? `<a class="btn" href="#/z/${book}/${x.n}" title="${label}: ${Z.author} ${x.n}" aria-label="${label}">${arrow}</a>` : `<span class="btn" aria-disabled="true">${arrow}</span>`;
+    }).join("");
+    track("view", key);
+    app.innerHTML = `<div class="crumbs"><a href="#/books">الكتب</a> ‹ <a href="#/z/${book}">${Z.title}</a> ‹ ${esc(kitab)}${h.bab ? ` ‹ ${esc(h.bab)}` : ""}</div>
+      <h1>صحيح ${Z.author} — حديث رقم ${esc(num)}</h1>
+      <div class="meta-line" style="margin-bottom:10px">${typeTag(h.type)}<span class="tag">زائد على الكتب التسعة</span><span>${Z.numbering}</span>
+        <nav class="hnav" aria-label="التنقل بين أحاديث الزوائد">${nav}</nav></div>
+      <div class="panel hadith-text"><div class="text-tools">${copyBtnHTML("نسخ نص الحديث")}</div>${hadithTextHTML(h, nar)}</div>
+
+      <div class="panel grades"><h3>حكم المحقق على هذا الحديث</h3>
+        <div class="verdicts"><blockquote class="g-${zClass(h)}"><cite>${Z.by}</cite>
+          ${g.v ? `<span class="g-pill">${esc(g.v)}</span>` : `<span class="g-pill">${g.note ? "لم يصرّح المحقق بحكم في أول حاشيته" : "لم يُستخرج حكم المحقق آليًا، فراجعه في موضعه"}</span>`}
+          ${g.note ? `<details class="znote"${g.v ? "" : " open"}><summary>نص الحاشية كاملًا</summary><p>${esc(g.note).replace(/\n/g, "<br>")}</p></details>` : ""}
+          <span class="grade-src">${esc(Z.work)}${g.vp ? ` (${esc(g.vp)})` : ""} · <a href="${shamela}" target="_blank" rel="noopener">المكتبة الشاملة ↗</a> · <a href="${report}">أبلغ عن خطأ في هذا الحكم</a></span></blockquote></div>
+        ${g.v && isnadHasanOnly(g.v) ? ISNAD_HASAN_NOTE : ""}
+        <p class="muted small">يُنقل الحكم بنصه منسوبًا إلى صاحبه، وهو اجتهاد منه. وقد يكون الحكم على الإسناد خاصة («إسناده ضعيف») والحديث ثابت من طريق أخرى.</p></div>
+      <div class="panel dorar">
+        <div><h3>أحكام أخرى في الدرر السنية</h3><p class="muted small">من الموسوعة الحديثية في موقع الدرر السنية: نتائج البحث عن طرف الحديث، وقد تشمل رواياتٍ أخرى مشابهة.</p></div>
+        <a class="btn on" href="${dorarURL(h)}" target="_blank" rel="noopener">اعرض الأحكام في الدرر السنية ↗</a>
+      </div>
+      <p class="notice sunan-note">«زائد على الكتب التسعة»: لم يذكر برنامج الجامع تخريجه فيها من حديث هذا الصحابي. وفي صحيح ${Z.author} الصحيح وما دونه عند المحققين، فراجع الحكم قبل الاستدلال بالحديث.</p>
+
+      ${h.takhrij.length ? `<div class="section-title"><h2>تخريجه في كتب السنة الأخرى</h2><p>بحسب تخريج برنامج جامع خادم الحرمين الشريفين</p></div>
+      <div class="panel takhrij"><div class="chain">${h.takhrij.map(([b, n]) => `<span class="chip">${esc(b)}<span class="muted small" style="margin-inline-start:6px">${fmt(n)}</span></span>`).join(" ")}</div>
+        ${h.shawahid.length ? `<h3 style="margin-top:14px">شواهده عن صحابة آخرين</h3><div class="chain">${h.shawahid.map((n) => `<span class="chip cls-sahabi"><span class="dot"></span>${esc(n)}</span>`).join(" ")}</div>` : ""}</div>` : ""}
+
+      ${h.chains.length ? `<div class="hadith-layout">
+        <div class="tree-wrap">
+          <div class="tree-tools"><button class="btn" id="fit">ملاءمة العرض</button><a class="btn" href="${mailto(`نور السنة: ملاحظة على ${Z.title} ${num}`)}">أبلغ عن خطأ</a></div>
+          ${graphBox('<div id="tree" role="img" aria-label="شجرة الرواة"></div>')}
+          <div class="legend"><span class="cls-nabi"><i style="background:var(--c)"></i>${CLS_LABEL.nabi}</span>${["sahabi", "thiqa", "saduq", "maqbul", "weak"].map((c) => `<span class="cls-${c}"><i style="background:var(--c)"></i>${CLS_LABEL[c]}</span>`).join("")}<span class="cls-imam"><i style="background:var(--c)"></i>${CLS_LABEL.imam}</span></div>
+        </div>
+        <aside class="panel side" id="side"><p class="empty">اضغط على أي راوٍ في الشجرة لعرض رتبته وتمييز الطرق التي تمر به.</p></aside>
+      </div>` : ""}
+      <div class="section-title"><h2>أسانيده</h2><p>وصف رجال كل إسناد بحسب رتبهم عند ابن حجر، وليس حكمًا على الحديث</p></div>
+      <div class="panel"><ul class="list" id="chains">${h.chains.map((c) => chainRow(c, nar, Z.author)).join("") || '<li class="muted">لا يوجد إسناد مستخرج لهذه الرواية.</li>'}</ul></div>`;
+
+    wireCopy($(".hadith-text .copy-btn"), () => `صحيح ${Z.author} — حديث رقم ${num}\n\n${h.parts.map((p) => p.text.trim()).join("\n\n")}\n\n${Z.by}: ${g.v || "—"}\n${shareURL()}`);
+    if (!h.chains.length) return;
+    drawTree(G, [key], key);
+    $("#side").addEventListener("click", (e) => { if (e.target.closest("[data-back]")) { cy.elements().removeClass("dim hl"); $("#side").innerHTML = '<p class="empty">اضغط على أي راوٍ في الشجرة لعرض رتبته وتمييز الطرق التي تمر به.</p>'; } });
+    $("#fit").addEventListener("click", () => cy && cy.fit(undefined, 16));
+    graphTools($("#tree"), () => cy, () => readable(cy, "nabi"), `شجرة إسناد ${Z.title} ${num}`, `isnad-${book}-${num}`);
+  }
+
   // A valid number the current data export lacks: send the reader to the official program.
   function missingHadithHTML(key) {
     const prefix = key[0], num = +key.slice(1);
@@ -1616,7 +1727,7 @@
       ${id === G.madar ? '<p class="notice">هذا الراوي مدار الحديث: تلتقي عنده الطرق ثم تتفرع عنه.</p>' : ""}
       <p class="small"><b>روى عن:</b> ${teachers.map(nm).join("، ") || "—"}</p>
       <p class="small"><b>روى عنه هنا:</b> ${students.map(nm).join("، ") || "—"}</p>
-      <a class="btn" href="#/n/${encodeURIComponent(id)}">الترجمة الكاملة ←</a> <button class="btn" data-back>خريطة الرواة</button>`;
+      ${info.out ? '<p class="muted small">ليس من رواة الكتب التسعة، فلا ترجمة مفصّلة له في الموقع.</p>' : `<a class="btn" href="#/n/${encodeURIComponent(id)}">الترجمة الكاملة ←</a>`} <button class="btn" data-back>خريطة الرواة</button>`;
   }
 
   // ---------- narrator page ----------
@@ -2669,6 +2780,7 @@
         <li>جمع روايات الحديث الواحد في الكتب التسعة قائم على تخريج برنامج جامع خادم الحرمين الشريفين.</li>
         <li>أحاديث السنن فيها الصحيح والحسن والضعيف، ويُعرض حكم الترمذي بلفظه حيث ورد، وتُربط كل الأحاديث بأحكام المحدثين في الدرر السنية.</li>
         <li>أحكام المحدثين المعروضة في صفحة الحديث تُنقل بنصها منسوبةً إلى أصحابها ولا نرجّح بينها: حكم الألباني على أحاديث سنن أبي داود والترمذي وابن ماجه (من كتبه «صحيح وضعيف السنن» كما نقلتها المكتبة الشاملة) وسنن النسائي (من «صحيح سنن النسائي» و«ضعيف سنن النسائي»)، وحكم محققي طبعة الرسالة العالمية لسنن النسائي، وحكم شعيب الأرناؤوط ومحققي طبعة مؤسسة الرسالة لمسند أحمد، وكلام البوصيري في «مصباح الزجاجة» على زوائد ابن ماجه بنقل محمد فؤاد عبد الباقي، وحكم حسين سليم أسد في تحقيقه لمسند الدارمي.</li>
+        <li>قسم «الزوائد على الكتب التسعة» يجمع من كتب السنة الأخرى ما لم يذكر برنامج الجامع تخريجه في الكتب التسعة من حديث الصحابي نفسه، ويبدأ بصحيح ابن حبان. والحكم على كل حديث منقول بنصه من حاشية تحقيق الشيخ شعيب الأرناؤوط (مؤسسة الرسالة) كما في المكتبة الشاملة، وهو أول عبارة في الحاشية، ونصها كاملًا معه مع رابط موضعه. والزيادة هنا زيادة حديث الصحابي لا زيادة لفظ في حديث أصله في الكتب التسعة.</li>
         <li>الشرح الميسّر في صفحة الحديث منقول بنصه من «موسوعة الأحاديث النبوية»، وهو شرح مختصر لعموم القرّاء مع فوائد الحديث ومعاني كلماته وترجماته إلى لغات المسلمين. ويُربط شرح الموسوعة بكل رواية في الكتب التسعة يوافق لفظها لفظ الحديث في الموسوعة، فقد يختلف اللفظان يسيرًا. فإن لم يكن للرواية شرح، وكان في الموسوعة حديث قريب من لفظها، عُرض شرحه بعنوان «شرح حديث مشابه» مع نصه للمقارنة.</li>
         <li>قسم «الحديث في حياتنا» يجمع أحاديث الموسوعة الصحيحة والحسنة بحسب المشاعر التي تعالجها («بماذا تشعر؟») والأحوال التي تُشرع فيها أذكار وسنن («ماذا أقول عندما…؟») وأبواب تزكية النفس («تزكية النفس»)، ومعها «الأربعون النووية» مرتبةً كما في كتاب النووي، وكل حديث يُفتح على روايته في الكتب التسعة. وقد صُنّفت بقراءة كل حديث مع شرحه في الموسوعة، ثم مراجعة ما في كل باب؛ فهو تصنيف اجتهادي للتذكير، والمرجع نص الحديث وشرحه.</li>
         <li>الترقيم: البخاري على «فتح الباري»، ومسلم وابن ماجه على ترقيم محمد فؤاد عبد الباقي، وأبو داود على ترقيم محمد محيي الدين عبد الحميد، والترمذي على ترقيم أحمد شاكر، والنسائي على ترقيم برنامج الجامع.</li>
