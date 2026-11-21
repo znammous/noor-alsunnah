@@ -33,6 +33,13 @@
   };
   // Abdullah son of Ahmad transmits the Musnad; his own additions (zawa'id) end with him
   const ZAWAID = "من زوائد عبد الله بن أحمد";
+  // a book whose only verdicts are al-Haythami's in «مجمع الزوائد» (no edition of it carries a muhaqqiq's verdicts)
+  function zHaythami(title, book, author, node, numbering) {
+    return { title, full: `${title.replace("زوائد ", "زوائد ")} على الكتب التسعة`.replace(/^زوائد (.*) على/, `زوائد ${book} على`), author, node, book, numbering,
+      by: "الهيثمي في مجمع الزوائد", work: "مجمع الزوائد ومنبع الفوائد للهيثمي، تحقيق حسام الدين القدسي، مكتبة القدسي، القاهرة 1414هـ",
+      sources: { haythami: "الهيثمي في مجمع الزوائد" }, edLabel: "رقمه في مجمع الزوائد", gradesTitle: "كلام الهيثمي على هذا الحديث",
+      intro: `والكلام على كل حديث منقول بنصه من «مجمع الزوائد» للهيثمي، وهو كتاب جمع فيه زوائد ${book} وغيره على الكتب الستة وتكلم على أسانيدها، إذ لم نجد لهذا الكتاب تحقيقًا فيه أحكام على أحاديثه. وتُعرض هنا الأحاديث التي وُجدت في «مجمع الزوائد» فقط: طوبق كل حديث بموضعه فيه بمقارنة المتن والصحابي وذكر الكتاب في تخريجه. وأكثر كلام الهيثمي وصفٌ لرجال الإسناد، مثل «رجاله ثقات» و«فيه فلان وهو ضعيف»، وهو غير الحكم على الحديث؛ فلا يُعدّ حكمًا إلا ما صرّح فيه بالحكم، ولذلك يقع أكثر هذه الأحاديث في «دون حكم صريح»، ويُعرض كلامه كاملًا في صفحة الحديث.` };
+  }
   // zawa'id over the nine books (pipeline/make_zawaid.py): a further book's hadiths that the program's takhrij
   // places in none of the nine, with the muhaqqiq's verdict from his footnote
   const ZBOOKS = {
@@ -60,6 +67,12 @@
       works: { asad: ["مسند أبي يعلى، تحقيق حسين سليم أسد، دار المأمون للتراث، دمشق، ط1 1404هـ", 12520] },
       primary: ["asad", "haythami"],
       intro: "والحكم على كل حديث منقول بنصه منسوبًا إلى صاحبه: حكم الشيخ حسين سليم أسد في تحقيقه لمسند أبي يعلى (دار المأمون للتراث)، وكلام الهيثمي في «مجمع الزوائد» إن ذكر الحديث فيه، وقد طوبق موضعه فيه بمقارنة المتن والصحابي وذكر أبي يعلى في تخريجه. ويُوصف الحديث في هذه القائمة بحكم أسد، فإن لم يكن له حكم صريح فبكلام الهيثمي. وأحكام الشيخ حسين سليم أسد اجتهادُ محققٍ معاصر، وقد تعقّب بعضَها أهلُ العلم، فتُراجَع مع كلام غيره قبل الاستدلال بالحديث. وأكثر كلام الهيثمي وصفٌ لرجال الإسناد، مثل «رجاله ثقات» و«فيه فلان وهو ضعيف»، وهو غير الحكم على الحديث، فلا يُعدّ حكمًا إلا ما صرّح فيه بالحكم." },
+    bazzar: zHaythami("زوائد البزار", "مسند البزار (البحر الزخار)", "البزار", "الإمام البزار",
+      "ترقيم برنامج الجامع، ويُذكر الجزء مع الرقم لأن الترقيم يبدأ من جديد في بعض الأجزاء"),
+    kabir: zHaythami("زوائد المعجم الكبير", "المعجم الكبير للطبراني", "الطبراني في الكبير", "الإمام الطبراني",
+      "ترقيم برنامج الجامع، ويُذكر الجزء مع الرقم كما يُعزى إلى المعجم الكبير عادةً"),
+    awsat: zHaythami("زوائد المعجم الأوسط", "المعجم الأوسط للطبراني", "الطبراني في الأوسط", "الإمام الطبراني", "ترقيم برنامج الجامع"),
+    saghir: zHaythami("زوائد المعجم الصغير", "المعجم الصغير للطبراني", "الطبراني في الصغير", "الإمام الطبراني", "ترقيم برنامج الجامع"),
   };
   const zBookName = (Z) => Z.book || `صحيح ${Z.author}`;
   // a verdict's degree, with the terse wording of al-Hakim and al-Dhahabi («على شرط مسلم»، «منقطع»، «سنده واه»)
@@ -310,7 +323,7 @@
     [new RegExp(`^/book/(${BOOKS.join("|")})/(\\d+)(?:/(\\d+))?$`), viewKitab],
     [new RegExp(`^/h/([${Object.values(PREFIX).join("")}]\\d+)(?:\\?from=(feel|ahwal|tazkiya|nawawi)/(\\w+))?$`), viewHadith],
     [new RegExp(`^/z/(${Object.keys(ZBOOKS).join("|")})$`), viewZawaid],
-    [new RegExp(`^/z/(${Object.keys(ZBOOKS).join("|")})/(\\d+)$`), viewZawaidHadith],
+    [new RegExp(`^/z/(${Object.keys(ZBOOKS).join("|")})/(\\d+(?:-\\d+)?)$`), viewZawaidHadith],
     [/^\/n\/([^/]+)(?:\/([ts])\/([^/]+))?$/, viewNarrator],
     [/^\/narrators$/, viewNarrators],
     [/^\/explore(?:\?(.*))?$/, viewExplore],
@@ -1420,9 +1433,8 @@
       for (const h of D.hadiths) if (!filt || zClass(h, Z) === filt) (by.get(h.kitab) || by.set(h.kitab, []).get(h.kitab)).push(h);
       $("#zlist").innerHTML = D.kitabs.filter(([no]) => by.has(no)).map(([no, title]) => `<div class="section-title"><h2>${esc(title)}</h2><p>${fmt(by.get(no).length)} حديثًا</p></div>
         <div class="panel"><ul class="list">${by.get(no).map((h) => {
-          const p = h.parts[0], matn = p.matn ? p.text.slice(p.matn[0], p.matn[1]) : p.text;
-          return `<li><div class="row-link"><div class="meta-line"><a href="#/z/${book}/${h.n}">${Z.author} ${h.n}</a>${zTag(h, Z)}${h.bab ? `<span>${esc(clip(h.bab, 90))}</span>` : ""}</div>
-            <a href="#/z/${book}/${h.n}" class="snip row-main" style="color:inherit">${esc(clip(matn, 220))}</a></div></li>`;
+          return `<li><div class="row-link"><div class="meta-line"><a href="#/z/${book}/${h.n}">${Z.author} ${esc(h.label || h.n)}</a>${zTag(h, Z)}${h.bab ? `<span>${esc(clip(h.bab, 90))}</span>` : ""}</div>
+            <a href="#/z/${book}/${h.n}" class="snip row-main" style="color:inherit">${esc(clip(h.snip || "", 165))}</a></div></li>`;
         }).join("")}</ul></div>`).join("");
     };
     $("#zf").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; filt = b.dataset.v; setSeg("#zf", b); draw(); });
@@ -1433,14 +1445,15 @@
     const Z = ZBOOKS[book], D = await zbook(book);
     const i = D.hadiths.findIndex((x) => x.n === num);
     if (i < 0) { app.innerHTML = `<div class="panel">ليس الحديث ${esc(num)} من ${Z.full}. <a href="#/z/${book}">فهرس الزوائد</a></div>`; return; }
-    const h = D.hadiths[i], key = `z:${book}:${num}`;
+    const S = await getJSON(`data/z/${book}/${D.hadiths[i].sh || 0}.json`);
+    const h = S.hadiths[num], key = `z:${book}:${num}`, label = h.label || num;
     const kitab = (D.kitabs.find(([no]) => no === h.kitab) || [])[1] || "";
-    const nar = { ...D.nar, nabi: { name: "النبي ﷺ", cls: "nabi" }, [book]: { name: Z.node, cls: "imam" } };
+    const nar = { ...S.nar, nabi: { name: "النبي ﷺ", cls: "nabi" }, [book]: { name: Z.node, cls: "imam" } };
     const G = { items: { [key]: { chains: h.chains } }, nar, madar: null };
     const shamela = h.page ? `https://shamela.ws/book/${D.shamela}/${h.page}` : `https://shamela.ws/book/${D.shamela}`;
     const shown = h.grades.map((g) => `${Z.sources[g.s] || g.s}: ${g.v || "—"}`).join("\n");
-    const report = mailto(`نور السنة: ملاحظة على حكم في ${Z.title} ${num}`,
-      `الحديث: ${Z.title} ${num}\n${location.href}\n\nالحكم المعروض:\n${shown || "—"}\nالمصدر: ${Z.work}${h.vp ? ` (${h.vp})` : ""}\n${shamela}\n\nما الخطأ؟\n`);
+    const report = mailto(`نور السنة: ملاحظة على حكم في ${Z.title} ${label}`,
+      `الحديث: ${Z.title} ${label}\n${location.href}\n\nالحكم المعروض:\n${shown || "—"}\nالمصدر: ${Z.work}${h.vp ? ` (${h.vp})` : ""}\n${shamela}\n\nما الخطأ؟\n`);
     const srcOf = (g) => {
       const [work, sid] = (g && g.w && Z.works && Z.works[g.w]) || [Z.work, D.shamela];
       const [page, vp, ed] = g && g.w ? [g.page, g.vp, g.ed] : [h.page, h.vp, h.ed];
@@ -1450,11 +1463,11 @@
     const nav = [D.hadiths[i - 1], D.hadiths[i + 1]].map((x, j) => {
       const label = j ? "الحديث التالي" : "الحديث السابق";
       const arrow = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${j ? "M15 6l-6 6 6 6" : "M9 6l6 6-6 6"}"/></svg>`;
-      return x ? `<a class="btn" href="#/z/${book}/${x.n}" title="${label}: ${Z.author} ${x.n}" aria-label="${label}">${arrow}</a>` : `<span class="btn" aria-disabled="true">${arrow}</span>`;
+      return x ? `<a class="btn" href="#/z/${book}/${x.n}" title="${label}: ${Z.author} ${esc(x.label || x.n)}" aria-label="${label}">${arrow}</a>` : `<span class="btn" aria-disabled="true">${arrow}</span>`;
     }).join("");
     track("view", key);
     app.innerHTML = `<div class="crumbs"><a href="#/books">الكتب</a> ‹ <a href="#/z/${book}">${Z.title}</a> ‹ ${esc(kitab)}${h.bab ? ` ‹ ${esc(h.bab)}` : ""}</div>
-      <h1>${zBookName(Z)} — حديث رقم ${esc(num)}</h1>
+      <h1>${zBookName(Z)} — حديث رقم ${esc(label)}</h1>
       <div class="meta-line" style="margin-bottom:10px">${typeTag(h.type)}<span class="tag">زائد على الكتب التسعة</span><span>${Z.numbering}</span>
         <nav class="hnav" aria-label="التنقل بين أحاديث الزوائد">${nav}</nav></div>
       <div class="panel hadith-text"><div class="text-tools">${copyBtnHTML("نسخ نص الحديث")}</div>${hadithTextHTML(h, nar)}</div>
@@ -1492,7 +1505,7 @@
       <div class="section-title"><h2>أسانيده</h2><p>وصف رجال كل إسناد بحسب رتبهم عند ابن حجر، وليس حكمًا على الحديث</p></div>
       <div class="panel"><ul class="list" id="chains">${h.chains.map((c) => chainRow(c, nar, Z.author)).join("") || '<li class="muted">لا يوجد إسناد مستخرج لهذه الرواية.</li>'}</ul></div>`;
 
-    wireCopy($(".hadith-text .copy-btn"), () => `${zBookName(Z)} — حديث رقم ${num}\n\n${h.parts.map((p) => p.text.trim()).join("\n\n")}\n\n${shown}\n${shareURL()}`);
+    wireCopy($(".hadith-text .copy-btn"), () => `${zBookName(Z)} — حديث رقم ${label}\n\n${h.parts.map((p) => p.text.trim()).join("\n\n")}\n\n${shown}\n${shareURL()}`);
     if (!h.chains.length) return;
     drawTree(G, [key], key);
     $("#side").addEventListener("click", (e) => { if (e.target.closest("[data-back]")) { cy.elements().removeClass("dim hl"); $("#side").innerHTML = '<p class="empty">اضغط على أي راوٍ في الشجرة لعرض رتبته وتمييز الطرق التي تمر به.</p>'; } });
@@ -2863,7 +2876,7 @@
         <li>جمع روايات الحديث الواحد في الكتب التسعة قائم على تخريج برنامج جامع خادم الحرمين الشريفين.</li>
         <li>أحاديث السنن فيها الصحيح والحسن والضعيف، ويُعرض حكم الترمذي بلفظه حيث ورد، وتُربط كل الأحاديث بأحكام المحدثين في الدرر السنية.</li>
         <li>أحكام المحدثين المعروضة في صفحة الحديث تُنقل بنصها منسوبةً إلى أصحابها ولا نرجّح بينها: حكم الألباني على أحاديث سنن أبي داود والترمذي وابن ماجه (من كتبه «صحيح وضعيف السنن» كما نقلتها المكتبة الشاملة) وسنن النسائي (من «صحيح سنن النسائي» و«ضعيف سنن النسائي»)، وحكم محققي طبعة الرسالة العالمية لسنن النسائي، وحكم شعيب الأرناؤوط ومحققي طبعة مؤسسة الرسالة لمسند أحمد، وكلام البوصيري في «مصباح الزجاجة» على زوائد ابن ماجه بنقل محمد فؤاد عبد الباقي، وحكم حسين سليم أسد في تحقيقه لمسند الدارمي.</li>
-        <li>قسم «الزوائد على الكتب التسعة» يجمع من كتب السنة الأخرى ما لم يذكر برنامج الجامع تخريجه في الكتب التسعة من حديث الصحابي نفسه، وفيه زوائد صحيح ابن حبان وصحيح ابن خزيمة والمستدرك على الصحيحين ومسند أبي يعلى. والحكم على كل حديث منقول بنصه من حاشية تحقيقه كما في المكتبة الشاملة: الشيخ شعيب الأرناؤوط لابن حبان (مؤسسة الرسالة)، والدكتور محمد مصطفى الأعظمي لابن خزيمة (المكتب الإسلامي) ومعه تعليقات الألباني الموقّعة باسمه، وحكم الحاكم من نص المستدرك وتعليق الذهبي من «التلخيص» (ط دار الكتب العلمية) وحكم محققي طبعة دار الرسالة العالمية، مطابقًا بالنص لاختلاف الترقيم؛ وحكم حسين سليم أسد في تحقيقه لمسند أبي يعلى ومعه كلام الهيثمي في «مجمع الزوائد»، ولا يُعدّ وصفه للرجال («رجاله ثقات») حكمًا على الحديث؛ فيُعرض كل حكم منسوبًا إلى صاحبه. والمعروض أول عبارة في التعليق، ونصه كاملًا معه مع رابط موضعه. والزيادة هنا زيادة حديث الصحابي لا زيادة لفظ في حديث أصله في الكتب التسعة.</li>
+        <li>قسم «الزوائد على الكتب التسعة» يجمع من كتب السنة الأخرى ما لم يذكر برنامج الجامع تخريجه في الكتب التسعة من حديث الصحابي نفسه، وفيه زوائد صحيح ابن حبان وصحيح ابن خزيمة والمستدرك على الصحيحين ومسند أبي يعلى ومسند البزار ومعاجم الطبراني الثلاثة. والحكم على كل حديث منقول بنصه من حاشية تحقيقه كما في المكتبة الشاملة: الشيخ شعيب الأرناؤوط لابن حبان (مؤسسة الرسالة)، والدكتور محمد مصطفى الأعظمي لابن خزيمة (المكتب الإسلامي) ومعه تعليقات الألباني الموقّعة باسمه، وحكم الحاكم من نص المستدرك وتعليق الذهبي من «التلخيص» (ط دار الكتب العلمية) وحكم محققي طبعة دار الرسالة العالمية، مطابقًا بالنص لاختلاف الترقيم؛ وحكم حسين سليم أسد في تحقيقه لمسند أبي يعلى ومعه كلام الهيثمي في «مجمع الزوائد»، وكلام الهيثمي وحده على زوائد البزار ومعاجم الطبراني إذ لم نجد لها تحقيقًا بأحكام، ولا يُعدّ وصفه للرجال («رجاله ثقات») حكمًا على الحديث؛ فيُعرض كل حكم منسوبًا إلى صاحبه. والمعروض أول عبارة في التعليق، ونصه كاملًا معه مع رابط موضعه. والزيادة هنا زيادة حديث الصحابي لا زيادة لفظ في حديث أصله في الكتب التسعة.</li>
         <li>الشرح الميسّر في صفحة الحديث منقول بنصه من «موسوعة الأحاديث النبوية»، وهو شرح مختصر لعموم القرّاء مع فوائد الحديث ومعاني كلماته وترجماته إلى لغات المسلمين. ويُربط شرح الموسوعة بكل رواية في الكتب التسعة يوافق لفظها لفظ الحديث في الموسوعة، فقد يختلف اللفظان يسيرًا. فإن لم يكن للرواية شرح، وكان في الموسوعة حديث قريب من لفظها، عُرض شرحه بعنوان «شرح حديث مشابه» مع نصه للمقارنة.</li>
         <li>قسم «الحديث في حياتنا» يجمع أحاديث الموسوعة الصحيحة والحسنة بحسب المشاعر التي تعالجها («بماذا تشعر؟») والأحوال التي تُشرع فيها أذكار وسنن («ماذا أقول عندما…؟») وأبواب تزكية النفس («تزكية النفس»)، ومعها «الأربعون النووية» مرتبةً كما في كتاب النووي، وكل حديث يُفتح على روايته في الكتب التسعة. وقد صُنّفت بقراءة كل حديث مع شرحه في الموسوعة، ثم مراجعة ما في كل باب؛ فهو تصنيف اجتهادي للتذكير، والمرجع نص الحديث وشرحه.</li>
         <li>الترقيم: البخاري على «فتح الباري»، ومسلم وابن ماجه على ترقيم محمد فؤاد عبد الباقي، وأبو داود على ترقيم محمد محيي الدين عبد الحميد، والترمذي على ترقيم أحمد شاكر، والنسائي على ترقيم برنامج الجامع.</li>
