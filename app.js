@@ -2059,6 +2059,7 @@
     app.innerHTML = `${subnav("narrators", "narrators")}<h1>فهرس الرواة</h1><p class="muted">${fmt(all.length)} راويًا في أسانيد الكتب التسعة <span id="nc"></span></p>
       <div class="panel nfilters">
         <label class="fl"><span>الاسم</span><input id="nf" type="search" placeholder="تصفية بالاسم…"></label>
+        <div class="fhelp">${exactBox(false, "nfx")}${filterHelp(true)}</div>
         <div class="fl"><span>الكتاب</span><div class="seg" id="bf"><button data-v="" class="on">الكتب التسعة</button>${BOOKS.map((b) => `<button data-v="${b}">${AUTHOR[b]}</button>`).join("")}</div></div>
         <div class="frow">
           <div class="fl"><span>الرتبة</span><div class="seg" id="cf"><button data-v="" class="on">الكل</button>${["sahabi", "thiqa", "saduq", "maqbul", "weak"].map((c) => `<button data-v="${c}">${CLS_LABEL[c]}</button>`).join("")}</div></div>
@@ -2068,13 +2069,13 @@
         <p class="small" style="margin:0"><a href="#/explore">ترتيب الرواة بالطبقة والبلد والتدليس والمدار وشيوخ أصحاب الكتب ←</a></p>
       </div>
       <div class="panel" style="margin-top:16px"><ul class="bars" id="nl"></ul></div>`;
-    let q = "", cls = "", book = "", uniq = false;
+    let q = "", cls = "", book = "", uniq = false, exact = "";
     const bi = (b) => BOOKS.indexOf(b);
     // the measure the list is sorted and totalled by
     const value = (v) => (book ? (uniq ? v[3] : v[2])[bi(book)] : uniq ? v[4] : totalOf(v));
     const render = () => {
-      const nq = norm(q);
-      const rows = all.filter(([, v]) => (!cls || v[1] === cls) && (!nq || norm(v[0]).includes(nq)) && value(v) > 0)
+      const hit = textMatcher(q, exact);
+      const rows = all.filter(([, v]) => (!cls || v[1] === cls) && (!hit || hit(v[0])) && value(v) > 0)
         .sort((a, b) => value(b[1]) - value(a[1]));
       $("#nc").textContent = rows.length === all.length ? "" : `· المطابق ${fmt(rows.length)}`;
       $("#nnote").textContent = (uniq
@@ -2086,6 +2087,7 @@
     };
     render();
     $("#nf").addEventListener("input", (e) => { q = e.target.value; render(); });
+    $("#nfx").addEventListener("change", (e) => { exact = e.target.checked ? "1" : ""; render(); });
     const seg = (sel, set) => $(sel).addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; set(b.dataset.v); setSeg(sel, b); render(); });
     seg("#cf", (v) => { cls = v; });
     seg("#bf", (v) => { book = v; });
@@ -2129,7 +2131,7 @@
   const PRESET_GROUPS = [["الصحابة والصحابيات", /^أكثر الصحاب/], ["الشيخان", /الشيخين|انفرد|لم يرو/], ["شيوخ أصحاب الكتب", /شيوخ/],
     ["الرواة", /./]];
   // the ranking's filters; the comparison's own settings are prefixed with c
-  const EXPLORE_DEFAULT = { b: "", m: "u", t: "", c: "", city: "", f: "", g: "", y: "", x: "", n: "20", q: "" };
+  const EXPLORE_DEFAULT = { b: "", m: "u", t: "", c: "", city: "", f: "", g: "", y: "", x: "", n: "20", q: "", e: "" };
   const COMPARE_DEFAULT = { ca: "bukhari", cb: "muslim", cm: "u", ct: "", cs: "", cn: "15" };
 
   // ---------- a book's chains by the weakest grade among their narrators ----------
@@ -2197,7 +2199,7 @@
 
   // ---------- hadiths ranked by their turuq in the nine books ----------
   // rows: [lead key, chains, hadiths, book prefixes, madar, companions, Jami' narrations, Jami' books, snippet]
-  const TURUQ_DEFAULT = { s: "c", b: "", x: "", k: "", q: "", d: "", n: "50" };
+  const TURUQ_DEFAULT = { s: "c", b: "", x: "", k: "", q: "", e: "", d: "", n: "50" };
   const TURUQ_SORT = {
     c: ["عدد الأسانيد", "مجموع أسانيده في الكتب التسعة", 1, ["إسناد", "إسنادان", "أسانيد", "إسنادًا"]],
     h: ["عدد المواضع", "مواضعه في الكتب التسعة مع المكرر", 2, ["موضع", "موضعان", "مواضع", "موضعًا"]],
@@ -2234,6 +2236,7 @@
           <label>العدد<select name="n">${["20", "50", "100", "200", "500"].map((n) => opt(n, `أول ${n}`, st.n)).join("")}</select></label>
           <label class="grow">في المتن أو المدار<input name="q" type="search" value="${esc(st.q)}" placeholder="كلمة من المتن أو اسم المدار…"></label>
         </div>
+        <div class="fhelp">${exactBox(st.e, "tfx")}${filterHelp(false)}</div>
         <h2 id="ttitle">الأحاديث الأكثر طرقًا</h2>
         <div class="xbar"><p class="muted small" id="tnote"></p>
           <button class="btn" id="treset">إعادة الضبط</button><button class="btn" id="tcopy">نسخ رابط هذا الترتيب</button></div>
@@ -2243,9 +2246,9 @@
 
     const render = () => {
       const [label, note, col] = TURUQ_SORT[st.s] || TURUQ_SORT.c;
-      const nq = norm(st.q), has = (r, b) => b && r[3].includes(PREFIX[b]);
+      const hit = textMatcher(st.q, st.e), has = (r, b) => b && r[3].includes(PREFIX[b]);
       const rows = R.filter((r) => (!st.b || has(r, st.b)) && (!st.y || has(r, st.y)) && !(st.x && has(r, st.x)) &&
-        (!st.k || r[3].length >= +st.k) && (!st.d || r[4] === st.d) && (!nq || norm(r[8]).includes(nq) || (D[r[4]] && norm(D[r[4]][0]).includes(nq))))
+        (!st.k || r[3].length >= +st.k) && (!st.d || r[4] === st.d) && (!hit || hit(r[8], D[r[4]] && D[r[4]][0])))
         .sort((a, b) => b[col] - a[col] || b[1] - a[1]);
       const shown = rows.slice(0, +st.n || 50), max = shown.length ? shown[0][col] : 1;
       const preset = TURUQ_PRESETS.find(([, p]) => Object.keys(st).every((k) => k === "n" || (p[k] || TURUQ_DEFAULT[k] || "") === st[k]));
@@ -2268,7 +2271,8 @@
       const qs = new URLSearchParams(Object.entries(st).filter(([k, v]) => v !== (TURUQ_DEFAULT[k] || ""))).toString();
       try { history.replaceState(history.state, "", `#/turuq${qs ? "?" + qs : ""}`); } catch (_) {}
     };
-    const sync = () => { for (const el of document.querySelectorAll("#tf select, #tf input")) el.value = st[el.name]; };
+    const sync = () => { for (const el of document.querySelectorAll("#tf select, #tf input")) el.value = st[el.name]; $("#tfx").checked = !!st.e; };
+    $("#tfx").addEventListener("change", (e) => { st.e = e.target.checked ? "1" : ""; render(); });
     let qt = 0;
     $("#tf").addEventListener("input", (e) => {
       if (!e.target.name) return;
@@ -2307,7 +2311,7 @@
   async function viewAwali(query) {
     const A = await getJSON("data/awali.json");
     const N = A.nar;
-    const st = { b: "bukhari", l: "", q: "" };
+    const st = { b: "bukhari", l: "", q: "", e: "" };
     for (const [k, v] of new URLSearchParams(query || "")) if (k in st) st[k] = v;
     if (!A.books[st.b]) st.b = "bukhari";
     const levels = (b) => Object.keys(A.books[b]).map(Number).sort();
@@ -2327,6 +2331,7 @@
         <p class="anote" id="anote"></p>
         <div id="atop"></div>
         <div class="filters" style="grid-template-columns:1fr"><label class="grow">في المتن<input id="aq" type="search" value="${esc(st.q)}" placeholder="كلمة من المتن…"></label></div>
+        <div class="fhelp">${exactBox(st.e, "aqx")}${filterHelp(false)}</div>
         <p class="muted small" id="acount"></p>
         <ul class="list" id="alist"></ul>
         <p id="amore-wrap" style="text-align:center"><button class="btn" id="amore">عرض المزيد</button></p>
@@ -2336,8 +2341,8 @@
     let shown = 0;
     const PAGE = 60;
     const rows = () => {
-      const nq = norm(st.q);
-      return (A.books[st.b][st.l] || []).filter((r) => !nq || norm(r[2]).includes(nq));
+      const hit = textMatcher(st.q, st.e);
+      return (A.books[st.b][st.l] || []).filter((r) => !hit || hit(r[2]));
     };
     const item = (r) => {
       const chains = r.slice(3);
@@ -2384,6 +2389,7 @@
     $("#alev").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; st.l = b.dataset.l; render(); });
     let qt = 0;
     $("#aq").addEventListener("input", (e) => { st.q = e.target.value; clearTimeout(qt); qt = setTimeout(renderList, 200); });
+    $("#aqx").addEventListener("change", (e) => { st.e = e.target.checked ? "1" : ""; renderList(); });
     $("#amore").addEventListener("click", more);
     render();
   }
@@ -2434,6 +2440,7 @@
           <label>وليس له رواية في<select name="x">${opt("", "—", st.x)}${BOOKS.map((b) => opt(b, BOOK[b], st.x)).join("")}</select></label>
           <label>العدد<select name="n">${["10", "20", "50", "100"].map((n) => opt(n, `أول ${n}`, st.n)).join("")}</select></label>
           <label class="grow">الاسم<input name="q" type="search" value="${esc(st.q)}" placeholder="تصفية بالاسم…"></label>
+          <div class="fhelp">${exactBox(st.e, "xfx")}${filterHelp(true)}</div>
         </div>
 
         <h2 id="xtitle">ترتيب الرواة</h2>
@@ -2492,12 +2499,12 @@
           <span class="track"><span class="all" style="width:${(100 * all) / max}%"></span>${st.m === "s" ? "" : `<span class="u" style="width:${(100 * u) / max}%"></span>`}</span></li>`).join("") || '<li class="muted">لا يرد في الكتب التسعة بهذا المقياس</li>'}</ul></div>`;
     };
     const render = () => {
-      const nq = norm(st.q);
+      const hit = textMatcher(st.q, st.e);
       const rows = Object.keys(D).filter((id) => {
         const v = D[id], r = X.nar[id];
         return r && (!st.c || v[1] === st.c) && inTabaqa(r[0], st.t) && (!st.city || r[2].includes(st.city)) && (!st.f || r[3] & +st.f) &&
           (!st.g || !(r[3] & 4) === (st.g === "m")) && (!st.y || v[2][bi(st.y)] > 0) && (!st.x || !v[2][bi(st.x)]) &&
-          (!nq || norm(v[0]).includes(nq)) && !/^\[/.test(v[0]);
+          (!hit || hit(v[0])) && !/^\[/.test(v[0]);
       }).map((id) => [id, value(id)]).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]);
       const shown = rows.slice(0, +st.n || 20);
       const max = shown.length ? shown[0][1] : 1;
@@ -2523,7 +2530,7 @@
       const qs = new URLSearchParams(Object.entries(st).filter(([k, v]) => v !== both[k])).toString();
       try { history.replaceState(history.state, "", `#/${cmp ? "compare" : "explore"}${qs ? "?" + qs : ""}`); } catch (_) {}
     };
-    const sync = () => { for (const el of document.querySelectorAll("#xf select, #xf input")) el.value = st[el.name]; };
+    const sync = () => { for (const el of document.querySelectorAll("#xf select, #xf input[name]")) el.value = st[el.name]; $("#xfx").checked = !!st.e; };
     // tabs above the ranking: one per preset group, and the custom filters
     const showTab = (g) => {
       for (const t of document.querySelectorAll("#xtabs button")) { const on = t.dataset.g === String(g); t.classList.toggle("on", on); t.setAttribute("aria-selected", on); }
@@ -2579,6 +2586,7 @@
     render();
 
     $("#xbm").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; setSeg("#xbm", b); bookMode = b.dataset.v; $("#xbooks").innerHTML = booksPanel(); });
+    $("#xfx").addEventListener("change", (e) => { st.e = e.target.checked ? "1" : ""; open = null; render(); });
     $("#xf").addEventListener("input", (e) => { if (!e.target.name) return; st[e.target.name] = e.target.value; open = null; render(); });
     $("#xpre").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) applyRanking(PRESETS[+b.dataset.i][1]); });
     $("#xtabs").addEventListener("click", (e) => { const t = e.target.closest("button"); if (t) showTab(t.dataset.g === "c" ? "c" : +t.dataset.g); });
@@ -2600,6 +2608,30 @@
   }
 
   // ---------- search ----------
+  // the search syntax for the filter boxes (names, matn): a predicate on texts, or null for an empty query.
+  // Loose words match the beginning of a word, so the list narrows while typing.
+  const FOLDED = new Map();
+  const folded = (t) => { let f = FOLDED.get(t); if (f === undefined) { if (FOLDED.size > 60000) FOLDED.clear(); FOLDED.set(t, (f = fold(norm(t)))); } return f; };
+  function textMatcher(q, exact) {
+    if (!String(q || "").trim()) return null;
+    const Q = parseQuery(q, exact, true);
+    if (!Q.req.length && !Q.neg.length) return null;
+    const hit = (re, f) => { re.lastIndex = 0; return re.test(f); };
+    return (...texts) => {
+      const fs = texts.filter((t) => t != null).map(folded);
+      return Q.req.every((re) => fs.some((f) => hit(re, f))) && !Q.neg.some((re) => fs.some((f) => hit(re, f)));
+    };
+  }
+  const exactBox = (on, id) => `<label class="s-check"><input type="checkbox" id="${id}" ${on ? "checked" : ""}> مطابقة تامة للكلمة</label>`;
+  const SEARCH_HELP = {
+    exact: "«مطابقة تامة للكلمة»: تُطابَق الكلمة كما كُتبت وحدها، فلا يدخل في «صلاة» مثلًا «الصلاة» ولا «بصلاة» ولا «صلاته» (ويبقى التشكيل والهمزات غير ملتفت إليها).",
+  };
+  // the help under a filter box; names get name examples
+  const filterHelp = (names) => `<details class="s-help"><summary>طريقة البحث</summary><ul>
+    <li>تُطابَق كل كلمة مع ما يبدأ بها من الكلمات وما يتصل بأولها من الواو والفاء والباء واللام وأداة التعريف، فتضيق القائمة أثناء الكتابة؛ ولا يُلتفت إلى التشكيل ولا إلى الهمزات والتاء المربوطة والألف المقصورة${names ? "، و«بن» و«ابن» سواء" : ""}.</li>
+    <li>${names ? "اسم بلفظه: ضعه بين علامتي تنصيص <code>\"سعيد بن المسيب\"</code>، فلا تُطابَق كلماته بما يزيد على آخرها." : "عبارة متصلة أو كلمة بلفظها: ضعها بين علامتي تنصيص <code>\"العمرة إلى العمرة\"</code> أو <code>«سنتي»</code>، فلا تُطابَق بما يزيد على آخرها."}</li>
+    <li>استبعاد كلمة: ضع قبلها علامة الطرح ${names ? "<code>عبد الله -عمر</code>" : "<code>الصلاة -الجمعة</code>"}.</li>
+    <li>${SEARCH_HELP.exact}</li></ul></details>`;
   // Matching runs on a folded copy of each text that keeps one char per char, so match offsets
   // point straight back into the displayed (original) spelling.
   const L = "ء-ي";
@@ -2616,23 +2648,24 @@
   // short words must match exactly (so «الى» does not hit «اليمن»), longer ones or «word*» may continue.
   // exact: the word as typed, standing alone (no clitics, article or continuation), unless «word*»
   // a word inside quotes keeps its clitics but does not continue («سنتي» does not hit «سنتين»)
-  function termSource(w, exact, quoted) {
-    const star = /\*$/.test(w);
+  function termSource(w, exact, quoted, open) {
+    let star = /\*$/.test(w);
     w = fold(norm(w)).replace(/ /g, "");
     if (!w) return null;
     if (exact) return `(?<![${L}])${w}${star ? `[${L}]*` : `(?![${L}])`}`;
+    if (open && !quoted) star = true;
     let core;
     if (w === "ابن") core = "ا?بن";
     else if (w.startsWith("ال") && w.length > 3) core = `(?:[بك]?ال|لل)${w.slice(2)}`;
     else core = `[بكل]?(?:ال)?${w}`;
     return `(?<![${L}])[وف]?${core}${star || (w.length >= 4 && !quoted) ? `[${L}]*` : `(?![${L}])`}`;
   }
-  function parseQuery(q, exact) {
+  function parseQuery(q, exact, open) {
     const req = [], neg = [], words = [];
     let phrased = false;
     for (const m of q.replace(/[«»“”]/g, '"').matchAll(/(-?)"([^"]*)"?|(-?)(\S+)/g)) {
       const isPhrase = m[2] != null, minus = isPhrase ? m[1] : m[3];
-      const parts = (isPhrase ? m[2] : m[4]).split(/\s+/).map((w) => termSource(w, exact, isPhrase)).filter(Boolean);
+      const parts = (isPhrase ? m[2] : m[4]).split(/\s+/).map((w) => termSource(w, exact, isPhrase, open)).filter(Boolean);
       if (!parts.length) continue;
       const re = new RegExp(parts.join(`[^${L}]+`), "g");
       if (minus) { neg.push(re); continue; }
@@ -2737,7 +2770,8 @@
     // «البخاري 1524» is a lookup, not a text search
     let Q = lookup.length ? { req: [] } : parseQuery(q, opt.x);
     const words = norm(q.replace(/(^|\s)-\S+/g, " ")).split(" ").filter((w) => w.length > 1);
-    const narrators = words.length && !lookup.length ? Object.entries(META.directory).filter(([, v]) => words.every((w) => norm(v[0]).includes(w)))
+    const nameHit = words.length && !lookup.length ? textMatcher(q, opt.x) : null;
+    const narrators = nameHit ? Object.entries(META.directory).filter(([, v]) => !/^\[/.test(v[0]) && nameHit(v[0]))
       .sort((a, b) => totalOf(b[1]) - totalOf(a[1])).slice(0, 12) : [];
     const recs = Q.req.length ? await corpus() : [];
     let byScope = {};
@@ -2763,10 +2797,11 @@
         <details class="s-help"><summary>طريقة البحث</summary>
           <ul>
             <li>تُطابَق الكلمة كاملة مع ما يتصل بها من الواو والفاء والباء واللام وأداة التعريف، ولا يُلتفت إلى التشكيل ولا إلى الهمزات والتاء المربوطة والألف المقصورة.</li>
-            <li>«مطابقة تامة للكلمة»: تُطابَق الكلمة كما كُتبت وحدها، فلا يدخل في «صلاة» مثلًا «الصلاة» ولا «بصلاة» ولا «صلاته» (ويبقى التشكيل والهمزات غير ملتفت إليها).</li>
+            <li>${SEARCH_HELP.exact}</li>
             <li>عبارة متصلة أو كلمة بلفظها: ضعها بين علامتي تنصيص <code>"العمرة إلى العمرة"</code> أو <code>«سنتي»</code>، فلا تُطابَق بما يزيد على آخرها (لا تدخل «سنتين» في «سنتي»).</li>
             <li>استبعاد كلمة: ضع قبلها علامة الطرح <code>الصلاة -الجمعة</code>.</li>
             <li>بداية كلمة: أضف نجمة <code>صلا*</code> لتشمل صلاة وصلاته وصلاتكم.</li>
+            <li>الرواة في أعلى النتائج يُطابَقون بأوائل كلمات أسمائهم، ويسري عليهم خيار المطابقة التامة.</li>
             <li>رقم الحديث: <code>البخاري 1524</code> أو <code>مسلم 15</code>.</li>
             <li>تصفية بالحكم: «الصحيح وما في حكمه» أحاديث الصحيحين، وما حكم عليه المحدثون المنقولة أحكامهم في صفحة كل حديث بالصحة أو الحسن (ومنه الصحيح والحسن لغيره، و«حديث صحيح وهذا إسناد ضعيف»، و«إسناده صحيح»). و«مختلف فيه» ما صحّحه بعضهم وضعّفه غيره، و«بلا حكم» أحاديث الموطأ وما لم يُنقل فيه حكم. التصنيف آلي مأخوذ من ألفاظ الأحكام، فالمرجع نص الحكم في صفحة الحديث.</li>
           </ul>
@@ -2786,11 +2821,12 @@
     if (!Q.req.length) return;
 
     let shown = 30;
+    const optQS = () => {
+      const p = new URLSearchParams(Object.entries(opt).filter(([k, v]) => v && !(k === "s" && v === "all") && !(k === "o" && v === "rel")));
+      return p.toString() ? "?" + p : "";
+    };
     const render = () => {
-      history.replaceState(null, "", "#/search/" + encodeURIComponent(q) + (() => {
-        const p = new URLSearchParams(Object.entries(opt).filter(([k, v]) => v && !(k === "s" && v === "all") && !(k === "o" && v === "rel")));
-        return p.toString() ? "?" + p : "";
-      })());
+      history.replaceState(null, "", "#/search/" + encodeURIComponent(q) + optQS());
       const scoped = hitsFor(opt.s);
       const perGrade = { "": scoped.length, s: 0, w: 0, m: 0, n: 0 };
       for (const h of scoped) perGrade[gradeOf(h)]++;
@@ -2839,7 +2875,7 @@
     });
     bind("#sScope", "s"); bind("#sSort", "o"); bind("#sBooks", "b"); bind("#sGrade", "h");
     $("#sGroup").addEventListener("change", (e) => { opt.g = e.target.checked ? "1" : ""; shown = 30; render(); });
-    $("#sExact").addEventListener("change", (e) => { opt.x = e.target.checked ? "1" : ""; Q = parseQuery(q, opt.x); byScope = {}; shown = 30; render(); });
+    $("#sExact").addEventListener("change", (e) => { opt.x = e.target.checked ? "1" : ""; shown = 30; history.replaceState(null, "", "#/search/" + encodeURIComponent(q) + optQS()); viewSearch(q + optQS()); });
     render();
   }
 

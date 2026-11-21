@@ -342,6 +342,12 @@ details.jarh li { font-family: var(--font-text); font-size: 1.05rem; margin: 4px
 .s-help summary { cursor: pointer; width: fit-content; }
 .s-help ul { margin: 6px 0 0; padding-inline-start: 20px; }
 .s-help code { font-family: var(--font-text); font-size: 1rem; background: var(--panel-2); color: var(--ink); padding: 0 6px; border-radius: 5px; }
+.fhelp { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 18px; margin: 4px 0 10px; }
+.fhelp .s-help { margin: 0; flex: 1 1 100%; }
+.fhelp label.s-check { display: inline-flex; flex-direction: row; gap: 6px; width: auto; font-size: .88rem; color: var(--ink); white-space: nowrap; }
+.fhelp label.s-check input { width: auto; padding: 0; }
+.filters .fhelp { grid-column: 1 / -1; margin: 0; }
+.nfilters .fhelp { margin: -4px 0 6px; }
 .s-count { margin: 14px 0 0; font-weight: 600; }
 .s-ref { font-weight: 700; }
 .s-bab { color: var(--muted); }
