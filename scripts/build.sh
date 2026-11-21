@@ -9,3 +9,5 @@ find ../site/data -mindepth 1 -maxdepth 1 ! -name sharh -exec rm -rf {} +
 python3 build_site.py
 python3 make_takhrij.py
 python3 make_life.py
+# zawa'id over the nine books: verdicts in pipeline/zawaid (make_zawaid.py --shamela reads them from the offline Shamela)
+python3 make_zawaid.py
