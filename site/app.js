@@ -2615,7 +2615,8 @@
   // one query word -> regex source: whole word, tolerant of the clitics و ف ب ك ل and the article;
   // short words must match exactly (so «الى» does not hit «اليمن»), longer ones or «word*» may continue.
   // exact: the word as typed, standing alone (no clitics, article or continuation), unless «word*»
-  function termSource(w, exact) {
+  // a word inside quotes keeps its clitics but does not continue («سنتي» does not hit «سنتين»)
+  function termSource(w, exact, quoted) {
     const star = /\*$/.test(w);
     w = fold(norm(w)).replace(/ /g, "");
     if (!w) return null;
@@ -2624,14 +2625,14 @@
     if (w === "ابن") core = "ا?بن";
     else if (w.startsWith("ال") && w.length > 3) core = `(?:[بك]?ال|لل)${w.slice(2)}`;
     else core = `[بكل]?(?:ال)?${w}`;
-    return `(?<![${L}])[وف]?${core}${star || w.length >= 4 ? `[${L}]*` : `(?![${L}])`}`;
+    return `(?<![${L}])[وف]?${core}${star || (w.length >= 4 && !quoted) ? `[${L}]*` : `(?![${L}])`}`;
   }
   function parseQuery(q, exact) {
     const req = [], neg = [], words = [];
     let phrased = false;
     for (const m of q.replace(/[«»“”]/g, '"').matchAll(/(-?)"([^"]*)"?|(-?)(\S+)/g)) {
       const isPhrase = m[2] != null, minus = isPhrase ? m[1] : m[3];
-      const parts = (isPhrase ? m[2] : m[4]).split(/\s+/).map((w) => termSource(w, exact)).filter(Boolean);
+      const parts = (isPhrase ? m[2] : m[4]).split(/\s+/).map((w) => termSource(w, exact, isPhrase)).filter(Boolean);
       if (!parts.length) continue;
       const re = new RegExp(parts.join(`[^${L}]+`), "g");
       if (minus) { neg.push(re); continue; }
@@ -2763,7 +2764,7 @@
           <ul>
             <li>تُطابَق الكلمة كاملة مع ما يتصل بها من الواو والفاء والباء واللام وأداة التعريف، ولا يُلتفت إلى التشكيل ولا إلى الهمزات والتاء المربوطة والألف المقصورة.</li>
             <li>«مطابقة تامة للكلمة»: تُطابَق الكلمة كما كُتبت وحدها، فلا يدخل في «صلاة» مثلًا «الصلاة» ولا «بصلاة» ولا «صلاته» (ويبقى التشكيل والهمزات غير ملتفت إليها).</li>
-            <li>عبارة متصلة: ضعها بين علامتي تنصيص <code>"العمرة إلى العمرة"</code> أو <code>«العمرة إلى العمرة»</code>.</li>
+            <li>عبارة متصلة أو كلمة بلفظها: ضعها بين علامتي تنصيص <code>"العمرة إلى العمرة"</code> أو <code>«سنتي»</code>، فلا تُطابَق بما يزيد على آخرها (لا تدخل «سنتين» في «سنتي»).</li>
             <li>استبعاد كلمة: ضع قبلها علامة الطرح <code>الصلاة -الجمعة</code>.</li>
             <li>بداية كلمة: أضف نجمة <code>صلا*</code> لتشمل صلاة وصلاته وصلاتكم.</li>
             <li>رقم الحديث: <code>البخاري 1524</code> أو <code>مسلم 15</code>.</li>
