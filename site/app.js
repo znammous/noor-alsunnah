@@ -1358,6 +1358,12 @@
     const c = [...new Set(h.grades.filter((g) => g.v).map((g) => zGrade(g.v) || "none"))];
     return !c.length ? "none" : c.length === 1 ? c[0] : c.includes("daif") ? "mixed" : c.includes("hasan") ? "hasan" : c[0];
   };
+  // what «صححه الحاكم» / «صححه الذهبي» mean, for a general reader; Ibn al-Salah on al-Hakim, al-Muqaddima, first type, fourth note
+  const Z_BY_NOTE = {
+    hakim: "«صححه الحاكم» معناه أن الحاكم وحده حكم بصحة الحديث، ولم نجد عليه حكمًا صريحًا لمحققي طبعة الرسالة ولا للذهبي. والحاكم موصوف عند المحدثين بالتساهل في التصحيح، فلا يُسوّى تصحيحه بتصحيح البخاري ومسلم.",
+    dhahabi: "«صححه الذهبي» أو «ضعّفه الذهبي» معناه أن الحكم من تعليق الذهبي المختصر في «تلخيص المستدرك»، لأنه لم يُوجد لمحققي طبعة الرسالة حكم صريح على هذا الحديث. وهو تعليق موجز في الغالب، فيُستأنس به ويُراجع معه كلام غيره.",
+  };
+  const IBN_SALAH_HAKIM = ibnSalahHTML([["وهو واسع الخطو في شرط الصحيح، متساهل في القضاء به. فالأولى أن نتوسط في أمره فنقول: ما حكم بصحته، ولم نجد ذلك فيه لغيره من الأئمة، إن لم يكن من قبيل الصحيح فهو من قبيل الحسن، يحتج به ويعمل به، إلا أن تظهر فيه علة توجب ضعفه.", 22, 19]]);
   const Z_FILTERS = [["", "الكل"], ["sahih", "صحيح"], ["hasan", "حسن"], ["daif", "ضعيف"], ["mixed", "مختلف فيه"], ["none", "دون حكم صريح"]];
   const zTag = (h, Z) => {
     const c = zClass(h, Z), t = { sahih: ["صحيح", "thiqa"], hasan: ["حسن", "saduq"], daif: ["ضعيف", "weak"], mixed: ["مختلف فيه", "maqbul"] }[c];
@@ -1366,7 +1372,8 @@
     const who = lead && Z.primary.indexOf(lead.s) > 0 ? lead.s : !Z.primary && said.length === 1 && said[0].s === "hakim" ? "hakim" : "";
     const BY = { hakim: { sahih: "صححه الحاكم", hasan: "حسّنه الحاكم", daif: "ضعّفه الحاكم" }, dhahabi: { sahih: "صححه الذهبي", hasan: "حسّنه الذهبي", daif: "ضعّفه الذهبي" } };
     if (t && who && BY[who]) t[0] = BY[who][c] || t[0];
-    return t ? `<span class="s-gr cls-${t[1]}" title="${esc(said.map((g) => `${Z.sources[g.s] || g.s}: ${g.v}`).join(" · "))}">${t[0]}</span>` : "";
+    const tip = (who && Z_BY_NOTE[who] ? Z_BY_NOTE[who] + "\n\n" : "") + said.map((g) => `${Z.sources[g.s] || g.s}: ${g.v}`).join(" · ");
+    return t ? `<span class="s-gr cls-${t[1]}${who ? " by" : ""}" title="${esc(tip)}">${t[0]}</span>` : "";
   };
 
   async function viewZawaid(book) {
@@ -1381,6 +1388,9 @@
         <p>هذه أحاديث في ${zBookName(Z)} لم يذكر برنامج جامع خادم الحرمين الشريفين تخريجها في أيٍّ من الكتب التسعة من حديث الصحابي نفسه. فقد يكون للحديث فيها شاهد عن صحابي آخر، أو يكون في غيرها من كتب السنة.</p>
         <p>${Z.intro || `والحكم على كل حديث منقول بنصه من حاشية ${esc(Z.work)}، وهو أول عبارة في الحاشية منسوبًا إلى صاحبه، ونص الحاشية كاملًا في صفحة الحديث مع رابط موضعه في المكتبة الشاملة.${Z.sources.albani ? " وتعليقات الألباني في هذه الطبعة موقّعة باسمه («ناصر»)، فتُعرض حكمًا مستقلًا." : ""}`}</p>
       </div>
+      ${Z.primary ? `<details class="panel znote-help"><summary>ما معنى «صححه الحاكم» و«صححه الذهبي» في هذه القائمة؟</summary>
+        <p>يُوصف كل حديث هنا بحكم محققي طبعة الرسالة أولًا، لأنهم ينظرون في إسناده وطرقه وشواهده. فإن لم يكن لهم حكم عليه وُصف بتعليق الذهبي، ثم بحكم الحاكم، ويُسمّى صاحب الحكم في الوسم حتى لا يلتبس بغيره.</p>
+        <p>${Z_BY_NOTE.dhahabi}</p><p>${Z_BY_NOTE.hakim} وقد بيّن ابن الصلاح كيف يُتعامل مع تصحيحه:</p>${IBN_SALAH_HAKIM}</details>` : ""}
       <div class="tree-tools"><div class="seg" id="zf">${Z_FILTERS.filter(([v]) => !v || counts[v]).map(([v, l]) => `<button data-v="${v}"${v ? "" : ' class="on"'}>${l} (${fmt(v ? counts[v] : D.hadiths.length)})</button>`).join("")}</div></div>
       <div id="zlist"></div>`;
     const draw = () => {
@@ -1433,6 +1443,10 @@
           ${g ? `<details class="znote"${g.v ? "" : " open"}><summary>نص التعليق كاملًا</summary><p>${esc(g.t).replace(/\n/g, "<br>")}</p></details>` : ""}
           ${srcOf(g)}</blockquote>`).join("")}</div>
         ${h.grades.some((g) => g.v && isnadHasanOnly(g.v)) ? ISNAD_HASAN_NOTE : ""}
+        ${(() => {
+          const lead = zLead(h, Z), who = lead && Z.primary.indexOf(lead.s) > 0 ? lead.s : "";
+          return who ? `<p class="notice">${Z_BY_NOTE[who]}${who === "hakim" ? " وقد بيّن ابن الصلاح كيف يُتعامل مع تصحيحه:" : ""}</p>${who === "hakim" ? IBN_SALAH_HAKIM : ""}` : "";
+        })()}
         <p class="muted small">يُنقل الحكم بنصه منسوبًا إلى صاحبه، وهو اجتهاد منه. وقد يكون الحكم على الإسناد خاصة («إسناده ضعيف») والحديث ثابت من طريق أخرى.</p></div>
       <div class="panel dorar">
         <div><h3>أحكام أخرى في الدرر السنية</h3><p class="muted small">من الموسوعة الحديثية في موقع الدرر السنية: نتائج البحث عن طرف الحديث، وقد تشمل رواياتٍ أخرى مشابهة.</p></div>
