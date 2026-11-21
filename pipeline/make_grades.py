@@ -156,17 +156,29 @@ MARKER = re.compile(r"\((\d{1,2})\)")
 ALBANI_INLINE = re.compile(r"(?:^|\n)\s*\(((?:صحيح|حسن|ضعيف|شاذ|منكر|موضوع)[^)]*)\)")
 REPEAT = re.compile(r"^هو مكرر \((\d+)\) سند[اًً]+ ومتن")
 # the footnote that grades the hadith, not one on its manuscripts or its men
-EDITORS_VERDICT = re.compile(r"^(?:إسناد|حديث|صحيح|حسن|ضعيف|رجال|أثر|مرفوع|موقوف|مرسل|منكر|شاذ)")
+EDITORS_VERDICT = re.compile(r"^(?:إسناد|حديث|صحيح|حسن|ضعيف|رجال|أثر|مرفوع|موقوف|مرسل|منكر|شاذ|بعضه|المرفوع منه|متن)")
+# a footnote on the manuscripts that goes on to grade the hadith: "في (م) : ...\nوالحديث إسناده ضعيف ..."
+LATER_VERDICT = re.compile(r"(?:^|\n)\s*(?:و|ف)?(?:هذا\s+)?الحديث\s+((?:إسناد|صحيح|حسن|ضعيف|منكر|شاذ|موقوف|مرسل|مرفوع)[^\n]*)")
+STRIP = re.compile(r"[\u064B-\u0652\u0670\u0640]")
+
+
+# where the book's own text starts in a source whose introduction is numbered too: its first hadith
+TEXT_STARTS = {25794: re.compile(r"(?m)^\s*1\s*-\s*(?:حدثنا|حَدَّثَنَا|أخبرنا|أَخْبَرَنَا)")}
 
 
 def segments(book_id):
     """The numbered hadiths of a source, in order: {n, text, page, notes (footnotes of its markers)}."""
-    out, last = [], 0
+    out, last, begun = [], 0, book_id not in TEXT_STARTS
     for line in open(PAGES / f"{book_id}.jsonl", encoding="utf-8"):
         p = json.loads(line)
         if p.get("end"):
             break
         body = p["body"].translate(ARABIC_DIGITS)
+        if not begun:                       # the editors' numbered introduction is not the book
+            m = TEXT_STARTS[book_id].search(body)
+            if not m:
+                continue
+            begun, body = True, body[m.start():]
         notes = {m.group(1): m.group(2).strip() for m in FOOTNOTE.finditer(p["hamesh"].translate(ARABIC_DIGITS))}
         here = starts(body, last)
         bounds = [pos for pos, _ in here] + [len(body)]
@@ -211,11 +223,14 @@ def text_verdict(src, seg):
         if not m:
             return None, seg["text"]
         return inline_verdict(m.group(1)), seg["text"][:m.start()]
-    graded = [n for n in seg["notes"] if EDITORS_VERDICT.match(n)]
+    graded = [n for n in seg["notes"] if EDITORS_VERDICT.match(STRIP.sub("", n))]
+    if not graded and src == "arnaut":
+        later = [m.group(1) for n in seg["notes"] for m in [LATER_VERDICT.search(STRIP.sub("", n))] if m]
+        graded = later
     return (first_clause(graded[-1]) if graded else None), MARKER.sub(" ", seg["text"])
 
 
-def align(segs, program, stats):
+def align(segs, program, stats, fill=False):
     """Match each hadith of a source to the program's. Candidates share its rarest words; among
     those matching about as well as the best, the one nearest after the previous match wins, as
     both follow the book's order and al-Nasa'i repeats a text under several chapters.
@@ -224,7 +239,7 @@ def align(segs, program, stats):
     for i, (_, words) in enumerate(program):
         for w in words:
             postings.setdefault(w, []).append(i)
-    out, j = [], -1
+    out, j, tops = [], -1, []
     for seg in segs:
         words = [w for w in dict.fromkeys(norm(seg["match"]).split()) if len(w) > 2][:50]
         known = sorted((w for w in words if w in postings), key=lambda w: len(postings[w]))
@@ -242,11 +257,50 @@ def align(segs, program, stats):
         top = max(sc for sc, _ in scored)
         j = min((i for sc, i in scored if sc >= top - 0.05), key=lambda i: (i <= j, abs(i - j)))
         out.append((j, seg))
+        tops.append(top)
     # keep the longest run of matches in book order; a match out of order is a near-identical text
     # elsewhere in the book (a repeated hadith), not this one
     keep = in_order([i for i, _ in out])
     stats["out of order, dropped"] += len(out) - len(keep)
-    return [(program[out[k][0]][0], out[k][1]) for k in keep]
+    pairs = [(out[k][0], out[k][1]) for k in keep]
+    if fill:
+        # where the two orders differ (some musnads are arranged otherwise), a near-identical text is kept
+        # out of order, if neither side is taken
+        kept, taken = set(keep), {i for i, _ in pairs}
+        for k, (i, seg) in enumerate(out):
+            if k not in kept and tops[k] >= 0.9 and i not in taken:
+                pairs.append((i, seg))
+                taken.add(i)
+                stats["kept out of order (near-identical)"] += 1
+        pairs.sort(key=lambda x: x[0])
+        pairs = fill_gaps(segs, program, [p for p in pairs], stats)
+    return [(program[i][0], seg) for i, seg in pairs]
+
+
+def fill_gaps(segs, program, pairs, stats, floor=0.45, widest=40):
+    """Between two hadiths matched for certain, the program's unmatched hadiths are looked for only among
+    the source's hadiths between theirs, in order, where a weaker likeness is enough (the place is known)."""
+    pos = {id(seg): k for k, seg in enumerate(segs)}
+    words = [[w for w in dict.fromkeys(norm(seg["match"]).split()) if len(w) > 2][:50] for seg in segs]
+    anchors = [(-1, -1)] + [(i, pos[id(seg)]) for i, seg in pairs] + [(len(program), len(segs))]
+    added = []
+    for (p0, s0), (p1, s1) in zip(anchors, anchors[1:]):
+        if p1 - p0 < 2 or s1 - s0 < 2 or p1 - p0 > widest or s1 - s0 > widest:
+            continue
+        last = s0
+        for p in range(p0 + 1, p1):
+            best, score = None, floor
+            for k in range(last + 1, s1):
+                if len(words[k]) < 4:
+                    continue
+                sc = sum(w in program[p][1] for w in words[k]) / len(words[k])
+                if sc >= score:
+                    best, score = k, sc
+            if best is not None:
+                added.append((p, segs[best]))
+                last = best
+    stats["filled between matches"] += len(added)
+    return sorted(pairs + added, key=lambda x: x[0])
 
 
 def in_order(seq):
@@ -284,7 +338,7 @@ def text_book(book, sources, corpus):
         stats[f"{book_id} hadiths"] = len(segs)
         graded = [seg for seg in segs if seg["verdict"]]
         stats[f"{book_id} graded"] = len(graded)
-        for num, seg in align(graded, program, stats):
+        for num, seg in align(graded, program, stats, fill=(book == "ahmad")):
             rows = grades.setdefault(num, [])
             if [src, seg["verdict"]] not in [r[:2] for r in rows]:
                 rows.append([src, seg["verdict"], seg["page"]])

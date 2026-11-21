@@ -708,7 +708,7 @@ def build(book):
     for sh in range(0, len(out), SHARD):
         part = out[sh:sh + SHARD]
         ids = {i for h in part for c in h["chains"] for i in c["ids"]} | {m[2] for h in part for p in h["parts"] for m in p["mentions"]}
-        dump({"hadiths": {h["n"]: h for h in part}, "nar": {i: narr[i] for i in ids if i in narr}},
+        dump({"hadiths": {h["n"]: h for h in part}, "nar": {i: narr[i] for i in sorted(ids) if i in narr}},
              SITE_DATA / "z" / book / f"{sh // SHARD}.json")
     dump({"book": book, "shamela": shamela_id,
           "kitabs": [[i + 1, t, used_kitabs[i + 1]] for i, (_, t) in enumerate(G["kitabs"]) if used_kitabs[i + 1]],
