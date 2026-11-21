@@ -48,9 +48,11 @@
       book: "المستدرك على الصحيحين", numbering: "ترقيم برنامج الجامع", by: "الحاكم والذهبي ومحققي الرسالة",
       work: "المستدرك على الصحيحين، تحقيق مصطفى عبد القادر عطا، دار الكتب العلمية، ط1 1411هـ، ومعه تعليقات الذهبي في التلخيص",
       sources: { hakim: "الحاكم", dhahabi: "الذهبي في التلخيص", risala: "محققو طبعة الرسالة" },
+      // the list and its filter follow the first of these that judged the hadith
+      primary: ["risala", "dhahabi", "hakim"],
       // a verdict from another edition: its own work line and Shamela book
       works: { risala: ["المستدرك على الصحيحين، تحقيق عادل مرشد وأحمد برهوم ومحمد كامل قره بللي وسعيد اللحام، دار الرسالة العالمية، ط1 1439هـ", 1424] },
-      intro: "والحكم على كل حديث منقول بنصه منسوبًا إلى صاحبه: حكم الحاكم من نص كتابه، وتعليق الذهبي من «تلخيص المستدرك» كما في طبعة دار الكتب العلمية، وحكم محققي طبعة دار الرسالة العالمية من حواشيها. وترقيم الطبعتين يخالف ترقيم البرنامج، فطوبق كل حديث بموضعه في كلٍّ منهما بمقارنة النص، ويُذكر رقمه فيها في صفحة الحديث. ولم يُعرض الحكم إذا تعذّرت المطابقة." },
+      intro: "والحكم على كل حديث منقول بنصه منسوبًا إلى صاحبه: حكم الحاكم من نص كتابه، وتعليق الذهبي من «تلخيص المستدرك» كما في طبعة دار الكتب العلمية، وحكم محققي طبعة دار الرسالة العالمية من حواشيها. وترقيم الطبعتين يخالف ترقيم البرنامج، فطوبق كل حديث بموضعه في كلٍّ منهما بمقارنة النص، ويُذكر رقمه فيها في صفحة الحديث. ولم يُعرض الحكم إذا تعذّرت المطابقة. ويُصنَّف الحديث في هذه القائمة بحكم محققي طبعة الرسالة، فإن لم يكن له حكم عندهم فبتعليق الذهبي، ثم بحكم الحاكم، ويُذكر صاحب الحكم في الوسم حينئذ." },
   };
   const zBookName = (Z) => Z.book || `صحيح ${Z.author}`;
   // a verdict's degree, with the terse wording of al-Hakim and al-Dhahabi («على شرط مسلم»، «منقطع»، «سنده واه»)
@@ -1343,24 +1345,34 @@
   }
 
   // ---------- zawa'id over the nine books ----------
+  // the verdict that describes the hadith in the list: the book's first source in order (al-Mustadrak: the Risala
+  // muhaqqiqs, then al-Dhahabi, then al-Hakim); without an order, all of them together
+  const zLead = (h, Z) => {
+    if (!Z || !Z.primary) return null;
+    for (const s of Z.primary) { const g = h.grades.find((x) => x.s === s && x.v && zGrade(x.v)); if (g) return g; }
+    return null;
+  };
   // the verdicts' class: sahih, hasan, daif; "mixed" when the scholars differ; "none" when no note opens with one
-  const zClass = (h) => {
+  const zClass = (h, Z) => {
+    if (Z && Z.primary) { const g = zLead(h, Z); return g ? zGrade(g.v) : "none"; }
     const c = [...new Set(h.grades.filter((g) => g.v).map((g) => zGrade(g.v) || "none"))];
     return !c.length ? "none" : c.length === 1 ? c[0] : c.includes("daif") ? "mixed" : c.includes("hasan") ? "hasan" : c[0];
   };
   const Z_FILTERS = [["", "الكل"], ["sahih", "صحيح"], ["hasan", "حسن"], ["daif", "ضعيف"], ["mixed", "مختلف فيه"], ["none", "دون حكم صريح"]];
-  const zTag = (h) => {
-    const c = zClass(h), t = { sahih: ["صحيح", "thiqa"], hasan: ["حسن", "saduq"], daif: ["ضعيف", "weak"], mixed: ["مختلف فيه", "maqbul"] }[c];
-    // al-Hakim alone: his own word, he is known to be lenient
-    const said = h.grades.filter((g) => g.v);
-    if (t && said.length === 1 && said[0].s === "hakim") t[0] = { sahih: "صححه الحاكم", hasan: "حسّنه الحاكم", daif: "ضعّفه الحاكم" }[c] || t[0];
-    return t ? `<span class="s-gr cls-${t[1]}" title="${esc(h.grades.filter((g) => g.v).map((g) => g.v).join(" · "))}">${t[0]}</span>` : "";
+  const zTag = (h, Z) => {
+    const c = zClass(h, Z), t = { sahih: ["صحيح", "thiqa"], hasan: ["حسن", "saduq"], daif: ["ضعيف", "weak"], mixed: ["مختلف فيه", "maqbul"] }[c];
+    // a verdict that is not the main source's names its author (al-Hakim is known to be lenient)
+    const lead = zLead(h, Z), said = h.grades.filter((g) => g.v);
+    const who = lead && Z.primary.indexOf(lead.s) > 0 ? lead.s : !Z.primary && said.length === 1 && said[0].s === "hakim" ? "hakim" : "";
+    const BY = { hakim: { sahih: "صححه الحاكم", hasan: "حسّنه الحاكم", daif: "ضعّفه الحاكم" }, dhahabi: { sahih: "صححه الذهبي", hasan: "حسّنه الذهبي", daif: "ضعّفه الذهبي" } };
+    if (t && who && BY[who]) t[0] = BY[who][c] || t[0];
+    return t ? `<span class="s-gr cls-${t[1]}" title="${esc(said.map((g) => `${Z.sources[g.s] || g.s}: ${g.v}`).join(" · "))}">${t[0]}</span>` : "";
   };
 
   async function viewZawaid(book) {
     const Z = ZBOOKS[book], D = await zbook(book);
     const counts = {};
-    for (const h of D.hadiths) counts[zClass(h)] = (counts[zClass(h)] || 0) + 1;
+    for (const h of D.hadiths) counts[zClass(h, Z)] = (counts[zClass(h, Z)] || 0) + 1;
     let filt = "";
     app.innerHTML = `<div class="crumbs"><a href="#/books">الكتب</a> ‹ ${Z.title}</div>
       <h1>${Z.full}</h1>
@@ -1373,11 +1385,11 @@
       <div id="zlist"></div>`;
     const draw = () => {
       const by = new Map();
-      for (const h of D.hadiths) if (!filt || zClass(h) === filt) (by.get(h.kitab) || by.set(h.kitab, []).get(h.kitab)).push(h);
+      for (const h of D.hadiths) if (!filt || zClass(h, Z) === filt) (by.get(h.kitab) || by.set(h.kitab, []).get(h.kitab)).push(h);
       $("#zlist").innerHTML = D.kitabs.filter(([no]) => by.has(no)).map(([no, title]) => `<div class="section-title"><h2>${esc(title)}</h2><p>${fmt(by.get(no).length)} حديثًا</p></div>
         <div class="panel"><ul class="list">${by.get(no).map((h) => {
           const p = h.parts[0], matn = p.matn ? p.text.slice(p.matn[0], p.matn[1]) : p.text;
-          return `<li><div class="row-link"><div class="meta-line"><a href="#/z/${book}/${h.n}">${Z.author} ${h.n}</a>${zTag(h)}${h.bab ? `<span>${esc(clip(h.bab, 90))}</span>` : ""}</div>
+          return `<li><div class="row-link"><div class="meta-line"><a href="#/z/${book}/${h.n}">${Z.author} ${h.n}</a>${zTag(h, Z)}${h.bab ? `<span>${esc(clip(h.bab, 90))}</span>` : ""}</div>
             <a href="#/z/${book}/${h.n}" class="snip row-main" style="color:inherit">${esc(clip(matn, 220))}</a></div></li>`;
         }).join("")}</ul></div>`).join("");
     };
