@@ -39,7 +39,13 @@ BOOKS = {
     "ibnkhuzayma": ("sahih-ibn-khuzaymah", 11, 121382, {"ابن خزيمة"}, "bracket"),
     "mustadrak": ("al-mustadrak-ala-al-sahihayn", 24, 2266, {"الحاكم"}, "talkhis"),
     "abuyala": ("musnad-abi-yala-al-mawsili", 23, 61, {"أبو يعلى الموصلي", "أبو يعلى"}, "majma"),
+    "bazzar": ("musnad-al-bazzar", 19, 61, {"البزار"}, "majma"),
+    "kabir": ("al-mujam-al-kabir", 12, 61, {"الطبراني"}, "majma"),
+    "awsat": ("al-mujam-al-awsat", 13, 61, {"الطبراني"}, "majma"),
+    "saghir": ("al-mujam-al-saghir", 14, 61, {"الطبراني"}, "majma"),
 }
+# books whose numbering restarts in some volumes: a hadith is «volume-number» («19-141», cited 19/141)
+VOLNUM = {"kabir", "bazzar"}
 #   majma: al-Haythami's «رواه ...» line in «مجمع الزوائد» (al-Qudsi ed.): the entry whose matn the hadith shares
 #          most, whose «رواه» names the book, from the same companion. Only the hadiths found there are shown.
 MAJMA_KEY = {"abuyala": r"أبو يعلى|أبي يعلى", "bazzar": r"البزار", "awsat": r"الأوسط", "saghir": r"الصغير",
@@ -161,6 +167,24 @@ def number_of(rec):
         return num
     m = re.match(r"\s*(?:\[\d+/\d+\]\s*)?(?:[^\d]{0,400}?\s)?(\d{1,4})\s*-?\s+(?=[^\d\s])", re.sub(r"\s+", " ", strip_diacritics(rec["hadith_text"] or "")))
     return m.group(1) if m else ""
+
+
+def keyed(book, records):
+    """(record, key) in book order: the program's number, or for VOLNUM books «volume-number», the volume
+    being that of the print page marker («[19/72]») before the number, else the last one seen."""
+    vol = None
+    for rec in records:
+        n, t = number_of(rec), rec["hadith_text"] or ""
+        k = n
+        if book in VOLNUM and n:
+            m = re.search(r"(?:^|\s)" + n + r"\s*-", t)
+            before = re.findall(r"\[(\d+)/\d+\]", t[:m.start()] if m else "")
+            v = int(before[-1]) if before else vol
+            k = f"{v}-{n}" if v is not None else n
+        marks = re.findall(r"\[(\d+)/\d+\]", t)
+        if marks:
+            vol = int(marks[-1])
+        yield rec, (k if book in VOLNUM or not k else int(k)) if k else ""
 
 
 HAKIM = re.compile(r"[«\"]?\s*(?:هذا|وهذا)\s+(?:حديث|إسناد)[^«»\"\n]{0,220}")
@@ -342,10 +366,9 @@ def majma_notes(book, slug, shamela_id, wanted):
     original, graph = read_book(slug)
     graph = {h["mainId"]: h for h in graph}
     first = {}
-    for rec in original:
-        n = number_of(rec)
-        if n and int(n) in wanted and int(n) not in first:
-            first[int(n)] = rec
+    for rec, n in keyed(book, original):
+        if n and n in wanted and n not in first:
+            first[n] = rec
     out = {}
     for n, rec in first.items():
         mine = words(rec.get("matn_text_diac") or "")
@@ -424,9 +447,8 @@ def extract(book):
     # only the numbers that the program places in none of the nine books are kept
     takh = defaultdict(list)
     cur = None
-    for rec in read_book(slug)[0]:
-        n = number_of(rec)
-        cur = int(n) if n else cur
+    for rec, n in keyed(book, read_book(slug)[0]):
+        cur = n if n else cur
         if cur is not None:
             takh[cur] += [b for b, _, _ in rec["takhreej"]]
     wanted = {n for n, bs in takh.items() if not NINE & set(bs)}
@@ -443,7 +465,8 @@ def extract(book):
             notes.setdefault(n, {})["risala"] = r
     # the book's own divisions when an edition of it is read (Abu Ya'la: the musnads of the companions)
     dump({"shamela": shamela_id, "kitabs": kitabs(INLINE[book][0] if book in INLINE else shamela_id),
-          "notes": {str(n): r for n, r in sorted(notes.items())}}, OUT / f"{book}.json", pretty=True)
+          "notes": {str(n): r for n, r in sorted(notes.items(), key=lambda kv: [int(x) for x in str(kv[0]).split("-")])}},
+         OUT / f"{book}.json", pretty=True)
     print(f"{book}: {len(notes)} of {len(wanted)} zawa'id located, {sum(1 for r in notes.values() if r.get('note') or r.get('dhahabi') or r.get('rawah'))} with a note")
 
 
@@ -452,7 +475,7 @@ def verdict(note):
     """The verdict as the footnote opens it («إسناده صحيح على شرط مسلم»), or "" when it opens otherwise."""
     first = whole = re.split(r"[،,.؛:]", note or "", maxsplit=1)[0].strip()
     # the verdict alone; its reason stays in the full note («إسناده حسن من أجل فلان» -> «إسناده حسن»)
-    first = re.split(r"\s+(?:-|–|من أجل|لأجل|لو|إن|إلى|كما|فقد|فإن|لأن|وهو|وهذا|وقد|فيه|بسبب|خلا|غير|رجاله|ورجاله|والمحفوظ|"
+    first = re.split(r"\s+(?:-|–|من أجل|لأجل|لو|إن|إلى|كما|فقد|فإن|لأن|وهو|وهذا|وقد|فيه|بسبب|خلا|غير|رجاله|ورجاله|والمحفوظ|أبو|أبي|ابن|"
                      r"(?:ل|و)?(?:ضعف|جهالة|انقطاع|إرسال|إعضال|تدليس|اختلاط|نكارة|تفرد)\S*)(?:\s|$)", first, maxsplit=1)[0].strip()
     first = re.split(r"\s+(?:لكن|ولكن|والصحيح|والصواب)\s", first, maxsplit=1)[0].strip()
     m = re.match(r"(.*?على شرط (?:الشيخين|البخاري ومسلم|مسلم|البخاري|الصحيح|هما|السيخين|الشخين))", first)
@@ -566,8 +589,8 @@ def build(book):
 
     # one hadith = one number; unnumbered records with an isnad join the hadith before them in the same bab
     by_num, order, current = {}, [], None
-    for rec in original:
-        num = number_of(rec)
+    for rec, num in keyed(book, original):
+        num = str(num) if num else ""
         if num:
             if num not in by_num:
                 by_num[num] = {"num": num, "bab": rec["chapter"].strip(), "recs": []}
@@ -591,7 +614,7 @@ def build(book):
         for rec in recs:
             text, ed_notes = split_notes(clean(rec["hadith_text_diac"]))
             # Ibn Hibban's records open with the heading of the hadith («ذِكْرُ ...») and its number
-            lead = re.search(r"(?:^|\s)\(?\s*" + num + r"\s*\)?\s*[-–]\s*", text[:1500])
+            lead = re.search(r"(?:^|\s)\(?\s*" + num.split("-")[-1] + r"\s*\)?\s*[-–]\s*", text[:1500])
             if lead:
                 text = text[lead.end():]
             matn = clean(rec.get("matn_text_diac"))
@@ -636,7 +659,8 @@ def build(book):
         k = max(0, sum(1 for p in kitab_pages if p <= kp) - 1) if kp else (out[-1]["kitab"] - 1 if out else 0)
         shawahid = sorted({(n or "").strip() for r in recs for n, _, _ in r["shawahed"]} - {""})
         out.append({
-            "n": num, "kitab": k + 1, "bab": h["bab"], "type": typ, "parts": parts, "chains": chains,
+            "n": num, **({"label": "{1} (ج{0})".format(*num.split("-"))} if "-" in num else {}),
+            "kitab": k + 1, "bab": h["bab"], "type": typ, "parts": parts, "chains": chains,
             "takhrij": sorted(([b, len(ids)] for b, ids in books.items()), key=lambda r: -r[1]),
             "shawahid": shawahid,
             "grades": grades_of(book, note if book == "mustadrak" or book in MAJMA_KEY else note.get("note")),
@@ -670,9 +694,25 @@ def build(book):
             h["kitab"], h["bab"] = titles.index(h["bab"]) + 1, ""
         G["kitabs"] = [(0, t) for t in titles]
     used_kitabs = Counter(h["kitab"] for h in out)
+    # a light list for the book's page, and the hadiths themselves in shards of SHARD hadiths (z/<book>/<i>.json)
+    import shutil
+    SHARD = 200
+    shutil.rmtree(SITE_DATA / "z" / book, ignore_errors=True)
+    listing = []
+    for i, h in enumerate(out):
+        p = h["parts"][0]
+        matn = p["text"][p["matn"][0]:p["matn"][1]] if p.get("matn") else p["text"]
+        listing.append({k: v for k, v in (("n", h["n"]), ("label", h.get("label")), ("kitab", h["kitab"]), ("bab", h["bab"]),
+                                          ("snip", matn[:170]), ("sh", i // SHARD),
+                                          ("grades", [{"s": g["s"], "v": g["v"]} for g in h["grades"]])) if v not in (None, "")})
+    for sh in range(0, len(out), SHARD):
+        part = out[sh:sh + SHARD]
+        ids = {i for h in part for c in h["chains"] for i in c["ids"]} | {m[2] for h in part for p in h["parts"] for m in p["mentions"]}
+        dump({"hadiths": {h["n"]: h for h in part}, "nar": {i: narr[i] for i in ids if i in narr}},
+             SITE_DATA / "z" / book / f"{sh // SHARD}.json")
     dump({"book": book, "shamela": shamela_id,
           "kitabs": [[i + 1, t, used_kitabs[i + 1]] for i, (_, t) in enumerate(G["kitabs"]) if used_kitabs[i + 1]],
-          "hadiths": out, "nar": narr}, SITE_DATA / "z" / f"{book}.json")
+          "hadiths": listing}, SITE_DATA / "z" / f"{book}.json")
     index_path = SITE_DATA / "z" / "index.json"
     index = load(index_path) if index_path.exists() else {}
     index[book] = len(out)
