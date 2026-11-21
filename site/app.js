@@ -1364,6 +1364,8 @@
     dhahabi: "«صححه الذهبي» أو «ضعّفه الذهبي» معناه أن الحكم من تعليق الذهبي المختصر في «تلخيص المستدرك»، لأنه لم يُوجد لمحققي طبعة الرسالة حكم صريح على هذا الحديث. وهو تعليق موجز في الغالب، فيُستأنس به ويُراجع معه كلام غيره.",
   };
   const IBN_SALAH_HAKIM = ibnSalahHTML([["وهو واسع الخطو في شرط الصحيح، متساهل في القضاء به. فالأولى أن نتوسط في أمره فنقول: ما حكم بصحته، ولم نجد ذلك فيه لغيره من الأئمة، إن لم يكن من قبيل الصحيح فهو من قبيل الحسن، يحتج به ويعمل به، إلا أن تظهر فيه علة توجب ضعفه.", 22, 19]]);
+  // the verdicts in the book's order of precedence (al-Mustadrak: the Risala muhaqqiqs, al-Dhahabi, al-Hakim)
+  const zOrder = (grades, Z) => (Z.primary ? [...grades].sort((a, b) => Z.primary.indexOf(a.s) - Z.primary.indexOf(b.s)) : grades);
   const Z_FILTERS = [["", "الكل"], ["sahih", "صحيح"], ["hasan", "حسن"], ["daif", "ضعيف"], ["mixed", "مختلف فيه"], ["none", "دون حكم صريح"]];
   const zTag = (h, Z) => {
     const c = zClass(h, Z), t = { sahih: ["صحيح", "thiqa"], hasan: ["حسن", "saduq"], daif: ["ضعيف", "weak"], mixed: ["مختلف فيه", "maqbul"] }[c];
@@ -1438,7 +1440,7 @@
       <div class="panel hadith-text"><div class="text-tools">${copyBtnHTML("نسخ نص الحديث")}</div>${hadithTextHTML(h, nar)}</div>
 
       <div class="panel grades"><h3>${h.grades.length > 1 ? "أحكام المحققين على هذا الحديث" : "حكم المحقق على هذا الحديث"}</h3>
-        <div class="verdicts">${(h.grades.length ? h.grades : [null]).map((g) => `<blockquote class="g-${g && g.v ? zGrade(g.v) || "none" : "none"}"><cite>${esc(g ? Z.sources[g.s] || g.s : Z.by)}</cite>
+        <div class="verdicts">${(h.grades.length ? zOrder(h.grades, Z) : [null]).map((g) => `<blockquote class="g-${g && g.v ? zGrade(g.v) || "none" : "none"}"><cite>${esc(g ? Z.sources[g.s] || g.s : Z.by)}</cite>
           ${g && g.v ? `<span class="g-pill">${esc(g.v)}</span>` : `<span class="g-pill">${g ? "لم يصرّح بحكم في أول تعليقه" : "لم يُستخرج حكم المحقق آليًا، فراجعه في موضعه"}</span>`}
           ${g ? `<details class="znote"${g.v ? "" : " open"}><summary>نص التعليق كاملًا</summary><p>${esc(g.t).replace(/\n/g, "<br>")}</p></details>` : ""}
           ${srcOf(g)}</blockquote>`).join("")}</div>
