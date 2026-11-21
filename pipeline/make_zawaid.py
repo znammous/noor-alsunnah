@@ -39,6 +39,8 @@ BOOKS = {
     "ibnkhuzayma": ("sahih-ibn-khuzaymah", 11, 121382, {"ابن خزيمة"}, "bracket"),
     "mustadrak": ("al-mustadrak-ala-al-sahihayn", 24, 2266, {"الحاكم"}, "talkhis"),
 }
+# a second edition read for its muhaqqiqs' footnotes: book -> Shamela id
+SECOND = {"mustadrak": 1424}
 #   talkhis: al-Hakim's verdict in his own text and al-Dhahabi's comment after the hadith («<s0>١٩ - على شرط
 #            مسلم»), in the Dar al-Kutub al-Ilmiyya edition, whose numbers differ from the program's: matched by text
 AR = str.maketrans("0123456789", "٠١٢٣٤٥٦٧٨٩")
@@ -161,12 +163,58 @@ def words(t):
     return set(WORD.findall(re.sub("[أإآ]", "ا", strip_diacritics(t or "")).replace("ة", "ه").replace("ى", "ي")))
 
 
-def talkhis_notes(slug, shamela_id, wanted):
-    """program number -> {page, vp, ed (edition number), hakim, dhahabi}: each hadith of the program is matched
-    to the edition's hadith whose words it shares most (rare words weigh more), near its own number."""
+def match_units(slug, units, wanted):
+    """program number -> (edition number, score): each hadith of the program is matched to the edition's hadith
+    whose words it shares most (rare words weigh more), near its own number. When two of the program's hadiths
+    fall on one hadith of the edition, only the closer match keeps it."""
     import math
+    nums = sorted(units)
+    bag = {n: words(units[n]["text"]) for n in nums}
+    df = Counter(w for b in bag.values() for w in b)
+    idf = {w: math.log(len(nums) / c) for w, c in df.items()}
+    prog, last = defaultdict(str), None
+    for rec in read_book(slug)[0]:
+        n = number_of(rec)
+        last = int(n) if n else last
+        if last is not None:
+            prog[last] += " " + (rec["hadith_text"] or "")
+    out = {}
+    for n in sorted(wanted):
+        mine = words(prog.get(n))
+        total = sum(idf.get(w, 0) for w in mine)
+        if not total:
+            continue
+        best, score = None, 0
+        for m in nums[max(0, bisect_left(nums, n - 250)):bisect_left(nums, n + 200)]:
+            sc = sum(idf[w] for w in mine & bag[m]) / total
+            if sc > score:
+                best, score = m, sc
+        if best is not None and score >= 0.6:
+            out[n] = (best, round(score, 2))
+    # the edition's numbers drift slowly from the program's: a match whose offset is far from its neighbours' is wrong
+    import statistics
+    keys = sorted(out)
+    odd = [n for i, n in enumerate(keys)
+           if abs((out[n][0] - n) - statistics.median([out[k][0] - k for k in keys[max(0, i - 15):i] + keys[i + 1:i + 16]] or [0])) > 40]
+    for n in odd:
+        del out[n]
+    by_ed = defaultdict(list)
+    for n, (m, _) in out.items():
+        by_ed[m].append(n)
+    for ns in by_ed.values():
+        for n in sorted(ns, key=lambda n: -out[n][1])[1:]:
+            del out[n]
+    return out
+
+
+def page_vp(shamela_id):
     db = sqlite3.connect(SHAMELA / "database" / "book" / f"{shamela_id % 1000:03d}" / f"{shamela_id}.db")
-    vp = {i: (part, page) for i, part, page in db.execute("select id, part, page from page")}
+    return {i: "/".join(map(str, (part, page))) for i, part, page in db.execute("select id, part, page from page")}
+
+
+def talkhis_notes(slug, shamela_id, wanted):
+    """program number -> {page, vp, ed (edition number), hakim, dhahabi} from the Ilmiyya edition."""
+    vp = page_vp(shamela_id)
     D = str.maketrans("٠١٢٣٤٥٦٧٨٩", "0123456789")
     units, cur = {}, None
     for line in open(SHAMELA / "books" / f"{shamela_id}.jsonl", encoding="utf-8"):
@@ -186,40 +234,55 @@ def talkhis_notes(slug, shamela_id, wanted):
                     continue
             if cur is not None:
                 units[cur]["text"] += "\n" + ln
-    nums = sorted(units)
-    bag = {n: words(units[n]["text"]) for n in nums}
-    df = Counter(w for b in bag.values() for w in b)
-    idf = {w: math.log(len(nums) / c) for w, c in df.items()}
-    prog, last = defaultdict(str), None
-    for rec in read_book(slug)[0]:
-        n = number_of(rec)
-        last = int(n) if n else last
-        if last is not None:
-            prog[last] += " " + (rec["hadith_text"] or "")
     out = {}
-    for n in sorted(wanted):
-        mine = words(prog.get(n))
-        total = sum(idf.get(w, 0) for w in mine)
-        if not total:
-            continue
-        best, score = None, 0
-        for m in nums[max(0, bisect_left(nums, n - 250)):bisect_left(nums, n + 60)]:
-            sc = sum(idf[w] for w in mine & bag[m]) / total
-            if sc > score:
-                best, score = m, sc
-        if best is None or score < 0.6:
-            continue
+    for n, (best, score) in match_units(slug, units, wanted).items():
         u = units[best]
         hk = [h.group(0).strip(" «\"") for h in HAKIM.finditer(strip_diacritics(u["text"]))]
-        out[n] = {"page": u["page"], "vp": "/".join(map(str, vp.get(u["page"], ("", "")))), "ed": best,
-                  "score": round(score, 2), "hakim": hk[-1] if hk else "", "dhahabi": u["dhahabi"]}
-    # two of the program's hadiths on one hadith of the edition: only the closer match keeps it
-    by_ed = defaultdict(list)
-    for n, r in out.items():
-        by_ed[r["ed"]].append(n)
-    for ns in by_ed.values():
-        for n in sorted(ns, key=lambda n: -out[n]["score"])[1:]:
-            del out[n]
+        out[n] = {"page": u["page"], "vp": vp.get(u["page"], ""), "ed": best, "score": score,
+                  "hakim": hk[-1] if hk else "", "dhahabi": u["dhahabi"]}
+    return out
+
+
+def risala_notes(slug, shamela_id, wanted):
+    """program number -> {page, vp, ed, note}: the muhaqqiqs' footnote on each hadith of the Risala edition
+    (the first footnote the hadith points to that opens with a verdict). Footnote markers restart on every
+    page, and a note carried over to the next page continues there after «=»."""
+    vp = page_vp(shamela_id)
+    D = str.maketrans("٠١٢٣٤٥٦٧٨٩", "0123456789")
+    units, cur, feet, prev = {}, None, {}, None
+    for line in open(SHAMELA / "books" / f"{shamela_id}.jsonl", encoding="utf-8"):
+        d = json.loads(line)
+        notes, last = {}, None
+        for ln in shamela_clean(d["foot"]).split("\n"):
+            m = re.match(r"\s*\(([٠-٩]+)\)\s*(.*)", ln)
+            if m:
+                last = m.group(1)
+                notes[last] = m.group(2)
+            elif ln.lstrip().startswith("=") and last is None and prev and feet.get(prev):
+                k = list(feet[prev])[-1]
+                feet[prev][k] += "\n" + ln.lstrip("= ")
+            elif last:
+                notes[last] += "\n" + ln
+        feet[d["page"]], prev = notes, d["page"]
+        for ln in shamela_clean(d["body"]).split("\n"):
+            m = re.match(r"\s*([٠-٩]+)\s*-\s*(.*)", ln)
+            if m:
+                n = int(m.group(1).translate(D))
+                if n not in units and (cur is None or n > cur):
+                    cur = n
+                    units[n] = {"page": d["page"], "text": m.group(2), "marks": []}
+                    units[n]["marks"] += [(d["page"], x) for x in re.findall(r"\(([٠-٩]+)\)", m.group(2))]
+                    continue
+            if cur is not None:
+                units[cur]["text"] += "\n" + ln
+                units[cur]["marks"] += [(d["page"], x) for x in re.findall(r"\(([٠-٩]+)\)", ln)]
+    out = {}
+    for n, (best, score) in match_units(slug, units, wanted).items():
+        u = units[best]
+        found = [feet.get(p, {}).get(x, "").strip() for p, x in u["marks"]]
+        note = next((t for t in found if verdict(t)), "")
+        out[n] = {"page": u["page"], "vp": vp.get(u["page"], ""), "ed": best, "score": score,
+                  "note": re.sub(r"[ \t]+", " ", note)}
     return out
 
 
@@ -248,6 +311,10 @@ def extract(book):
     wanted = {n for n, bs in takh.items() if not NINE & set(bs)}
     notes = (footnotes(shamela_id, wanted) if style == "marker" else bracket_notes(shamela_id, wanted)
              if style == "bracket" else talkhis_notes(slug, shamela_id, wanted))
+    if book in SECOND:                  # a second edition with its own muhaqqiqs (al-Mustadrak: al-Risala)
+        sid = SECOND[book]
+        for n, r in risala_notes(slug, sid, wanted).items():
+            notes.setdefault(n, {})["risala"] = r
     dump({"shamela": shamela_id, "kitabs": kitabs(shamela_id),
           "notes": {str(n): r for n, r in sorted(notes.items())}}, OUT / f"{book}.json", pretty=True)
     print(f"{book}: {len(notes)} of {len(wanted)} zawa'id located, {sum(1 for r in notes.values() if r.get('note') or r.get('dhahabi'))} with a note")
@@ -304,6 +371,10 @@ def grades_of(book, note):
             # «سكت عنه الذهبي» and «حذفه الذهبي» are the edition's words; «قال الحاكم ...» quotes someone else
             own = len(dh) < 90 and not dh.startswith(("سكت", "حذفه", "قال "))
             out.append({"s": "dhahabi", "v": dh if own else "", "t": dh})
+        r = note.get("risala") or {}
+        if r.get("note"):     # the Risala edition: its own page and number
+            out.append({"s": "risala", "v": verdict(r["note"]), "t": r["note"], "w": "risala",
+                        "page": r["page"], "vp": r["vp"], "ed": r["ed"]})
         return out
     if book == "ibnkhuzayma":
         own, albani = split_albani(note)
