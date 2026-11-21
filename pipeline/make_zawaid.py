@@ -722,8 +722,44 @@ def build(book):
           f"({sum(1 for n in narr.values() if n.get('out'))} not in the nine books)")
 
 
+def build_ahmad():
+    """Musnad Ahmad is one of the nine books: its zawa'id are those over the SIX (as al-Haythami counted them),
+    a list only; every hadith opens on its own page (#/h/a<n>) with al-Arna'ut's verdict already there."""
+    SIX = set(range(1, 7))
+    meta = load(SITE_DATA / "meta.json")
+    grades = load(HERE / "grades" / "ahmad.json")
+    takh, recs = defaultdict(set), {}
+    for rec in read_book("musnad-ahmad")[0]:
+        n = rec["hadith_num"].strip()
+        if n.isdigit():
+            takh[n] |= {b for b, _, _ in rec["takhreej"]}
+            recs.setdefault(n, rec)
+    out = []
+    for n in sorted(takh, key=int):
+        rec = recs[n]
+        if takh[n] & SIX or hadith_type(rec["features"]) not in ("مرفوع", "قدسي") or f"a{n}" not in meta["index"]:
+            continue
+        matn = clean(rec.get("matn_text_diac")) or clean(rec["hadith_text_diac"])
+        g = [{"s": s_, "v": verdict(v)} for s_, v, *_ in grades.get(n, [])]
+        out.append({k: v for k, v in (("n", n), ("kitab", meta["index"][f"a{n}"][0]), ("bab", rec["chapter"].strip()),
+                                      ("snip", matn[:170]), ("grades", g)) if v not in (None, "")})
+    used = Counter(h["kitab"] for h in out)
+    dump({"book": "ahmad", "shamela": 25794,
+          "kitabs": [[k["no"], k["title"], used[k["no"]]] for k in meta["books"]["ahmad"]["kitabs"] if used[k["no"]]],
+          "hadiths": out}, SITE_DATA / "z" / "ahmad.json")
+    index_path = SITE_DATA / "z" / "index.json"
+    index = load(index_path) if index_path.exists() else {}
+    index["ahmad"] = len(out)
+    dump(index, index_path)
+    print(f"ahmad: {len(out)} marfu' hadiths not in the six books, {sum(1 for h in out if any(g['v'] for g in h.get('grades', [])))} with a verdict")
+
+
 if __name__ == "__main__":
-    for b in [a for a in sys.argv[1:] if a in BOOKS] or BOOKS:
+    chosen = [a for a in sys.argv[1:] if a in BOOKS]
+    every = not chosen and "ahmad" not in sys.argv
+    if every or "ahmad" in sys.argv:
+        build_ahmad()
+    for b in chosen or (BOOKS if every else []):
         if "--shamela" in sys.argv:
             extract(b)
         build(b)

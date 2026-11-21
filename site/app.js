@@ -67,6 +67,11 @@
       works: { asad: ["مسند أبي يعلى، تحقيق حسين سليم أسد، دار المأمون للتراث، دمشق، ط1 1404هـ", 12520] },
       primary: ["asad", "haythami"],
       intro: "والحكم على كل حديث منقول بنصه منسوبًا إلى صاحبه: حكم الشيخ حسين سليم أسد في تحقيقه لمسند أبي يعلى (دار المأمون للتراث)، وكلام الهيثمي في «مجمع الزوائد» إن ذكر الحديث فيه، وقد طوبق موضعه فيه بمقارنة المتن والصحابي وذكر أبي يعلى في تخريجه. ويُوصف الحديث في هذه القائمة بحكم أسد، فإن لم يكن له حكم صريح فبكلام الهيثمي. وأحكام الشيخ حسين سليم أسد اجتهادُ محققٍ معاصر، وقد تعقّب بعضَها أهلُ العلم، فتُراجَع مع كلام غيره قبل الاستدلال بالحديث. وأكثر كلام الهيثمي وصفٌ لرجال الإسناد، مثل «رجاله ثقات» و«فيه فلان وهو ضعيف»، وهو غير الحكم على الحديث، فلا يُعدّ حكمًا إلا ما صرّح فيه بالحكم." },
+    // one of the nine books itself: its zawa'id over the six, each opening on its own page in the Musnad
+    ahmad: { title: "زوائد أحمد", full: "زوائد مسند أحمد على الكتب الستة", author: "أحمد", book: "مسند أحمد", over: "الكتب الستة",
+      numbering: "ترقيم برنامج الجامع", by: "الأرناؤوط ومحققي الرسالة", href: (n) => `#/h/a${n}`,
+      sources: { arnaut: "شعيب الأرناؤوط ومحققو طبعة الرسالة" },
+      intro: "ومسند أحمد من الكتب التسعة نفسها، فهذه أحاديثه المرفوعة التي لم يذكر برنامج الجامع تخريجها في الكتب الستة من حديث الصحابي نفسه، كما جمع الهيثمي زوائده عليها في «مجمع الزوائد». وكل حديث يُفتح على صفحته في مسند أحمد بشجرة إسناده وتخريجه. والحكم منقول بنصه من حاشية طبعة مؤسسة الرسالة (شعيب الأرناؤوط ومن معه)، وهو أول عبارة في الحاشية، ونصها كاملًا في صفحة الحديث." },
     bazzar: zHaythami("زوائد البزار", "مسند البزار (البحر الزخار)", "البزار", "الإمام البزار",
       "ترقيم برنامج الجامع، ويُذكر الجزء مع الرقم لأن الترقيم يبدأ من جديد في بعض الأجزاء"),
     kabir: zHaythami("زوائد المعجم الكبير", "المعجم الكبير للطبراني", "الطبراني في الكبير", "الإمام الطبراني",
@@ -517,7 +522,7 @@
       <div class="kitabs books">${BOOKS.map((b) => `<a href="#/book/${b}"><span><b>${BOOK[b]}</b><br><span class="muted small">${NUMBERING[b]}</span></span>
         <span class="muted small">${fmt(S.totals.books[b].hadith)} حديثًا</span></a>`).join("")}</div>
       <p class="notice" style="margin-top:16px">أحاديث الصحيحين صحيحة بحكم الشيخين. وأحاديث السنن والمسانيد والموطأ فيها الصحيح والحسن والضعيف، فراجع أحكام المحدثين في صفحة كل حديث.</p>
-      <div class="section-title"><h2>الزوائد على الكتب التسعة</h2><p>أحاديث في كتب السنة الأخرى لم يخرّجها أصحاب الكتب التسعة من حديث الصحابي نفسه، بحسب تخريج البرنامج</p></div>
+      <div class="section-title"><h2>الزوائد</h2><p>أحاديث في كتب السنة الأخرى لم يخرّجها أصحاب الكتب التسعة من حديث الصحابي نفسه، وزوائد مسند أحمد على الكتب الستة، بحسب تخريج البرنامج</p></div>
       <div class="kitabs books">${Object.entries(ZBOOKS).map(([b, z]) => `<a href="#/z/${b}"><span><b>${z.full}</b><br><span class="muted small">مع أحكام ${z.by}</span></span>
         <span class="muted small">${ZI[b] ? `${fmt(ZI[b])} حديثًا` : ""}</span></a>`).join("")}</div>`;
   }
@@ -1419,7 +1424,7 @@
       <h1>${Z.full}</h1>
       <p class="muted">${fmt(D.hadiths.length)} حديثًا مرفوعًا في ${fmt(D.kitabs.length)} كتابًا · ${Z.numbering}</p>
       <div class="panel">
-        <p>هذه أحاديث في ${zBookName(Z)} لم يذكر برنامج جامع خادم الحرمين الشريفين تخريجها في أيٍّ من الكتب التسعة من حديث الصحابي نفسه. فقد يكون للحديث فيها شاهد عن صحابي آخر، أو يكون في غيرها من كتب السنة.</p>
+        ${Z.over ? "" : `<p>هذه أحاديث في ${zBookName(Z)} لم يذكر برنامج جامع خادم الحرمين الشريفين تخريجها في أيٍّ من الكتب التسعة من حديث الصحابي نفسه. فقد يكون للحديث فيها شاهد عن صحابي آخر، أو يكون في غيرها من كتب السنة.</p>`}
         <p>${Z.intro || `والحكم على كل حديث منقول بنصه من حاشية ${esc(Z.work)}، وهو أول عبارة في الحاشية منسوبًا إلى صاحبه، ونص الحاشية كاملًا في صفحة الحديث مع رابط موضعه في المكتبة الشاملة.${Z.sources.albani ? " وتعليقات الألباني في هذه الطبعة موقّعة باسمه («ناصر»)، فتُعرض حكمًا مستقلًا." : ""}`}</p>
       </div>
       ${Z.sources.haythami ? `<details class="panel znote-help"><summary>ما معنى عبارات الهيثمي مثل «رجاله ثقات» و«رجاله رجال الصحيح»؟</summary>${HAYTHAMI_NOTE}</details>` : ""}
@@ -1433,8 +1438,9 @@
       for (const h of D.hadiths) if (!filt || zClass(h, Z) === filt) (by.get(h.kitab) || by.set(h.kitab, []).get(h.kitab)).push(h);
       $("#zlist").innerHTML = D.kitabs.filter(([no]) => by.has(no)).map(([no, title]) => `<div class="section-title"><h2>${esc(title)}</h2><p>${fmt(by.get(no).length)} حديثًا</p></div>
         <div class="panel"><ul class="list">${by.get(no).map((h) => {
-          return `<li><div class="row-link"><div class="meta-line"><a href="#/z/${book}/${h.n}">${Z.author} ${esc(h.label || h.n)}</a>${zTag(h, Z)}${h.bab ? `<span>${esc(clip(h.bab, 90))}</span>` : ""}</div>
-            <a href="#/z/${book}/${h.n}" class="snip row-main" style="color:inherit">${esc(clip(h.snip || "", 165))}</a></div></li>`;
+          const href = Z.href ? Z.href(h.n) : `#/z/${book}/${h.n}`;
+          return `<li><div class="row-link"><div class="meta-line"><a href="${href}">${Z.author} ${esc(h.label || h.n)}</a>${zTag(h, Z)}${h.bab ? `<span>${esc(clip(h.bab, 90))}</span>` : ""}</div>
+            <a href="${href}" class="snip row-main" style="color:inherit">${esc(clip(h.snip || "", 165))}</a></div></li>`;
         }).join("")}</ul></div>`).join("");
     };
     $("#zf").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; filt = b.dataset.v; setSeg("#zf", b); draw(); });
@@ -1442,7 +1448,9 @@
   }
 
   async function viewZawaidHadith(book, num) {
-    const Z = ZBOOKS[book], D = await zbook(book);
+    const Z = ZBOOKS[book];
+    if (Z.href) { location.replace(Z.href(num)); return; }
+    const D = await zbook(book);
     const i = D.hadiths.findIndex((x) => x.n === num);
     if (i < 0) { app.innerHTML = `<div class="panel">ليس الحديث ${esc(num)} من ${Z.full}. <a href="#/z/${book}">فهرس الزوائد</a></div>`; return; }
     const S = await getJSON(`data/z/${book}/${D.hadiths[i].sh || 0}.json`);
