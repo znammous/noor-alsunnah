@@ -29,9 +29,13 @@ HERE = Path(__file__).resolve().parent
 OUT = HERE / "zawaid"
 SHAMELA = RAW / "shamela" / "offline"
 NINE = set(range(1, 10))
-# book key -> (Ifta slug, program book id, Shamela book id, compiler names at the end of chains)
+# book key -> (Ifta slug, program book id, Shamela book id, compiler names at the end of chains, footnote style)
+#   marker:  the verdict is a numbered footnote whose marker closes the hadith (al-Arna'ut's Ibn Hibban)
+#   bracket: every hadith has its own footnote «[number] ...» (al-A'zami's Ibn Khuzayma, where al-Albani's
+#            notes are set in parentheses and signed «- ناصر)»)
 BOOKS = {
-    "ibnhibban": ("sahih-ibn-hibban", 10, 1729, {"ابن حبان"}),
+    "ibnhibban": ("sahih-ibn-hibban", 10, 1729, {"ابن حبان"}, "marker"),
+    "ibnkhuzayma": ("sahih-ibn-khuzaymah", 11, 121382, {"ابن خزيمة"}, "bracket"),
 }
 AR = str.maketrans("0123456789", "٠١٢٣٤٥٦٧٨٩")
 
@@ -118,27 +122,45 @@ def footnotes(shamela_id, wanted=None):
     return out
 
 
+def bracket_notes(shamela_id, wanted):
+    """hadith number -> {page, vp, note} from the per-hadith footnotes «[١٢٣] ...» (also «[٩، ١٠]»)."""
+    db = sqlite3.connect(SHAMELA / "database" / "book" / f"{shamela_id % 1000:03d}" / f"{shamela_id}.db")
+    vp = {i: (part, page) for i, part, page in db.execute("select id, part, page from page")}
+    out = {}
+    D = str.maketrans("٠١٢٣٤٥٦٧٨٩", "0123456789")
+    for line in open(SHAMELA / "books" / f"{shamela_id}.jsonl", encoding="utf-8"):
+        d = json.loads(line)
+        foot = shamela_clean(d["foot"])
+        for m in re.finditer(r"(?m)^\[\s*([٠-٩][٠-٩،,\s-]*)\]\s*(.*?)(?=^\[\s*[٠-٩]|^\([٠-٩]+\)|\Z)", foot, re.S):
+            note = re.sub(r"[ \t]+", " ", m.group(2)).strip()
+            for n in re.findall(r"[٠-٩]+", m.group(1)):
+                n = int(n.translate(D))
+                if n in wanted and n not in out:
+                    out[n] = {"page": d["page"], "vp": "/".join(map(str, vp.get(d["page"], ("", "")))), "note": note}
+    return out
+
+
 def kitabs(shamela_id):
     """[(first page, kitab title)] from the top level of the book's table of contents."""
     titles = {}
     for line in open(SHAMELA / "books" / f"{shamela_id}.jsonl", encoding="utf-8"):
         d = json.loads(line)
-        for m in re.finditer(r"<span data-type='title' id=toc-(\d+)>(.*?)</span>", d["body"]):
+        for m in re.finditer(r"<span data-type=[\"']title[\"'] id=toc-(\d+)>(.*?)</span>", d["body"]):
             titles[int(m.group(1))] = re.sub(r"\s+", " ", strip_diacritics(re.sub(r"<[^>]+>", "", m.group(2)))).strip()
     db = sqlite3.connect(SHAMELA / "database" / "book" / f"{shamela_id % 1000:03d}" / f"{shamela_id}.db")
     return [(page, titles.get(i, "")) for i, page, parent in db.execute("select id, page, parent from title order by id")
-            if parent == 0 and titles.get(i, "").strip() and titles.get(i) != "مقدمات"]
+            if parent == 0 and titles.get(i, "").strip() and titles.get(i) != "مقدمات" and not titles[i].startswith("مقدمة")]
 
 
 def extract(book):
-    slug, book_id, shamela_id, _ = BOOKS[book]
+    slug, book_id, shamela_id, _, style = BOOKS[book]
     # only the numbers that the program places in none of the nine books are kept
     takh = defaultdict(list)
     for rec in read_book(slug)[0]:
         if rec["hadith_num"].strip().isdigit():
             takh[int(rec["hadith_num"])] += [b for b, _, _ in rec["takhreej"]]
     wanted = {n for n, bs in takh.items() if not NINE & set(bs)}
-    notes = footnotes(shamela_id, wanted)
+    notes = footnotes(shamela_id, wanted) if style == "marker" else bracket_notes(shamela_id, wanted)
     dump({"shamela": shamela_id, "kitabs": kitabs(shamela_id),
           "notes": {str(n): r for n, r in sorted(notes.items())}}, OUT / f"{book}.json", pretty=True)
     print(f"{book}: {len(notes)} numbered hadiths, {sum(1 for r in notes.values() if r['note'])} with a footnote")
@@ -147,15 +169,53 @@ def extract(book):
 # ---------- step 2: site data ----------
 def verdict(note):
     """The verdict as the footnote opens it («إسناده صحيح على شرط مسلم»), or "" when it opens otherwise."""
-    first = re.split(r"[،,.]", note or "", maxsplit=1)[0].strip()
+    first = re.split(r"[،,.؛]", note or "", maxsplit=1)[0].strip()
     plain = strip_diacritics(first)
     # it must open with the verdict itself: «إسناده ...»، «حديث ...»، «صحيح لغيره»; «رجاله ثقات» describes the men only
     opens = re.match(r"(إسناده?|سنده|حديث|صحيح|حسن|ضعيف|موضوع|منكر|باطل|شاذ)(\s|$)", plain)
     return first if opens and len(first) < 90 and re.search(r"صحيح|حسن|ضعيف|موضوع|منكر|باطل|شاذ|قوي|جيد", plain) else ""
 
 
+def split_albani(note):
+    """(al-A'zami's words, [al-Albani's notes]): al-Albani's are «(... - ناصر)», sometimes without the «(»."""
+    albani, spans = [], []
+    for m in re.finditer(r"-?\s*ناصر\s*\)", note):
+        depth, start = 0, None
+        for i in range(m.start() - 1, -1, -1):
+            if note[i] == ")":
+                depth += 1
+            elif note[i] == "(":
+                if depth == 0 and re.match(r"\(\s*[٠-٩\d]", note[i:]):
+                    continue            # «(٣٧٠ - ٣٧١ - ناصر)»: a hadith reference inside his note, left open
+                if depth == 0:
+                    start = i
+                    break
+                depth -= 1
+        start = start if start is not None else (spans[-1][1] if spans else 0)
+        spans.append((start, m.end()))
+        t = note[start:m.start()].lstrip("( ").strip()
+        albani.append(re.sub(r"^قلت\s*:\s*", "", t).strip(" .،"))
+    own, last = "", 0
+    for a, b in spans:
+        own += note[last:a]
+        last = b
+    own = re.sub(r"\s+([.،؛])", r"\1", (own + note[last:]).strip())
+    return own.strip().strip(" .،").strip(), [a for a in albani if a]
+
+
+def grades_of(book, note):
+    """[{s: source, v: verdict or "", t: the note}] as each scholar words it."""
+    if not note:
+        return []
+    if book == "ibnkhuzayma":
+        own, albani = split_albani(note)
+        out = [{"s": "azami", "v": verdict(own), "t": own}] if own else []
+        return out + [{"s": "albani", "v": verdict(a), "t": a} for a in albani]
+    return [{"s": "arnaut", "v": verdict(note), "t": note}]
+
+
 def build(book):
-    slug, book_id, shamela_id, compiler_names = BOOKS[book]
+    slug, book_id, shamela_id, compiler_names, _ = BOOKS[book]
     G = load(OUT / f"{book}.json")
     meta = load(SITE_DATA / "meta.json")
     on_site = set(meta["directory"])
@@ -238,7 +298,7 @@ def build(book):
             "n": num, "kitab": k + 1, "bab": h["bab"], "type": typ, "parts": parts, "chains": chains,
             "takhrij": sorted(([b, len(ids)] for b, ids in books.items()), key=lambda r: -r[1]),
             "shawahid": shawahid,
-            "grade": {"v": verdict(note.get("note")), "note": note.get("note", ""), "page": note.get("page"), "vp": note.get("vp", "")},
+            "grades": grades_of(book, note.get("note")), "page": note.get("page"), "vp": note.get("vp", ""),
         })
 
     # narrators, graded as on the rest of the site; those absent from the nine books get no link
@@ -268,7 +328,7 @@ def build(book):
     index = load(index_path) if index_path.exists() else {}
     index[book] = len(out)
     dump(index, index_path)
-    graded = Counter("v" if h["grade"]["v"] else ("note" if h["grade"]["note"] else "none") for h in out)
+    graded = Counter("v" if any(g["v"] for g in h["grades"]) else ("note" if h["grades"] else "none") for h in out)
     print(f"{book}: {len(out)} zawa'id (marfu'), verdicts {dict(graded)}, {len(narr)} narrators "
           f"({sum(1 for n in narr.values() if n.get('out'))} not in the nine books)")
 
