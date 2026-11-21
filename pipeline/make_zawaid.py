@@ -323,7 +323,17 @@ def extract(book):
 # ---------- step 2: site data ----------
 def verdict(note):
     """The verdict as the footnote opens it («إسناده صحيح على شرط مسلم»), or "" when it opens otherwise."""
-    first = re.split(r"[،,.؛]", note or "", maxsplit=1)[0].strip()
+    first = re.split(r"[،,.؛:]", note or "", maxsplit=1)[0].strip()
+    # the verdict alone; its reason stays in the full note («إسناده حسن من أجل فلان» -> «إسناده حسن»)
+    first = re.split(r"\s+(?:-|–|من أجل|لأجل|لو|إن|إلى|كما|فقد|فإن|لأن|وهو|وهذا|وقد|فيه|بسبب|خلا|غير|رجاله|ورجاله|والمحفوظ|"
+                     r"(?:ل|و)?(?:ضعف|جهالة|انقطاع|إرسال|إعضال|تدليس|اختلاط|نكارة|تفرد)\S*)(?:\s|$)", first, maxsplit=1)[0].strip()
+    first = re.split(r"\s+(?:لكن|ولكن|والصحيح|والصواب)\s", first, maxsplit=1)[0].strip()
+    m = re.match(r"(.*?على شرط (?:الشيخين|البخاري ومسلم|مسلم|البخاري|الصحيح|هما|السيخين|الشخين))", first)
+    first = m.group(1) if m else first
+    # still long, or a name or an exception follows: the verdict and its direct qualifier only
+    if not m and (len(first) > 28 or re.search(r"\s(?:بن|هو|ليس)\s|إل[اّ]ّ?|من جهة", first)):
+        m = re.match(r"((?:إسناده|إسناد|سنده|حديث|الحديث)?\s*\S+(?:\s+(?:جدا|جدًّا|جدًا|بمرة|لغيره|لذاته|موقوفا|موقوفًا|مرسلا|مرسلًا|بشواهده|لشواهده))?)", first)
+        first = m.group(1).strip() if m else first
     plain = strip_diacritics(first)
     # it must open with the verdict itself: «إسناده ...»، «حديث ...»، «صحيح لغيره»; «رجاله ثقات» describes the men only
     opens = re.match(r"(إسناده?|سنده|حديث|صحيح|حسن|ضعيف|موضوع|منكر|باطل|شاذ)(\s|$)", plain)
