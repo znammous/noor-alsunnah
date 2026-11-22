@@ -653,3 +653,15 @@ p.more { margin: 12px 0 0; }
   .smap-row { grid-template-columns: 100px minmax(0, 1fr); }
   .smap-row .num { grid-column: 1 / -1; margin-top: -2px; }
 }
+
+/* ---------- methodology (#/method) ---------- */
+.method section { scroll-margin-top: 84px; padding-top: 6px; }
+.method h2 { display: flex; align-items: baseline; gap: 10px; margin-top: 28px; }
+.method h2 small, .mtoc small { display: inline-grid; place-items: center; min-width: 1.7em; height: 1.7em; border-radius: 50%; background: var(--panel-2); color: var(--accent); font-size: .8rem; font-weight: 700; }
+.method li, .method p { line-height: 1.95; }
+.method ol li, .method ul li { margin-bottom: 6px; }
+.mtoc { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 6px 14px; margin: 14px 0 6px; padding: 12px; border-radius: 12px; background: var(--panel-2); }
+.mtoc a { display: flex; align-items: center; gap: 8px; text-decoration: none; padding: 4px 2px; }
+.mtoc a small { background: var(--panel); }
+.mhow { font-size: .82rem; white-space: nowrap; }
+.mhow::before { content: "ⓘ "; }
