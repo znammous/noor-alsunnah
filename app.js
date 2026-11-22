@@ -2643,6 +2643,20 @@
     const bab = plain(r[3]);
     return { r, i, f: fold(r[2]), bab, bf: fold(bab) };
   })));
+  // the zawa'id books (pipeline/make_zawaid_search.py), searched beside the nine; each record's grade class is
+  // taken from the book's list by the same rules as its own page, and «h» keeps that list entry for the tag
+  const Z_SEARCH = Object.keys(ZBOOKS).filter((b) => !ZBOOKS[b].href);
+  const Z_TO_F = { sahih: "s", hasan: "s", daif: "w", mixed: "m", none: "n" };
+  let ZCORPUS = null;
+  const zCorpus = () => (ZCORPUS ||= Promise.all(Z_SEARCH.map(async (b) => {
+    const [idx, D] = await Promise.all([getJSON(`data/search/z-${b}.json`), zbook(b)]);
+    const byN = new Map(D.hadiths.map((h) => [h.n, h]));
+    return idx.map((r) => {
+      const h = byN.get(r[0].split(":")[2]), bab = plain(r[3]);
+      r[6] = h ? Z_TO_F[zClass(h, ZBOOKS[b])] || "n" : "n";
+      return { r, b, h, f: fold(r[2]), bab, bf: fold(bab) };
+    });
+  })).then((all) => all.flat().map((x, i) => ((x.i = i), x))));
 
   // one query word -> regex source: whole word, tolerant of the clitics و ف ب ك ل and the article;
   // short words must match exactly (so «الى» does not hit «اليمن»), longer ones or «word*» may continue.
@@ -2761,7 +2775,7 @@
   async function viewSearch(path) {
     const pm = path.match(/^(.*?)\?((?:[a-z]=\w*&?)+)$/);
     const q = (pm ? pm[1] : path).trim();
-    const opt = { b: "", s: "all", o: "rel", g: "", h: "", x: "", ...Object.fromEntries(new URLSearchParams(pm ? pm[2] : "")) };
+    const opt = { b: "", s: "all", o: "rel", g: "", h: "", x: "", z: "", ...Object.fromEntries(new URLSearchParams(pm ? pm[2] : "")) };
     $("#q").value = q;
     if (!q) { location.hash = "#/"; return; }
     const lookup = numberLookup(q);
@@ -2773,9 +2787,10 @@
     const nameHit = words.length && !lookup.length ? textMatcher(q, opt.x) : null;
     const narrators = nameHit ? Object.entries(META.directory).filter(([, v]) => !/^\[/.test(v[0]) && nameHit(v[0]))
       .sort((a, b) => totalOf(b[1]) - totalOf(a[1])).slice(0, 12) : [];
-    const recs = Q.req.length ? await corpus() : [];
-    let byScope = {};
+    const [recs, zrecs] = Q.req.length ? await Promise.all([corpus(), zCorpus()]) : [[], []];
+    let byScope = {}, zByScope = {};
     const hitsFor = (s) => (byScope[s] ||= recs.map((r) => matchRecord(r, Q, s)).filter(Boolean));
+    const zHitsFor = (s) => (zByScope[s] ||= zrecs.map((r) => matchRecord(r, Q, s)).filter(Boolean));
 
     const SCOPES = [["all", "الكل"], ["matn", "المتن"], ["isnad", "الإسناد"], ["bab", "التبويب"]];
     const SORTS = [["rel", "الأكثر صلة"], ["book", "ترتيب الكتب"]];
@@ -2802,11 +2817,13 @@
             <li>استبعاد كلمة: ضع قبلها علامة الطرح <code>الصلاة -الجمعة</code>.</li>
             <li>بداية كلمة: أضف نجمة <code>صلا*</code> لتشمل صلاة وصلاته وصلاتكم.</li>
             <li>الرواة في أعلى النتائج يُطابَقون بأوائل كلمات أسمائهم، ويسري عليهم خيار المطابقة التامة.</li>
+            <li>الزوائد: تُعرض في آخر النتائج أحاديث زوائد ابن حبان وابن خزيمة والمستدرك وأبي يعلى والبزار ومعاجم الطبراني الثلاثة على الكتب التسعة، ويسري عليها ما سبق من خيارات البحث والتصفية بالحكم، وحكمها بحسب ما في صفحة كل كتاب من كتب الزوائد. وتُخفى إذا اخترت كتابًا من الكتب التسعة.</li>
             <li>رقم الحديث: <code>البخاري 1524</code> أو <code>مسلم 15</code>.</li>
             <li>تصفية بالحكم: «الصحيح وما في حكمه» أحاديث الصحيحين، وما حكم عليه المحدثون المنقولة أحكامهم في صفحة كل حديث بالصحة أو الحسن (ومنه الصحيح والحسن لغيره، و«حديث صحيح وهذا إسناد ضعيف»، و«إسناده صحيح»). و«مختلف فيه» ما صحّحه بعضهم وضعّفه غيره، و«بلا حكم» أحاديث الموطأ وما لم يُنقل فيه حكم. التصنيف آلي مأخوذ من ألفاظ الأحكام، فالمرجع نص الحكم في صفحة الحديث.</li>
           </ul>
         </details>
         <div id="sOut"></div>
+        <div id="zOut"></div>
       </div>` : lookup.length ? "" : '<div class="panel muted">اكتب كلمة من متن الحديث أو اسم راوٍ.</div>'}`;
     // «أشعر بضيق» or «دعاء السفر» typed in the search: point to the hadiths for that feeling or situation
     Promise.all([lifeIndex("feel"), lifeIndex("ahwal"), lifeIndex("tazkiya")]).then(([feel, ahwal, tazkiya]) => {
@@ -2820,16 +2837,17 @@
     }).catch(() => {});
     if (!Q.req.length) return;
 
-    let shown = 30;
+    let shown = 30, zShown = 15;
     const optQS = () => {
       const p = new URLSearchParams(Object.entries(opt).filter(([k, v]) => v && !(k === "s" && v === "all") && !(k === "o" && v === "rel")));
       return p.toString() ? "?" + p : "";
     };
     const render = () => {
       history.replaceState(null, "", "#/search/" + encodeURIComponent(q) + optQS());
-      const scoped = hitsFor(opt.s);
-      const perGrade = { "": scoped.length, s: 0, w: 0, m: 0, n: 0 };
+      const scoped = hitsFor(opt.s), zScoped = zHitsFor(opt.s);
+      const perGrade = { "": scoped.length + zScoped.length, s: 0, w: 0, m: 0, n: 0 };
       for (const h of scoped) perGrade[gradeOf(h)]++;
+      for (const h of zScoped) perGrade[gradeOf(h)]++;
       $("#sGrade").innerHTML = GRADE_F.map(([v, l]) => `<button data-v="${v}" class="${opt.h === v ? "on" : ""}" ${perGrade[v] || opt.h === v ? "" : "disabled"}>${l} <small>${fmt(perGrade[v])}</small></button>`).join("");
       const all = opt.h ? scoped.filter((h) => gradeOf(h) === opt.h) : scoped;
       const per = Object.fromEntries(BOOKS.map((b) => [b, 0]));
@@ -2859,9 +2877,28 @@
           return `<li class="row-link"><div class="meta-line"><a class="s-ref" href="#/h/${k}">${hkey(k)}</a>${gradeTag(h.rec.r)}${bab}</div>
             <a class="snip s-snip row-main" href="#/h/${k}">${h.spans.length ? snippet(h) : markText(clip(h.rec.r[2], 260), [])}</a>
             ${more.length ? `<div class="s-more">وفي النتائج أيضًا: ${more.slice(0, 8).map((x) => `<a href="#/h/${x}">${hkey(x)}</a>`).join(" · ")}${more.length > 8 ? ` <span class="muted">و${fmt(more.length - 8)} غيرها</span>` : ""}</div>` : ""}</li>`;
-        }).join("") || `<li class="muted">لا نتائج.${scopeTip} جرّب كلمات أقل أو صيغة أخرى، أو <a href="https://dorar.net/hadith/search?q=${encodeURIComponent(q)}&st=w" target="_blank" rel="noopener">ابحث في الموسوعة الحديثية</a>.</li>`}</ul>
+        }).join("") || (zScoped.length && !opt.b ? `<li class="muted">لا نتائج في الكتب التسعة.${scopeTip}</li>` : "") || `<li class="muted">لا نتائج.${scopeTip} جرّب كلمات أقل أو صيغة أخرى، أو <a href="https://dorar.net/hadith/search?q=${encodeURIComponent(q)}&st=w" target="_blank" rel="noopener">ابحث في الموسوعة الحديثية</a>.</li>`}</ul>
         ${list.length > shown ? `<div class="pager"><button class="btn" id="sMore">عرض المزيد (${fmt(list.length - shown)} باقية)</button></div>` : ""}`;
       $("#sMore")?.addEventListener("click", () => { const y = scrollY; shown += 30; render(); scrollTo(0, y); });
+      // the zawa'id: a section of their own under the nine books, hidden when one of the nine is chosen
+      const zAll = opt.b ? [] : opt.h ? zScoped.filter((h) => gradeOf(h) === opt.h) : zScoped;
+      const zPer = {};
+      for (const h of zAll) zPer[h.rec.b] = (zPer[h.rec.b] || 0) + 1;
+      if (opt.z && !zPer[opt.z]) opt.z = "";
+      const zList = (opt.z ? zAll.filter((h) => h.rec.b === opt.z) : zAll.slice())
+        .sort(opt.o === "book" ? (x, y) => x.rec.i - y.rec.i : (x, y) => y.score - x.score || x.rec.i - y.rec.i);
+      $("#zOut").innerHTML = !zAll.length ? "" : `<div class="section-title z-search"><h2>من الزوائد على الكتب التسعة</h2><p>${fmt(zAll.length)} حديثًا</p></div>
+        <p class="muted small">أحاديث في كتب أخرى لم يذكر برنامج جامع خادم الحرمين الشريفين تخريجها في الكتب التسعة من حديث الصحابي نفسه.</p>
+        <div class="s-books" id="zBooks"><button data-v="" class="fchip ${opt.z ? "" : "on"}">كل الزوائد <b>${fmt(zAll.length)}</b></button>${Z_SEARCH.filter((b) => zPer[b]).map((b) => `<button data-v="${b}" class="fchip ${opt.z === b ? "on" : ""}">${ZBOOKS[b].author} <b>${fmt(zPer[b])}</b></button>`).join("")}</div>
+        <ul class="list s-list">${zList.slice(0, zShown).map((h) => {
+          const b = h.rec.b, Z = ZBOOKS[b], n = h.rec.r[0].split(":")[2], href = `#/z/${b}/${encodeURIComponent(n)}`;
+          const bab = h.rec.bab ? `<span class="s-bab">${markText(h.rec.bab, h.babSpans)}</span>` : "";
+          return `<li class="row-link"><div class="meta-line"><a class="s-ref" href="${href}">${esc(Z.author)} ${esc(h.rec.r[4])}</a>${h.rec.h ? zTag(h.rec.h, Z) : ""}${bab}</div>
+            <a class="snip s-snip row-main" href="${href}">${h.spans.length ? snippet(h) : markText(clip(h.rec.r[2], 260), [])}</a></li>`;
+        }).join("")}</ul>
+        ${zList.length > zShown ? `<div class="pager"><button class="btn" id="zMore">عرض المزيد من الزوائد (${fmt(zList.length - zShown)} باقية)</button></div>` : ""}`;
+      $("#zMore")?.addEventListener("click", () => { const y = scrollY; zShown += 30; render(); scrollTo(0, y); });
+      $("#zBooks")?.addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; opt.z = b.dataset.v; zShown = 15; render(); });
       $("#sOut [data-grade]")?.addEventListener("click", () => { opt.h = ""; shown = 30; render(); });
       $("#sOut [data-scope]")?.addEventListener("click", () => { opt.s = "all"; setSeg("#sScope", $('#sScope [data-v="all"]')); shown = 30; render(); });
     };
@@ -2870,7 +2907,7 @@
       if (!b || b.disabled) return;
       opt[key] = b.dataset.v;
       if (sel !== "#sBooks") setSeg(sel, b);
-      shown = 30;
+      shown = 30; zShown = 15;
       render();
     });
     bind("#sScope", "s"); bind("#sSort", "o"); bind("#sBooks", "b"); bind("#sGrade", "h");
