@@ -30,7 +30,7 @@ SYMS = {"ق": "متفق عليه", "خ": "البخاري", "م": "مسلم"}
 
 
 def num(s):
-    return int(s.translate(AR2EN))
+    return int(s.translate(AR2EN).rstrip("م"))
 
 
 def bare(s):
@@ -80,6 +80,17 @@ def _is_prophet(out):
 
 # ---------- قراءة الصفحات ----------
 def read_pages(vol):
+    """صفحات OCR، مع استبدال ما أعيدت قراءته بدقة أعلى في ocr_fix/v{vol}_p{page}.txt"""
+    pages = _read_pages(vol)
+    for p in pages:
+        f = RAW / "ocr_fix" / f"v{vol}_p{p['page']}.txt"
+        if f.exists():
+            p["lines"] = [l.strip() for l in f.read_text().splitlines()
+                          if l.strip() and not l.startswith("=== page")]
+    return pages
+
+
+def _read_pages(vol):
     pages, cur = [], None
     for line in (RAW / f"ocr_{vol}.txt").read_text().splitlines():
         m = re.match(r"=== page (\d+)", line)
@@ -147,8 +158,13 @@ def split_page(p, state):
     return body, foot
 
 
+MUALLAQ = re.compile(r"\[\s*خ\s*\.\s*([^\]\[]{2,40}?)،?\s*باب\s*([٠-٩]+)\s*\]")
+
+
 def parse_refs(s):
-    out = []
+    out = [{"book": "البخاري", "sym": "خ", "kitab": m.group(1).strip(" ،"), "bab": num(m.group(2))}
+           for m in MUALLAQ.finditer(s)]
+    s = MUALLAQ.sub("", s)
     # قوس الإحالة المقروء حرفًا: «لم ١١٢١»، «رك٨٥٩٨»، «إن ٣١٣٤»
     s = re.sub(r"(^|[\s\]\[/])[لرإا](?=(?:" + REFSYM + r")\s*\(?[٠-٩])", r"\1[", s)
     for m in re.finditer(r"(?<![ء-ي])(" + REFSYM + r")\s*\.?\s*:?\s*\(?([٠-٩0-9][٠-٩0-9 ()،,/]*)", s):
@@ -167,7 +183,7 @@ def is_grade(l):
         and "(" not in t[:3] and any(t.startswith(w) or w in t[:25] for w in GRADE_WORDS)
 
 
-HAD = re.compile(r"^(" + D + r"{1,4})" + DASH + r"(?:\((ق|خ|م)\)\s*)?(.*)$")
+HAD = re.compile(r"^(" + D + r"{1,4}م?)(?:" + DASH + r"|\s+(?=\((?:ق|خ|م)\)))(?:\((ق|خ|م)\)\s*)?(.*)$")
 BAB = re.compile(r"^(" + D + r"{1,3})" + DASH + r"باب\s*:?\s*(.*)$")
 UNNUM = re.compile(r"^((?:[•٠-٩]*\s*[-_]\s*)?)(?:\((ق|خ|م)\)\s*)?(?=عَ?نْ?\s|عن\s)")
 FASL = re.compile(r"^الفصل\s+(?:ال)?\S+\s*:?\s*(.*)$")
@@ -223,11 +239,15 @@ def main():
                     bab_cont = True
                     continue
                 h = HAD.match(l)
-                if h and state["bab"] and expected <= num(h.group(1)) <= expected + 3 and (
+                # رقم مطبوع مكررًا في الكتاب (١١٢٤ مرتين، ١٥٨١ مرتين، ١٥٨٢م): حديث مستقل بالرقم نفسه
+                dup = bool(h and state["bab"] and cur and (cur["refs_raw"] or "[" in cur["text"][-1])
+                           and num(h.group(1)) == expected - 1
+                           and (h.group(2) or bare(h.group(3)).startswith("عن")))
+                if dup or h and state["bab"] and expected <= num(h.group(1)) <= expected + 3 and (
                         h.group(2) or re.match(r"^(?:وَ?عَ?نْ?|عن|أَ?نَّ|قَالَ|كَانَ|\()", bare(h.group(3)) or h.group(3))
                         or num(h.group(1)) == expected):
                     n = num(h.group(1))
-                    cur = {"n": n, "vol": vol, "page": p["page"], "pages": [p["page"]],
+                    cur = {"n": n, "label": h.group(1).translate(AR2EN), "dup": dup, "vol": vol, "page": p["page"], "pages": [p["page"]],
                            "maqsad": state["maqsad"], "kitab": state["kitab"],
                            "fasl": state["fasl"], "bab": state["bab"], "sub": state["sub"],
                            "sym": h.group(2), "text": [h.group(3)], "refs_raw": [],
@@ -267,6 +287,10 @@ def main():
         for m in list(INLINE_REF.finditer(text)):
             h["refs_raw"].insert(0, m.group(0))
         text = INLINE_REF.sub("", text).strip()
+        # معلقات البخاري تُحال بالكتاب والباب: [خ. الصلاة، باب ٢٢]
+        for m in list(MUALLAQ.finditer(text)):
+            h["refs_raw"].insert(0, m.group(0))
+        text = MUALLAQ.sub("", text).strip()
         t = TAIL_REF.search(text)
         if t:
             h["refs_raw"].insert(0, t.group(1))
@@ -282,8 +306,10 @@ def main():
         refs = []
         for r in h["refs_raw"]:
             refs += parse_refs(r)
+        empty = "سقط هذا الرقم" in text
         out.append({
-            "n": h["n"], "vol": h["vol"], "page": h["page"], "pages": h["pages"],
+            "seq": len(out) + 1, "n": h["n"], "label": h.get("label", str(h["n"])),
+            "dup_number": h.get("dup", False), "empty": empty, "vol": h["vol"], "page": h["page"], "pages": h["pages"],
             "maqsad": h["maqsad"], "kitab": h["kitab"], "fasl": h["fasl"], "bab": h["bab"], "sub": h.get("sub"),
             "sym": h["sym"], "sym_name": SYMS.get(h["sym"]),
             "text": text, "extra": extra,
@@ -295,6 +321,7 @@ def main():
     (RAW / "maalim_pages.json").write_text(json.dumps(pages_out, ensure_ascii=False, indent=1))
     nums = {h["n"] for h in out}
     missing = [i for i in range(1, 3922) if i not in nums]
+    print(f"dup numbers: {[h['label'] for h in out if h['dup_number']]}  empty: {[h['n'] for h in out if h['empty']]}", file=sys.stderr)
     print(f"hadith: {len(out)}  missing: {len(missing)} {missing[:40]}", file=sys.stderr)
 
 
