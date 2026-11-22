@@ -11,3 +11,5 @@ python3 make_takhrij.py
 python3 make_life.py
 # zawa'id over the nine books: verdicts in pipeline/zawaid (make_zawaid.py --shamela reads them from the offline Shamela)
 python3 make_zawaid.py
+# «خارطة الحديث الصحيح» on the stats page: needs the zawa'id data above
+python3 make_sahih_map.py

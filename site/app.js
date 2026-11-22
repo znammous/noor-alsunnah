@@ -404,6 +404,67 @@
   }
   window.addEventListener("hashchange", route);
 
+  // ---------- «خارطة الحديث الصحيح»: what each book adds, without repeats, to the books before it (make_sahih_map.py) ----------
+  const SMAP_GROUPS = [
+    ["الصحيحان", "var(--c-thiqa)", ["bukhari", "muslim"]],
+    ["السنن الأربع", "var(--accent)", ["abudawud", "tirmidhi", "nasai", "ibnmajah"]],
+    ["بقية الكتب التسعة", "var(--c-imam)", ["ahmad", "muwatta", "darimi"]],
+    ["الزوائد على الكتب التسعة", "var(--gold)", ["ibnhibban", "ibnkhuzayma", "mustadrak", "abuyala", "bazzar", "kabir", "awsat", "saghir"]],
+  ];
+  const SMAP_BOOK = { ibnhibban: "صحيح ابن حبان", ibnkhuzayma: "صحيح ابن خزيمة", mustadrak: "المستدرك", abuyala: "مسند أبي يعلى",
+    bazzar: "مسند البزار", kabir: "المعجم الكبير", awsat: "المعجم الأوسط", saghir: "المعجم الصغير" };
+  const SMAP_BY = { bukhari: "كله صحيح", muslim: "كله صحيح", abudawud: "حكم الألباني", tirmidhi: "حكم الألباني", nasai: "الألباني ومحققو الرسالة",
+    ibnmajah: "حكم الألباني", ahmad: "الأرناؤوط ومحققو الرسالة", muwatta: "لا أحكام عليه في الموقع", darimi: "حسين سليم أسد",
+    ibnhibban: "شعيب الأرناؤوط", ibnkhuzayma: "الأعظمي والألباني", mustadrak: "محققو الرسالة ثم الذهبي ثم الحاكم",
+    abuyala: "حسين سليم أسد ثم الهيثمي", bazzar: "الهيثمي", kabir: "الهيثمي", awsat: "الهيثمي", saghir: "الهيثمي" };
+  async function renderSahihMap() {
+    const box = $("#smap");
+    let M;
+    try { M = await getJSON("data/sahihmap.json"); } catch (_) { box.remove(); return; }
+    let mode = "sahih";
+    const draw = () => {
+      if (!document.body.contains(box)) return;
+      const R = M[mode], groupOf = {}, color = {};
+      for (const [g, c, bs] of SMAP_GROUPS) for (const b of bs) { groupOf[b] = g; color[b] = c; }
+      let cum = 0;
+      const rows = M.order.map((b) => { const r = { b, all: R[b][0], add: R[b][1], before: cum }; cum += r.add; r.after = cum; return r; });
+      const total = cum, sum = (bs) => bs.reduce((s, b) => s + R[b][1], 0);
+      const pct = (v) => `${(100 * v) / total}%`;
+      const href = (b) => (BOOK[b] ? `#/book/${b}` : `#/z/${b}`);
+      const word = mode === "sahih" ? "صحيحًا" : "صحيحًا أو حسنًا";
+      box.innerHTML = `<h2>خارطة الحديث الصحيح</h2>
+        <p class="muted small">كم حديثًا مرفوعًا ${word} بدون المكرر في كتب الموقع، وماذا يزيد كل كتاب على ما قبله</p>
+        <div class="seg" id="smap-m"><button data-v="sahih" class="${mode === "sahih" ? "on" : ""}">الصحيح وحده</button><button data-v="maqbul" class="${mode === "maqbul" ? "on" : ""}">الصحيح والحسن</button></div>
+        <div class="smap-kpis">
+          <div><b>${fmt(total)}</b><span>حديثًا ${word} بدون المكرر</span></div>
+          <div><b>${fmt(sum(SMAP_GROUPS[0][2]))}</b><span>في الصحيحين</span></div>
+          <div><b>${fmt(sum(SMAP_GROUPS.slice(0, 3).flatMap((g) => g[2])))}</b><span>في الكتب التسعة</span></div>
+          <div><b>${fmt(sum(SMAP_GROUPS[3][2]))}</b><span>زيادة كتب الزوائد</span></div>
+        </div>
+        <div class="stack smap-stack">${SMAP_GROUPS.map(([g, c, bs]) => `<span style="width:${pct(sum(bs))};background:${c}" title="${g}: ${fmt(sum(bs))}"></span>`).join("")}</div>
+        <div class="legend">${SMAP_GROUPS.map(([g, c, bs]) => `<span><i style="background:${c}"></i>${g} ${fmt(sum(bs))} (${Math.round((100 * sum(bs)) / total)}%)</span>`).join("")}</div>
+        <h3 style="margin-top:18px">ما يزيده كل كتاب على ما قبله</h3>
+        <p class="muted small">الجزء الفاتح من الشريط ما جُمع قبل الكتاب، والملوّن ما زاده الكتاب نفسه. اضغط على الكتاب لفتحه</p>
+        ${rows.map((r, i) => `${!i || groupOf[r.b] !== groupOf[rows[i - 1].b] ? `<div class="smap-grp">${groupOf[r.b]}</div>` : ""}
+          <div class="smap-row${r.add ? "" : " zero"}" style="--c:${color[r.b]}" title="${fmt(r.all)} حديثًا ${word} مع المكرر من ${fmt(M.marfu[r.b])} حديثًا مرفوعًا">
+            <a class="name" href="${href(r.b)}">${BOOK[r.b] || SMAP_BOOK[r.b]}<small>${SMAP_BY[r.b]}</small></a>
+            <span class="bar"><i class="prev" style="width:${pct(r.before)}"></i><i style="inset-inline-start:${pct(r.before)};width:${pct(r.add)}"></i></span>
+            <span class="num"><b>${r.add ? "+" + fmt(r.add) : "—"}</b> <span class="muted">المجموع ${fmt(r.after)}</span></span>
+          </div>`).join("")}
+        <details class="smap-how"><summary>كيف حُسبت؟</summary>
+          <ul class="muted small">
+            <li>الترتيب: البخاري، ثم مسلم، ثم السنن الأربع، ثم أحمد والموطأ والدارمي، ثم الزوائد على الكتب التسعة. يُحسب الحديث للكتاب الأسبق، وما في الكتب التالية يُعدّ زيادة إن لم يوجد قبله.</li>
+            <li>الحكم في كل كتاب هو المعروض في الموقع منسوبًا إلى صاحبه (تحت اسم الكتاب). أحاديث الصحيحين كلها صحيحة. وما اختلف فيه المحققون أو لم يُصرَّح فيه بحكم لا يدخل في العدّ.</li>
+            <li>«صحيح لغيره» و«حديث صحيح وهذا إسناد ضعيف» تُعدّ صحيحًا، و«إسناده حسن» حسنًا.</li>
+            <li>المكرر في الكتب التسعة بالطريقة نفسها التي تعطي مرفوع صحيح البخاري ${fmt(M.sahih.bukhari[1])} حديثًا (وعدّه ابن حجر 2,602): حديث يربطه تخريج برنامج الجامع بحديث سابق ويشترك معه في جزء معتبر من ألفاظ المتن. والزوائد ليست في التسعة أصلًا بحسب التخريج، والمكرر بينها: الصحابي نفسه مع تقارب المتن.</li>
+            <li>لا يظهر صحيح في الموطأ لأنه بلا أحكام في الموقع، ولا في مسند البزار والمعجم الصغير لأن الهيثمي قلّما يصرّح فيهما بالصحة، وأكثر كلامه في الرجال.</li>
+            <li>العدّ آلي تقريبي في الاتجاهين: قد يُعدّ الحديث زيادةً لاختلاف لفظه عن نظيره، وقد يُدمج حديثان متقاربا اللفظ. وأهل الزوائد يعدّون المتن الواحد عن صحابي آخر حديثًا زائدًا، ولا يُفعل ذلك هنا، فأرقام الزوائد هنا أقل من أرقامهم.</li>
+          </ul></details>`;
+      $("#smap-m").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; mode = b.dataset.v; draw(); });
+    };
+    draw();
+  }
+
   // ---------- dashboard ----------
   async function viewHome() {
     const S = await stats();
@@ -441,6 +502,8 @@
       <div class="panel" style="margin-top:16px"><h2>الكتب التسعة</h2>
         <div class="table-wrap"><table class="books-table"><thead><tr><th>الكتاب</th><th>الأحاديث</th><th>الأسانيد</th><th>الرواة</th></tr></thead>
         <tbody>${BOOKS.map((b) => `<tr><td><a href="#/book/${b}">${BOOK[b]}</a></td><td>${fmt(T.books[b].hadith)}</td><td>${fmt(T.books[b].chains)}</td><td>${fmt(T.books[b].narrators)}</td></tr>`).join("")}</tbody></table></div></div>
+
+      <div class="panel smap" id="smap" style="margin-top:16px"></div>
 
       <div class="grid g2" style="margin-top:16px">
         <div class="panel"><h2>الأكثر رواية</h2><p class="muted small">عدد الأحاديث التي ورد الراوي في أسانيدها في الكتب التسعة</p>${bars(S.top_narrators.slice(0, 12))}${moreLink("#/explore?m=r")}</div>
@@ -491,6 +554,7 @@
           ${moreLink("#/awali", "الثلاثيات وعوالي الأسانيد")}</div>
       </div>`;
     renderPopular();
+    renderSahihMap();
     const showShaykhs = (b) => {
       $("#shf-note").textContent = `عدد الأسانيد التي حدّث بها ${AUTHOR[b]} عن كل شيخ`;
       $("#shf-bars").innerHTML = bars(S.top_shaykhs[b].slice(0, 10));
