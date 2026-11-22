@@ -629,3 +629,27 @@ p.more { margin: 12px 0 0; }
 .znote-help { margin: 12px 0; }
 .znote-help summary { cursor: pointer; font-weight: 600; }
 .znote-help p { margin: 10px 0 0; text-align: justify; }
+/* «خارطة الحديث الصحيح» on the stats page */
+.smap-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 12px 0 14px; }
+.smap-kpis div { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+.smap-kpis b { display: block; font-family: var(--font-title); font-size: 1.6rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.smap-kpis span { color: var(--muted); font-size: .85rem; }
+.smap-stack { height: 34px; }
+.smap-grp { font-family: var(--font-title); font-weight: 700; color: var(--muted); font-size: .9rem; margin: 14px 0 4px; }
+.smap-row { display: grid; grid-template-columns: 150px minmax(0, 1fr) 175px; gap: 10px; align-items: center; padding: 4px 0; }
+.smap-row .name { color: var(--ink); text-decoration: none; font-weight: 600; line-height: 1.3; }
+.smap-row .name:hover { text-decoration: underline; }
+.smap-row .name small { display: block; color: var(--muted); font-weight: 400; font-size: .75rem; }
+.smap-row .bar { position: relative; height: 20px; background: var(--line); border-radius: 5px; overflow: hidden; }
+.smap-row .bar i { position: absolute; top: 0; bottom: 0; background: var(--c); }
+.smap-row .bar i.prev { inset-inline-start: 0; opacity: .22; }
+.smap-row .num { font-variant-numeric: tabular-nums; font-size: .85rem; white-space: nowrap; }
+.smap-row .num b { font-size: 1rem; }
+.smap-row.zero { opacity: .55; }
+.smap-how { margin-top: 14px; }
+.smap-how summary { cursor: pointer; color: var(--accent); }
+.smap-how li { margin-bottom: 4px; }
+@media (max-width: 640px) {
+  .smap-row { grid-template-columns: 100px minmax(0, 1fr); }
+  .smap-row .num { grid-column: 1 / -1; margin-top: -2px; }
+}
