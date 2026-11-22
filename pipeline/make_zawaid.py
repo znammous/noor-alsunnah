@@ -763,3 +763,5 @@ if __name__ == "__main__":
         if "--shamela" in sys.argv:
             extract(b)
         build(b)
+        import make_zawaid_search
+        make_zawaid_search.build(b)   # its search index (site/data/search/z-<book>.json)
